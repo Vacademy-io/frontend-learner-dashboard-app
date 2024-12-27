@@ -15,125 +15,124 @@ import { Form, FormControl, FormField, FormItem } from "@/components/ui/form";
 
 type FormValues = z.infer<typeof forgotPasswordSchema>;
 
-export function ForgotPassword() {  
-    const form = useForm<FormValues>({
-        resolver: zodResolver(forgotPasswordSchema),
-        defaultValues: {
-            email: "",
-        },
-        mode: "onTouched",
-    });
+export function ForgotPassword() {
+  const form = useForm<FormValues>({
+    resolver: zodResolver(forgotPasswordSchema),
+    defaultValues: {
+      email: "",
+    },
+    mode: "onTouched",
+  });
 
-    const forgotPasswordMutation = useMutation({
-        mutationFn: (email: string) => forgotPassword(email),
-        onSuccess: async (response) => {
-            if (response.status === "success") {
-                toast.success("Password Sent Successfully", {
-                    className: "success-toast",
-                    duration: 2000,
-                });
+  const forgotPasswordMutation = useMutation({
+    mutationFn: (email: string) => forgotPassword(email),
+    onSuccess: async (response) => {
+      if (response.status === "success") {
+        toast.success("Password Sent Successfully", {
+          className: "success-toast",
+          duration: 2000,
+        });
 
-                sendResetLinkMutation.mutate();
-            } else {
-                toast.error("Login Error", {
-                    description: "This account doesn't exist",
-                    className: "error-toast",
-                    duration: 2000,
-                });
-                form.reset(); // Clear email field if request fails
-            }
-        },
-        onError: () => {
-            toast.error("Login Error", {
-                description: "This account doesn't exist",
-                className: "error-toast",
-                duration: 2000,
-            });
-        },
-    });
+        sendResetLinkMutation.mutate();
+      } else {
+        toast.error("Login Error", {
+          description: "This account doesn't exist",
+          className: "error-toast",
+          duration: 2000,
+        });
+        form.reset(); // Clear email field if request fails
+      }
+    },
+    onError: () => {
+      toast.error("Login Error", {
+        description: "This account doesn't exist",
+        className: "error-toast",
+        duration: 2000,
+      });
+    },
+  });
 
-    const sendResetLinkMutation = useMutation({
-        mutationFn: sendResetLink,
-        onSuccess: (response) => {
-            if (response.status != "success") {
-                toast.error("Failed to reset the password", {
-                    className: "error-toast",
-                    duration: 3000,
-                });
-            }
-        },
-        onError: () => {
-            toast.error("Failed to reset the password", {
-                className: "error-toast",
-                duration: 3000,
-            });
-        },
-    });
+  const sendResetLinkMutation = useMutation({
+    mutationFn: sendResetLink,
+    onSuccess: (response) => {
+      if (response.status != "success") {
+        toast.error("Failed to reset the password", {
+          className: "error-toast",
+          duration: 3000,
+        });
+      }
+    },
+    onError: () => {
+      toast.error("Failed to reset the password", {
+        className: "error-toast",
+        duration: 3000,
+      });
+    },
+  });
 
-    function onSubmit(values: FormValues) {
-        forgotPasswordMutation.mutate(values.email);
-    }
+  function onSubmit(values: FormValues) {
+    forgotPasswordMutation.mutate(values.email);
+  }
 
-    return (
-        <div>
-            <FormContainer>
-                {/* <div className="flex px-12 w-full flex-col items-center justify-center gap-20"> */}
-                <div className="flex px-4 sm:px-12 w-full max-w-[500px] flex-col items-center justify-center gap-10">
-                    <Heading
-                        heading="Forgot Account Credentials"
-                        subHeading="Enter your email, and we’ll send your credentials to your inbox."
-                    />
-                    <Form {...form}>
-                        <form onSubmit={form.handleSubmit(onSubmit)} className="w-full">
-                            <div className="flex w-full flex-col items-center justify-center gap-20">
-                                <FormField
-                                    control={form.control}
-                                    name="email"
-                                    render={({ field: { onChange, value, ...field } }) => (
-                                        <FormItem>
-                                            <FormControl>
-                                                <MyInput
-                                                    inputType="email"
-                                                    inputPlaceholder="you@email.com"
-                                                    input={value}
-                                                    onChangeFunction={onChange}
-                                                    error={form.formState.errors.email?.message}
-                                                    required={true}
-                                                    size="large"
-                                                    label="Email"
-                                                    {...field}
-                                                />
-                                            </FormControl>
-                                        </FormItem>
-                                    )}
-                                />
+  return (
+    <div>
+      <FormContainer>
+        <div className="flex w-full flex-col items-center justify-center gap-10 md:gap-8 lg:gap-6 px-4 md:px-8 lg:px-12">
+          <Heading
+            heading="Forgot Account Credentials"
+            subHeading="Enter your email, and we’ll send your credentials to your inbox."
+          />
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="w-full">
+              <div className="flex w-full flex-col items-center justify-center gap-14 md:gap-15 lg:gap-14">
+                <FormField
+                  control={form.control}
+                  name="email"
+                  render={({ field: { onChange, value, ...field } }) => (
+                    <FormItem>
+                      <FormControl>
+                        <MyInput
+                          inputType="email"
+                          inputPlaceholder="you@email.com"
+                          input={value}
+                          onChangeFunction={onChange}
+                          error={form.formState.errors.email?.message}
+                          required={true}
+                          size="large"
+                          label="Email"
+                          {...field}
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
 
-                                <div className="flex flex-col items-center gap-4">
-                                    <MyButton
-                                        type="submit"
-                                        scale="large"
-                                        buttonType="primary"
-                                        layoutVariant="default"
-                                    >
-                                        Get Credentials
-                                    </MyButton>
-                                    <div className="flex gap-1 text-body font-regular">
-                                        <div className="text-neutral-500">
-                                        Remembered your account details?
-                                        </div>
-                                        <Link
-                                            to="/login"
-                                            className="cursor-pointer text-primary-500"
-                                        >
-                                            Back to Login
-                                        </Link>
-                                    </div>
-                                </div>
-                            </div>
-                        </form>
-                    </Form>
+                <div className="flex flex-col items-center gap-4 md:gap-3 lg:gap-2">
+                  <MyButton
+                    type="submit"
+                    scale="large"
+                    buttonType="primary"
+                    layoutVariant="default"
+                  >
+                    Get Credentials
+                  </MyButton>
+                  <div className="flex gap-3 text-body font-regular text-[4vw] md:text-[2.5vw] lg:text-[1.5vw]">
+                    <div className="text-neutral-500">
+                      Remembered your account details?
+                    </div>
+                    <Link
+                      to="/login"
+                      className="cursor-pointer text-primary-500"
+                    >
+                      Back to Login
+                    </Link>
+                  </div>
                 </div>
-            </FormContainer>
+              </div>
+            </form>
+          </Form>
         </div>
-    );
+      </FormContainer>
+    </div>
+  );
 }

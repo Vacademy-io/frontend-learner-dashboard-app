@@ -1,11 +1,10 @@
-
 import { motion } from "framer-motion";
 import { SplashScreenProps } from "../../../../types/loginTypes";
 import { LoginImage } from "@/assets/svgs";
 
 export const SplashScreen = ({ children }: SplashScreenProps) => {
   return (
-    <div className="flex flex-col min-h-screen w-screen bg-white items-center justify-start">
+    <div className="flex flex-col  w-screen bg-white items-center justify-start">
       {/* Fading Background */}
       <motion.div
         initial={{ backgroundColor: "#FDEDD7" }} // Background is visible at the start
@@ -20,7 +19,11 @@ export const SplashScreen = ({ children }: SplashScreenProps) => {
 
       {/* Animated Logo */}
       <motion.div
-        className="relative p-8 pt-16 flex flex-col w-full items-center justify-center z-10"
+        className="relative flex flex-col w-full items-center justify-center z-10"
+        style={{
+          padding: "8% 0 16%",
+          gap: "2%",
+        }}
         initial={{ y: "50vh", scale: 3 }} // Logo starts from the center
         animate={{ y: 0, scale: 1 }} // Moves to the top and scales down
         transition={{
@@ -32,14 +35,14 @@ export const SplashScreen = ({ children }: SplashScreenProps) => {
         <motion.img
           src={LoginImage}
           alt="logo"
-          className="max-h-80 max-w-80 object-cover"
-          style={{ width: "80px", height: "80px" }}
+          className="object-cover"
+          style={{ width: "22%", height: "22%" }}
         />
       </motion.div>
 
       {/* Content Section (e.g., Login Form) */}
       <motion.div
-        className="relative pb-10 w-full flex flex-col items-center text-neutral-600"
+        className="relative  w-full flex flex-col items-center text-neutral-600"
         initial={{ opacity: 0 }} // Content is initially hidden
         animate={{ opacity: 1 }} // Content fades in
         transition={{

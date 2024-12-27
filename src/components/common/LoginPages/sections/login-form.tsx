@@ -17,8 +17,8 @@ import { loginUser } from "@/hooks/login/login-button";
 // import { setAuthorizationCookie } from "@/lib/auth/sessionUtility";
 // import { TokenKey } from "@/constants/auth/tokens";
 import { useNavigate } from "@tanstack/react-router";
+import HeaderLogo from "../ui/header_logo";
 
-import { LoginImage } from "@/assets/svgs"; // Add the logo here
 
 type FormValues = z.infer<typeof loginSchema>;
 
@@ -85,23 +85,21 @@ export function LoginForm() {
 
   // Login form content
   return (
-    <div className="w-screen bg-whit">
+    <div className="w-screen bg-white gap-4 md:gap-8 lg:gap-10">
       {/* Logo Section */}
-      <div className="relative p-16 flex flex-col w-full items-center justify-center">
-        <img src={LoginImage} alt="logo" width={80} height={80} />
-      </div>
+      <HeaderLogo />
 
       {/* Login Form Section */}
-      <div className="flex w-full flex-col items-center justify-center gap-20 px-8">
+      <div className="flex w-full flex-col items-center justify-center gap-4 md:gap-8 lg:gap-12 px-4 md:px-8 lg:px-12">
         <Heading
           heading="Hello, Student!"
           subHeading="Ready to learn something new? Log in and continue your academic adventure!"
         />
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="w-full">
-            <div className="flex w-full flex-col items-center justify-center gap-8 px-16">
-              <div className="flex flex-col gap-2">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="w-full ">
+            <div className="flex w-full flex-col items-center justify-center gap-4 md:gap-8 px-4 md:px-8 lg:px-12">
+              <div className="flex flex-col ">
                 <FormField
                   control={form.control}
                   name="username"
@@ -118,6 +116,7 @@ export function LoginForm() {
                           size="large"
                           label="Username"
                           {...field}
+                          className="md:w-[400px] lg:w-[600px]"
                         />
                       </FormControl>
                     </FormItem>
@@ -125,13 +124,13 @@ export function LoginForm() {
                 />
                 <span>
                   <Link to="/login/forgot-password">
-                    <div className="cursor-pointer text-caption font-regular text-primary-500 inline-block pl-1">
+                    <div className="cursor-pointer text-sm md:text-base font-regular text-primary-500 inline-block pl-1">
                       Forgot Username?
                     </div>
                   </Link>
                 </span>
               </div>
-              <div className="flex flex-col gap-2">
+              <div className="flex flex-col">
                 <FormField
                   control={form.control}
                   name="password"
@@ -148,6 +147,7 @@ export function LoginForm() {
                           size="large"
                           label="Password"
                           {...field}
+                          className="md:w-[400px] lg:w-[600px]"
                         />
                       </FormControl>
                     </FormItem>
@@ -155,14 +155,14 @@ export function LoginForm() {
                 />
                 <span>
                   <Link to="/login/forgot-password">
-                    <div className="cursor-pointer text-caption font-regular text-primary-500 inline-block pl-1">
+                    <div className="cursor-pointer text-sm md:text-base font-regular text-primary-500 inline-block pl-1">
                       Forgot Password?
                     </div>
                   </Link>
                 </span>
               </div>
             </div>
-            <div className="mt-20 flex flex-col items-center gap-1">
+            <div className="mt-4 md:mt-8 lg:mt-12 flex flex-col items-center gap-2 md:gap-3 lg:gap-4">
               <MyButton
                 type="submit"
                 scale="large"
@@ -171,9 +171,9 @@ export function LoginForm() {
               >
                 Login
               </MyButton>
-              <div className="flex gap-1 text-body font-regular">
+              <div className="flex gap-3 font-regular">
                 <div className="text-neutral-500">
-                Don’t have an account?
+                  Don’t have an account?
                 </div>
                 <Link to="/login" className="cursor-pointer text-primary-500">
                   Create Request
