@@ -8,47 +8,42 @@
 // You should NOT make any changes in this file as it will be overwritten.
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
-import { createFileRoute } from '@tanstack/react-router'
-
 // Import Routes
 
 import { Route as rootRoute } from './routes/__root'
-
-// Create Virtual Routes
-
-const AboutLazyImport = createFileRoute('/about')()
-const IndexLazyImport = createFileRoute('/')()
+import { Route as LoginIndexImport } from './routes/login/index'
+import { Route as LoginForgotPasswordIndexImport } from './routes/login/forgot-password/index'
 
 // Create/Update Routes
 
-const AboutLazyRoute = AboutLazyImport.update({
-  id: '/about',
-  path: '/about',
+const LoginIndexRoute = LoginIndexImport.update({
+  id: '/login/',
+  path: '/login/',
   getParentRoute: () => rootRoute,
-} as any).lazy(() => import('./routes/about.lazy').then((d) => d.Route))
+} as any)
 
-const IndexLazyRoute = IndexLazyImport.update({
-  id: '/',
-  path: '/',
+const LoginForgotPasswordIndexRoute = LoginForgotPasswordIndexImport.update({
+  id: '/login/forgot-password/',
+  path: '/login/forgot-password/',
   getParentRoute: () => rootRoute,
-} as any).lazy(() => import('./routes/index.lazy').then((d) => d.Route))
+} as any)
 
 // Populate the FileRoutesByPath interface
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexLazyImport
+    '/login/': {
+      id: '/login/'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginIndexImport
       parentRoute: typeof rootRoute
     }
-    '/about': {
-      id: '/about'
-      path: '/about'
-      fullPath: '/about'
-      preLoaderRoute: typeof AboutLazyImport
+    '/login/forgot-password/': {
+      id: '/login/forgot-password/'
+      path: '/login/forgot-password'
+      fullPath: '/login/forgot-password'
+      preLoaderRoute: typeof LoginForgotPasswordIndexImport
       parentRoute: typeof rootRoute
     }
   }
@@ -57,38 +52,38 @@ declare module '@tanstack/react-router' {
 // Create and export the route tree
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexLazyRoute
-  '/about': typeof AboutLazyRoute
+  '/login': typeof LoginIndexRoute
+  '/login/forgot-password': typeof LoginForgotPasswordIndexRoute
 }
 
 export interface FileRoutesByTo {
-  '/': typeof IndexLazyRoute
-  '/about': typeof AboutLazyRoute
+  '/login': typeof LoginIndexRoute
+  '/login/forgot-password': typeof LoginForgotPasswordIndexRoute
 }
 
 export interface FileRoutesById {
   __root__: typeof rootRoute
-  '/': typeof IndexLazyRoute
-  '/about': typeof AboutLazyRoute
+  '/login/': typeof LoginIndexRoute
+  '/login/forgot-password/': typeof LoginForgotPasswordIndexRoute
 }
 
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/about'
+  fullPaths: '/login' | '/login/forgot-password'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/about'
-  id: '__root__' | '/' | '/about'
+  to: '/login' | '/login/forgot-password'
+  id: '__root__' | '/login/' | '/login/forgot-password/'
   fileRoutesById: FileRoutesById
 }
 
 export interface RootRouteChildren {
-  IndexLazyRoute: typeof IndexLazyRoute
-  AboutLazyRoute: typeof AboutLazyRoute
+  LoginIndexRoute: typeof LoginIndexRoute
+  LoginForgotPasswordIndexRoute: typeof LoginForgotPasswordIndexRoute
 }
 
 const rootRouteChildren: RootRouteChildren = {
-  IndexLazyRoute: IndexLazyRoute,
-  AboutLazyRoute: AboutLazyRoute,
+  LoginIndexRoute: LoginIndexRoute,
+  LoginForgotPasswordIndexRoute: LoginForgotPasswordIndexRoute,
 }
 
 export const routeTree = rootRoute
@@ -101,15 +96,15 @@ export const routeTree = rootRoute
     "__root__": {
       "filePath": "__root.tsx",
       "children": [
-        "/",
-        "/about"
+        "/login/",
+        "/login/forgot-password/"
       ]
     },
-    "/": {
-      "filePath": "index.lazy.tsx"
+    "/login/": {
+      "filePath": "login/index.tsx"
     },
-    "/about": {
-      "filePath": "about.lazy.tsx"
+    "/login/forgot-password/": {
+      "filePath": "login/forgot-password/index.tsx"
     }
   }
 }
