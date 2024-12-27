@@ -20,7 +20,5 @@ export const Route = createFileRoute("/login/")({
 function RouteComponent() {
   return (
       <LoginForm />
-    // <SplashScreen isAnimationEnabled={true}>
-    // </SplashScreen>
   );
 }

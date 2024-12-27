@@ -77,7 +77,8 @@ export function ForgotPassword() {
     return (
         <div>
             <FormContainer>
-                <div className="flex px-12 w-full flex-col items-center justify-center gap-20">
+                {/* <div className="flex px-12 w-full flex-col items-center justify-center gap-20"> */}
+                <div className="flex px-4 sm:px-12 w-full max-w-[500px] flex-col items-center justify-center gap-10">
                     <Heading
                         heading="Forgot Account Credentials"
                         subHeading="Enter your email, and we’ll send your credentials to your inbox."
