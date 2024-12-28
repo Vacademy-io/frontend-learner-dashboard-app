@@ -14,8 +14,8 @@ import { Form, FormControl, FormField, FormItem } from "@/components/ui/form";
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { loginUser } from "@/hooks/login/login-button";
-// import { setAuthorizationCookie } from "@/lib/auth/sessionUtility";
-// import { TokenKey } from "@/constants/auth/tokens";
+import { setAuthorizationCookie } from "@/lib/auth/sessionUtility";
+import { TokenKey } from "@/constants/auth/tokens";
 import { useNavigate } from "@tanstack/react-router";
 import HeaderLogo from "../ui/header_logo";
 
@@ -52,8 +52,8 @@ export function LoginForm() {
       loginUser(values.username, values.password),
     onSuccess: (response) => {
       if (response) {
-        // setAuthorizationCookie(TokenKey.accessToken, response.accessToken);
-        // setAuthorizationCookie(TokenKey.refreshToken, response.refreshToken);
+        setAuthorizationCookie(TokenKey.accessToken, response.accessToken);
+        setAuthorizationCookie(TokenKey.refreshToken, response.refreshToken);
         navigate({ to: "/dashboard" });
       } else {
         toast.error("Login Error", {
@@ -162,7 +162,7 @@ export function LoginForm() {
                 </span>
               </div>
             </div>
-            <div className="mt-4 md:mt-8 lg:mt-12 flex flex-col items-center gap-2 md:gap-3 lg:gap-4">
+            <div className="mt-12 md:mt-8 lg:mt-12 flex flex-col items-center gap-2 md:gap-3 lg:gap-4">
               <MyButton
                 type="submit"
                 scale="large"

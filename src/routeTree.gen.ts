@@ -11,14 +11,35 @@
 // Import Routes
 
 import { Route as rootRoute } from './routes/__root'
+import { Route as StudentsIndexImport } from './routes/students/index'
 import { Route as LoginIndexImport } from './routes/login/index'
+import { Route as DashboardIndexImport } from './routes/dashboard/index'
+import { Route as StudentsStudentsListIndexImport } from './routes/students/students-list/index'
 import { Route as LoginForgotPasswordIndexImport } from './routes/login/forgot-password/index'
 
 // Create/Update Routes
 
+const StudentsIndexRoute = StudentsIndexImport.update({
+  id: '/students/',
+  path: '/students/',
+  getParentRoute: () => rootRoute,
+} as any)
+
 const LoginIndexRoute = LoginIndexImport.update({
   id: '/login/',
   path: '/login/',
+  getParentRoute: () => rootRoute,
+} as any)
+
+const DashboardIndexRoute = DashboardIndexImport.update({
+  id: '/dashboard/',
+  path: '/dashboard/',
+  getParentRoute: () => rootRoute,
+} as any)
+
+const StudentsStudentsListIndexRoute = StudentsStudentsListIndexImport.update({
+  id: '/students/students-list/',
+  path: '/students/students-list/',
   getParentRoute: () => rootRoute,
 } as any)
 
@@ -32,11 +53,25 @@ const LoginForgotPasswordIndexRoute = LoginForgotPasswordIndexImport.update({
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/dashboard/': {
+      id: '/dashboard/'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof DashboardIndexImport
+      parentRoute: typeof rootRoute
+    }
     '/login/': {
       id: '/login/'
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginIndexImport
+      parentRoute: typeof rootRoute
+    }
+    '/students/': {
+      id: '/students/'
+      path: '/students'
+      fullPath: '/students'
+      preLoaderRoute: typeof StudentsIndexImport
       parentRoute: typeof rootRoute
     }
     '/login/forgot-password/': {
@@ -46,44 +81,82 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginForgotPasswordIndexImport
       parentRoute: typeof rootRoute
     }
+    '/students/students-list/': {
+      id: '/students/students-list/'
+      path: '/students/students-list'
+      fullPath: '/students/students-list'
+      preLoaderRoute: typeof StudentsStudentsListIndexImport
+      parentRoute: typeof rootRoute
+    }
   }
 }
 
 // Create and export the route tree
 
 export interface FileRoutesByFullPath {
+  '/dashboard': typeof DashboardIndexRoute
   '/login': typeof LoginIndexRoute
+  '/students': typeof StudentsIndexRoute
   '/login/forgot-password': typeof LoginForgotPasswordIndexRoute
+  '/students/students-list': typeof StudentsStudentsListIndexRoute
 }
 
 export interface FileRoutesByTo {
+  '/dashboard': typeof DashboardIndexRoute
   '/login': typeof LoginIndexRoute
+  '/students': typeof StudentsIndexRoute
   '/login/forgot-password': typeof LoginForgotPasswordIndexRoute
+  '/students/students-list': typeof StudentsStudentsListIndexRoute
 }
 
 export interface FileRoutesById {
   __root__: typeof rootRoute
+  '/dashboard/': typeof DashboardIndexRoute
   '/login/': typeof LoginIndexRoute
+  '/students/': typeof StudentsIndexRoute
   '/login/forgot-password/': typeof LoginForgotPasswordIndexRoute
+  '/students/students-list/': typeof StudentsStudentsListIndexRoute
 }
 
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/login' | '/login/forgot-password'
+  fullPaths:
+    | '/dashboard'
+    | '/login'
+    | '/students'
+    | '/login/forgot-password'
+    | '/students/students-list'
   fileRoutesByTo: FileRoutesByTo
-  to: '/login' | '/login/forgot-password'
-  id: '__root__' | '/login/' | '/login/forgot-password/'
+  to:
+    | '/dashboard'
+    | '/login'
+    | '/students'
+    | '/login/forgot-password'
+    | '/students/students-list'
+  id:
+    | '__root__'
+    | '/dashboard/'
+    | '/login/'
+    | '/students/'
+    | '/login/forgot-password/'
+    | '/students/students-list/'
   fileRoutesById: FileRoutesById
 }
 
 export interface RootRouteChildren {
+  DashboardIndexRoute: typeof DashboardIndexRoute
   LoginIndexRoute: typeof LoginIndexRoute
+  StudentsIndexRoute: typeof StudentsIndexRoute
   LoginForgotPasswordIndexRoute: typeof LoginForgotPasswordIndexRoute
+  StudentsStudentsListIndexRoute: typeof StudentsStudentsListIndexRoute
 }
 
 const rootRouteChildren: RootRouteChildren = {
+  DashboardIndexRoute: DashboardIndexRoute,
   LoginIndexRoute: LoginIndexRoute,
+  StudentsIndexRoute: StudentsIndexRoute,
   LoginForgotPasswordIndexRoute: LoginForgotPasswordIndexRoute,
+  StudentsStudentsListIndexRoute: StudentsStudentsListIndexRoute,
 }
 
 export const routeTree = rootRoute
@@ -96,15 +169,27 @@ export const routeTree = rootRoute
     "__root__": {
       "filePath": "__root.tsx",
       "children": [
+        "/dashboard/",
         "/login/",
-        "/login/forgot-password/"
+        "/students/",
+        "/login/forgot-password/",
+        "/students/students-list/"
       ]
+    },
+    "/dashboard/": {
+      "filePath": "dashboard/index.tsx"
     },
     "/login/": {
       "filePath": "login/index.tsx"
     },
+    "/students/": {
+      "filePath": "students/index.tsx"
+    },
     "/login/forgot-password/": {
       "filePath": "login/forgot-password/index.tsx"
+    },
+    "/students/students-list/": {
+      "filePath": "students/students-list/index.tsx"
     }
   }
 }
