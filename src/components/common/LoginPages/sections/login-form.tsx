@@ -80,7 +80,7 @@ export function LoginForm() {
 
   // Conditionally render the splash screen
   if (showSplash) {
-    return <SplashScreen isAnimationEnabled children={undefined} />;
+    return <SplashScreen isAnimationEnabled children={undefined}  />;
   }
 
   // Login form content
