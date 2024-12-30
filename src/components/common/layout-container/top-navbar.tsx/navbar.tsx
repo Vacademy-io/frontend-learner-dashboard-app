@@ -2,7 +2,7 @@ import { SidebarTrigger } from "@/components/ui/sidebar";
 import { useState } from "react";
 import { MagnifyingGlass, Bell, Sliders, CaretDown, CaretUp } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
-import { DummyProfile } from "@/assets/svgs";
+// import { DummyProfile } from "@/assets/svgs";
 import { useNavHeadingStore } from "@/stores/layout-container/useNavHeadingStore";
 import { FiSidebar } from "react-icons/fi";
 
@@ -56,7 +56,7 @@ export function Navbar() {
                 <div className="flex items-center gap-1">
                     <IconContainer className="size-10 cursor-auto border-none p-0">
                         <div className="rounded-full object-cover">
-                            <DummyProfile />
+                            {/* <DummyProfile /> */}
                         </div>
                     </IconContainer>
                     <div className="cursor-pointer">
