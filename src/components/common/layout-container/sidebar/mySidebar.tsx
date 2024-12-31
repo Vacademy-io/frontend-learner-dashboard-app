@@ -11,7 +11,7 @@ import { SidebarStateType } from "../../../../types/layout-container-types";
 import { SidebarItem } from "./sidebar-item";
 import { SidebarItemsData } from "./utils";
 import "./scrollbarStyle.css";
-// import { SSDC_Logo } from "@/assets/svgs";
+import { LoginImage,SsdcLogo_Login } from "@/assets/svgs"; 
 
 export const MySidebar = ({
   sidebarComponent,
@@ -34,6 +34,8 @@ export const MySidebar = ({
             }`}
           >
             {/* <SSDC_Logo /> */}
+            <img src={SsdcLogo_Login} alt="logo" />
+
             <SidebarGroup
               className={`text-[18px] font-semibold text-primary-500 group-data-[collapsible=icon]:hidden`}
             >
