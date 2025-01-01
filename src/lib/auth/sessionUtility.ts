@@ -1,20 +1,29 @@
 import axios, { type AxiosResponse } from "axios";
-import Cookies from "js-cookie";
+import { Storage } from "@capacitor/storage";
 import { jwtDecode } from "jwt-decode";
 import { REFRESH_TOKEN_URL } from "@/constants/urls";
 import { UnauthorizedResponse } from "@/constants/auth/unauthorizeresponse";
 import { IAccessToken, TokenKey, Tokens } from "@/constants/auth/tokens";
 import { isNullOrEmptyOrUndefined } from "../utils";
 
-const getTokenFromCookie = (tokenKey: string) => {
-    return Cookies.get(tokenKey) ?? null;
+// Helper function to get a token from Capacitor Storage
+const getTokenFromStorage = async (tokenKey: string): Promise<string | null> => {
+    const { value } = await Storage.get({ key: tokenKey });
+    return value;
 };
 
-const setAuthorizationCookie = (key: string, token: string) => {
-    Cookies.set(key, token);
+// Helper function to set a token in Capacitor Storage
+const setTokenInStorage = async (key: string, token: string): Promise<void> => {
+    await Storage.set({ key, value: token });
 };
 
-const isTokenExpired = (token: string | null) => {
+// Helper function to remove a token from Capacitor Storage
+const removeTokenFromStorage = async (key: string): Promise<void> => {
+    await Storage.remove({ key });
+};
+
+// Check if a token is expired
+const isTokenExpired = (token: string | null): boolean => {
     if (isNullOrEmptyOrUndefined(token)) {
         return true;
     }
@@ -30,7 +39,8 @@ const isTokenExpired = (token: string | null) => {
     }
 };
 
-const getTokenDecodedData = (token: string | null) => {
+// Decode token data
+const getTokenDecodedData = (token: string | null): IAccessToken | undefined => {
     if (isNullOrEmptyOrUndefined(token)) {
         return;
     }
@@ -38,27 +48,48 @@ const getTokenDecodedData = (token: string | null) => {
     return tokenData;
 };
 
+// Refresh tokens
 async function refreshTokens(refreshToken: string): Promise<UnauthorizedResponse | Tokens> {
     const response: AxiosResponse<Tokens> = await axios({
         method: "GET",
         url: REFRESH_TOKEN_URL,
         params: { token: refreshToken },
     });
-    setAuthorizationCookie(TokenKey.accessToken, response.data?.accessToken);
+
+    // Store the new tokens in Capacitor Storage
+    await setTokenInStorage(TokenKey.accessToken, response.data?.accessToken);
+    await setTokenInStorage(TokenKey.refreshToken, response.data?.refreshToken);
+
     return response.data;
 }
 
-const removeCookiesAndLogout = () => {
+// Remove tokens from storage and log out
+const removeTokensAndLogout = async (): Promise<void> => {
     // Remove tokens
-    Cookies.remove(TokenKey.accessToken);
-    Cookies.remove(TokenKey.refreshToken);
+    await removeTokenFromStorage(TokenKey.accessToken);
+    await removeTokenFromStorage(TokenKey.refreshToken);
+
+    // Redirect to login or handle logout logic
+    console.log("User logged out.");
+};
+
+// Get access token from storage
+export const getAccessToken = async () => {
+    const { value } = await Storage.get({ key: 'accessToken' });
+    return value;
+};
+
+// Get refresh token from storage
+export const getRefreshToken = async () => {
+    const { value } = await Storage.get({ key: 'refreshToken' });
+    return value;
 };
 
 export {
     refreshTokens,
-    removeCookiesAndLogout,
-    setAuthorizationCookie,
-    getTokenFromCookie,
+    removeTokensAndLogout,
+    setTokenInStorage,
+    getTokenFromStorage,
     isTokenExpired,
     getTokenDecodedData,
 };

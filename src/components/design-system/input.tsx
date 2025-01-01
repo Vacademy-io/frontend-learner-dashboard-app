@@ -45,11 +45,11 @@ export const MyInput = ({
 
     return (
         <div className="flex flex-col gap-2 md:gap-3 lg:gap-4">
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-1 md:gap-[2vh] lg:gap-[1.5vh]">
                 {label && (
-                    <Label className="text-subtitle font-regular md:text-title">
+                    <Label className="text-subtitle md:text-body lg:text-small font-regular md:text-[1.8vh] lg:text-[2vh]">
                         {label}
-                        {required && <span className="text-subtitle text-danger-600">*</span>}
+                        {required && <span className="text-subtitle text-danger-600 md:text-[2vh] lg:text-[2vh]">*</span>}
                     </Label>
                 )}
                 <div className="relative">
