@@ -1,4 +1,3 @@
-
 // import { useEffect, useState } from "react";
 // import { SplashScreen } from "@/components/common/LoginPages/layout/splash-container";
 // import { useAnimationStore } from "@/stores/login/animationStore";
@@ -18,7 +17,6 @@
 // import { TokenKey } from "@/constants/auth/tokens";
 // import { useNavigate } from "@tanstack/react-router";
 // import HeaderLogo from "../ui/header_logo";
-
 
 // type FormValues = z.infer<typeof loginSchema>;
 
@@ -187,8 +185,6 @@
 //   );
 // }
 
-
-
 import { useEffect, useState } from "react";
 import { SplashScreen } from "@/components/common/LoginPages/layout/splash-container";
 import { useAnimationStore } from "@/stores/login/animationStore";
@@ -209,6 +205,11 @@ import { TokenKey } from "@/constants/auth/tokens";
 import { useNavigate } from "@tanstack/react-router";
 import HeaderLogo from "../ui/header_logo";
 
+import { isNullOrEmptyOrUndefined } from "@/lib/utils";
+import {
+  getTokenFromStorage,
+  setTokenInStorage,
+} from "@/lib/auth/sessionUtility";
 type FormValues = z.infer<typeof loginSchema>;
 
 export function LoginForm() {
@@ -224,7 +225,15 @@ export function LoginForm() {
     },
     mode: "onTouched",
   });
-
+  useEffect(() => {
+    const redirect = async () => {
+      const token = await getTokenFromStorage(TokenKey.accessToken);
+      if (!isNullOrEmptyOrUndefined(token)) {
+        navigate({ to: "/dashboard" });
+      }
+    };
+    redirect();
+  }, []);
   // Handle splash screen timing
   useEffect(() => {
     if (!hasSeenAnimation) {
@@ -240,10 +249,12 @@ export function LoginForm() {
     mutationFn: (values: FormValues) =>
       loginUser(values.username, values.password),
     onSuccess: async (response) => {
+      console.log("hi");
       if (response) {
         // Store tokens in Capacitor Storage
-        await Storage.set({ key: TokenKey.accessToken, value: response.accessToken });
-        await Storage.set({ key: TokenKey.refreshToken, value: response.refreshToken });
+        console.log(response);
+        await setTokenInStorage(TokenKey.accessToken, response.accessToken);
+        await setTokenInStorage(TokenKey.refreshToken, response.refreshToken);
         navigate({ to: "/dashboard" });
       } else {
         toast.error("Login Error", {
@@ -254,7 +265,8 @@ export function LoginForm() {
         form.reset();
       }
     },
-    onError: () => {
+    onError: (err) => {
+      console.log("err: ",err);
       toast.error("Login Error", {
         description: "Invalid username or password",
         className: "error-toast",

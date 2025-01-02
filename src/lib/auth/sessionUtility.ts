@@ -8,13 +8,16 @@ import { isNullOrEmptyOrUndefined } from "../utils";
 
 // Helper function to get a token from Capacitor Storage
 const getTokenFromStorage = async (tokenKey: string): Promise<string | null> => {
-    const { value } = await Storage.get({ key: tokenKey });
-    return value;
+    const { value } = await Storage.get({ key:tokenKey });
+    return value ? JSON.parse(value) : null;
 };
 
 // Helper function to set a token in Capacitor Storage
 const setTokenInStorage = async (key: string, token: string): Promise<void> => {
-    await Storage.set({ key, value: token });
+    await Storage.set({
+        key,
+        value: JSON.stringify(token),
+    });
 };
 
 // Helper function to remove a token from Capacitor Storage
