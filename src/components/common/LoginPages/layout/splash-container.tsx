@@ -62,7 +62,7 @@
 
 import { motion } from "framer-motion";
 import { SplashScreenProps } from "../../../../types/loginTypes";
-import { LoginImage } from "@/assets/svgs";
+import { SsdcLogo_Login } from "@/assets/svgs";
 import { useEffect } from "react";
 
 export const SplashScreen = ({ children }: SplashScreenProps) => {
@@ -104,7 +104,7 @@ export const SplashScreen = ({ children }: SplashScreenProps) => {
         }}
       >
         <motion.img
-          src={LoginImage}
+          src={SsdcLogo_Login}
           alt="logo"
           style={{ width: "22vw", height: "22vh" }} // Matches HeaderLogo size
           className="object-contain"
