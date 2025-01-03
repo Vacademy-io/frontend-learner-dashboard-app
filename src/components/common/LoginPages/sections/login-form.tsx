@@ -62,10 +62,8 @@ export function LoginForm() {
     mutationFn: (values: FormValues) =>
       loginUser(values.username, values.password),
     onSuccess: async (response) => {
-      console.log("hi");
       if (response) {
         // Store tokens in Capacitor Storage
-        console.log(response);
         await setTokenInStorage(TokenKey.accessToken, response.accessToken);
         await setTokenInStorage(TokenKey.refreshToken, response.refreshToken);
         navigate({ to: "/dashboard" });
@@ -78,8 +76,7 @@ export function LoginForm() {
         form.reset();
       }
     },
-    onError: (err) => {
-      console.log("err: ",err);
+    onError: () => {
       toast.error("Login Error", {
         description: "Invalid username or password",
         className: "error-toast",
@@ -131,7 +128,7 @@ export function LoginForm() {
                           size="large"
                           label="Username"
                           {...field}
-                          className="md:w-[400px] lg:w-[600px] md:text-[4vh] lg:text-[5vh]"
+                          className="md:w-[400px] lg:w-[600px] "
                         />
                       </FormControl>
                     </FormItem>

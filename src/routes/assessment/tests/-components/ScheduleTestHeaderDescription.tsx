@@ -19,19 +19,19 @@ export const ScheduleTestHeaderDescription = () => {
     return (
         <div
             className={`mb-8 flex items-center justify-between ${
-                isMobile ? "flex-wrap gap-4" : "gap-10"
+            isMobile ? "flex-wrap gap-4" : "gap-10"
             }`}
         >
             <div className="flex flex-col">
-                <h1 className="text-[1.25rem] font-semibold text-neutral-600">
-                    Comprehensive Test Management
-                </h1>
-                <p className="text-neutral-600">
-                    Effortlessly monitor and manage all assessments with a comprehensive view of
-                    ongoing, upcoming, and past exams. Gain easy access to each test&rsquo;s
-                    details, schedule, and status, ensuring organized oversight of the entire
-                    testing process from start to finish.
-                </p>
+            <h1 className="text-[1.25rem] font-semibold text-neutral-600 md:text-[1.5rem] lg:text-[2rem]">
+                Comprehensive Test Management
+            </h1>
+            <p className="text-neutral-600 text-sm md:text-base lg:text-lg">
+                Effortlessly monitor and manage all assessments with a comprehensive view of
+                ongoing, upcoming, and past exams. Gain easy access to each test&rsquo;s
+                details, schedule, and status, ensuring organized oversight of the entire
+                testing process from start to finish.
+            </p>
             </div>
             <AlertDialog>
                 <AlertDialogTrigger>

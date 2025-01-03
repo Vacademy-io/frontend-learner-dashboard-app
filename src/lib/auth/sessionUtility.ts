@@ -1,4 +1,3 @@
-
 import axios, { type AxiosResponse } from "axios";
 import { Storage } from "@capacitor/storage";
 import { jwtDecode } from "jwt-decode";
@@ -9,15 +8,15 @@ import { isNullOrEmptyOrUndefined } from "../utils";
 
 // Helper function to get a token from Capacitor Storage
 const getTokenFromStorage = async (tokenKey: string): Promise<string | null> => {
-    const { value } = await Storage.get({ key:tokenKey });
-    return value ? JSON.parse(value) : null;
+    const { value } = await Storage.get({ key: tokenKey });
+    return value; // Directly return the value without JSON parsing
 };
 
 // Helper function to set a token in Capacitor Storage
 const setTokenInStorage = async (key: string, token: string): Promise<void> => {
     await Storage.set({
         key,
-        value: JSON.stringify(token),
+        value: token, // Directly store the token without stringifying
     });
 };
 
@@ -80,13 +79,13 @@ const removeTokensAndLogout = async (): Promise<void> => {
 // Get access token from storage
 export const getAccessToken = async () => {
     const { value } = await Storage.get({ key: 'accessToken' });
-    return value;
+    return value; // Directly return the token without stringifying
 };
 
 // Get refresh token from storage
 export const getRefreshToken = async () => {
     const { value } = await Storage.get({ key: 'refreshToken' });
-    return value;
+    return value; // Directly return the token without stringifying
 };
 
 export {

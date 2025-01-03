@@ -39,7 +39,7 @@ export const StepOneForm = () => {
                             name="profilePicture"
                             className="flex items-center justify-between"
                         >
-                            <EnrollFormUploadImage />
+                            <img src={EnrollFormUploadImage} alt="logo" />
                         </FormItemWrapper>
                     </div>
                 </Form>

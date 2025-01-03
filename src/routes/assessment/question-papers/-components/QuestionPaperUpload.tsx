@@ -341,7 +341,7 @@ export const QuestionPaperUpload = ({ isManualCreated }: QuestionPaperUploadProp
                                     className="flex w-full cursor-pointer items-center justify-center rounded-lg border-2 border-dotted border-primary-500 p-4"
                                     onClick={handleFileSelect}
                                 >
-                                    <UploadFileBg className="mb-3" />
+                                    <img src={UploadFileBg} alt="logo" />
                                     <FileUploadComponent
                                         fileInputRef={fileInputRef}
                                         onFileSubmit={handleFileSubmit}

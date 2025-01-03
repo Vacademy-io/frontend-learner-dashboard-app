@@ -4,7 +4,7 @@ import { TabListComponent } from "./TabListComponent";
 import { QuestionPapersFilter } from "./QuestionPapersFilter";
 import { QuestionPapersSearchComponent } from "./QuestionPapersSearchComponent";
 import { QuestionPapersDateRangeComponent } from "./QuestionPapersDateRangeComponent";
-import { EmptyQuestionPapers } from "@/svgs";
+import { EmptyQuestionPapers,SSDCLogo } from "@/svgs";
 import { QuestionPapersList } from "./QuestionPapersList";
 import { useMutation, useSuspenseQuery } from "@tanstack/react-query";
 import { useInstituteQuery } from "@/services/student-list-section/getInstituteDetails";
@@ -313,7 +313,7 @@ export const QuestionPapersTabs = () => {
                     />
                 ) : (
                     <div className="flex h-screen flex-col items-center justify-center">
-                        <EmptyQuestionPapers />
+                        <img src={SSDCLogo} alt="logo" />
                         <span className="text-neutral-600">No question papers available</span>
                     </div>
                 )}
@@ -328,7 +328,7 @@ export const QuestionPapersTabs = () => {
                     />
                 ) : (
                     <div className="flex h-screen flex-col items-center justify-center">
-                        <EmptyQuestionPapers />
+                        <img src={EmptyQuestionPapers} alt="logo" />
                         <span className="text-neutral-600">
                             No question paper has been marked as favourites yet
                         </span>

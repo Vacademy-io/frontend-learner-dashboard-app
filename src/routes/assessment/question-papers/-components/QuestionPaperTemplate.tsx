@@ -281,7 +281,7 @@ export function QuestionPaperTemplate({
                     <div>
                         <div className="flex items-center justify-between bg-primary-100 p-2">
                             <div className="flex items-start gap-2">
-                                <SSDCLogo />
+                                <img src={SSDCLogo} alt="logo" />
                                 <FormField
                                     control={control}
                                     name="title"

@@ -8,7 +8,7 @@ export const EmptyDashboard = () => {
             className={`flex w-full flex-col items-center justify-center gap-4 rounded-md bg-neutral-50 py-10`}
             style={{ height: `calc(100vh - 160px)` }}
         >
-            <EmptyDashboardImage />
+            <img src={EmptyDashboardImage} alt="logo" />
             <div className="text-title font-regular text-neutral-600">
                 No student data available
             </div>

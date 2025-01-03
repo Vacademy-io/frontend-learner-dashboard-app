@@ -1,7 +1,7 @@
 // lib/api/bulkUploadAxios.ts
 import axios from "axios";
 import { TokenKey } from "@/constants/auth/tokens";
-import { getTokenFromCookie } from "@/lib/auth/sessionUtility";
+import { getTokenFromStorage } from "@/lib/auth/sessionUtility";
 
 const bulkUploadAxiosInstance = axios.create({
     headers: {
@@ -11,7 +11,7 @@ const bulkUploadAxiosInstance = axios.create({
 
 bulkUploadAxiosInstance.interceptors.request.use(
     async (request) => {
-        const accessToken = getTokenFromCookie(TokenKey.accessToken);
+        const accessToken = getTokenFromStorage(TokenKey.accessToken);
         if (accessToken) {
             request.headers.Authorization = `Bearer ${accessToken}`;
         }

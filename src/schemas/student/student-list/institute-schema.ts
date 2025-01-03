@@ -41,7 +41,7 @@ const SubjectSchema = z.object({
     updated_at: z.string(),
 });
 
-const InstituteSchema = z.object({
+export const InstituteSchema = z.object({
     institute_name: z.string(),
     id: z.string(),
     country: z.string(),

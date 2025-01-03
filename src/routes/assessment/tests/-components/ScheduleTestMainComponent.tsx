@@ -113,7 +113,7 @@ export const ScheduleTestMainComponent = () => {
                             className="my-4 rounded-xl bg-neutral-50"
                         >
                             <div className="flex h-screen flex-col items-center justify-center">
-                                <EmptyScheduleTest />
+                                <img src={EmptyScheduleTest} alt="logo" />
                                 <span className="text-neutral-600">{tab.message}</span>
                             </div>
                         </TabsContent>
