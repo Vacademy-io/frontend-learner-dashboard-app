@@ -8,24 +8,6 @@ export const SidebarItemsData: SidebarItemsType[] = [
         to: "/dashboard",
     },
     {
-        icon: Users,
-        title: "Students",
-        subItems: [
-            {
-                subItem: "Students list",
-                subItemLink: "/students/students-list",
-            },
-            {
-                subItem: "Manage Batches and Sessions",
-                subItemLink: "/students/manage-batches",
-            },
-            {
-                subItem: "Enroll Requests",
-                subItemLink: "/students/enroll-requests",
-            },
-        ],
-    },
-    {
         icon: BookOpen,
         title: "Study Library",
         to: "/study-library",
@@ -35,13 +17,26 @@ export const SidebarItemsData: SidebarItemsType[] = [
         title: "Assessment Centre",
         subItems: [
             {
-                subItem: "Tests",
-                subItemLink: "/assessment/tests",
+                subItem: "Examination",
+                subItemLink: "/assessment/examination",
             },
             {
-                subItem: "Question Papers",
-                subItemLink: "/assessment/question-papers",
+                subItem: "Mock Test",
+                subItemLink: "/assessment/mock-test",
             },
+            {
+                subItem: "practice Test",
+                subItemLink: "/assessment/practice-test",
+            },
+            {
+                subItem: "Survey",
+                subItemLink: "/assessment/survey",
+            },
+            {
+                subItem: "Reports",
+                subItemLink: "/assessment/reports",
+            },
+            
         ],
     },
 ];

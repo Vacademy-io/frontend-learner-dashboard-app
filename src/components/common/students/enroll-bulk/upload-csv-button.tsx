@@ -311,7 +311,7 @@ export const UploadCSVButton = ({ disable }: UploadCSVButtonProps) => {
                                     >
                                         <input {...getInputProps()} />
                                         <div className="flex flex-col items-center justify-center gap-4">
-                                        <img src={ImportFileImage} alt="logo" />
+                                            <ImportFileImage />
                                             {!fileState.file && (
                                                 <p className="text-center text-neutral-600">
                                                     Drag and drop a CSV file here, or click to

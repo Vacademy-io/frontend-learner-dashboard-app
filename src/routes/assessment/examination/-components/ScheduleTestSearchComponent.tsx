@@ -21,21 +21,21 @@ export const ScheduleTestSearchComponent = ({
     };
 
     return (
-        <div className="relative">
+        <div className="relative w-full">
             <MagnifyingGlass className="absolute left-2 top-1/2 -translate-y-1/2 transform cursor-pointer text-neutral-600" />
             <Input
-                type="text"
-                value={searchText}
-                onChange={(e) => setSearchText(e.target.value)}
-                onKeyDown={handleSearch}
-                placeholder="Search Question Paper"
-                className="pl-8 pr-12"
+            type="text"
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            onKeyDown={handleSearch}
+            placeholder="Search Question Paper"
+            className="pl-8 pr-12 w-full"
             />
             {searchText && (
-                <XCircle
-                    className="absolute right-2 top-1/2 -translate-y-1/2 transform cursor-pointer text-neutral-600"
-                    onClick={clearSearch}
-                />
+            <XCircle
+                className="absolute right-2 top-1/2 -translate-y-1/2 transform cursor-pointer text-neutral-600"
+                onClick={clearSearch}
+            />
             )}
         </div>
     );

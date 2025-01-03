@@ -2,9 +2,9 @@ import { useMemo } from "react";
 import { InstituteDetailsType } from "@/schemas/student/student-list/institute-schema";
 
 export const useFilterDataForAssesment = (initData: InstituteDetailsType) => {
-    const BatchesFilterData = useMemo(() => {
+    const ModeFilterData = useMemo(() => {
         return (
-            initData?.batches_for_sessions
+            initData?.mode_for_sessions
                 ?.map((item) => ({
                     id: String(item.id),
                     name: `${item.level.level_name} ${item.package_dto.package_name}`,
@@ -41,7 +41,7 @@ export const useFilterDataForAssesment = (initData: InstituteDetailsType) => {
     }, [initData]);
 
     return {
-        BatchesFilterData,
+        ModeFilterData,
         SubjectFilterData,
         StatusData,
         YearClassFilterData,
