@@ -98,7 +98,7 @@ export const SplashScreen = ({ children }: SplashScreenProps) => {
         initial={{ y: "50vh", scale: 3 }}
         animate={{ y: 0, scale: 1 }}
         transition={{
-          duration: 1,
+          duration: 1.5,
           delay: 0,
           ease: "easeInOut",
         }}
@@ -117,7 +117,7 @@ export const SplashScreen = ({ children }: SplashScreenProps) => {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{
-          duration: 1,
+          duration: 3.5,
           delay: 0.75,
           ease: "easeInOut",
         }}

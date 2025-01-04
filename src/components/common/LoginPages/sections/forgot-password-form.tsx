@@ -84,7 +84,7 @@ export function ForgotPassword() {
           />
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="w-full">
-              <div className="flex w-full flex-col items-center justify-center gap-14 md:gap-15 lg:gap-14">
+              <div className="flex w-full flex-col items-center justify-center gap-20 md:gap-25 lg:gap-30">
                 <FormField
                   control={form.control}
                   name="email"
@@ -107,7 +107,7 @@ export function ForgotPassword() {
                   )}
                 />
 
-                <div className="flex flex-col items-center gap-4 md:gap-3 lg:gap-2">
+                <div className="flex flex-col items-center gap-4 md:gap-6 lg:gap-8 ">
                   <MyButton
                     type="submit"
                     scale="large"
