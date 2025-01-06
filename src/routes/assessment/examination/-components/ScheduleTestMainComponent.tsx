@@ -83,55 +83,55 @@ export const ScheduleTestMainComponent = () => {
               <ScheduleTestTabList selectedTab={selectedTab} />
             </div>
             <div className="flex flex-wrap gap-4">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:gap-4 w-full">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:gap-4 w-full justify-between">
                 
                 <div className="flex flex-wrap gap-4">
                   <ScheduleTestFilters
-                    label="Subjects"
-                    data={SubjectFilterData}
-                    selectedItems={
-                      selectedQuestionPaperFilters["subject_ids"] || []
-                    }
-                    onSelectionChange={(items) =>
-                      handleFilterChange("subject_ids", items)
-                    }
+                  label="Subjects"
+                  data={SubjectFilterData}
+                  selectedItems={
+                    selectedQuestionPaperFilters["subject_ids"] || []
+                  }
+                  onSelectionChange={(items) =>
+                    handleFilterChange("subject_ids", items)
+                  }
                   />
                   <ScheduleTestFilters
-                    label="Status"
-                    data={StatusData}
-                    selectedItems={
-                      selectedQuestionPaperFilters["statuses"] || []
-                    }
-                    onSelectionChange={(items) =>
-                      handleFilterChange("statuses", items)
-                    }
+                  label="Status"
+                  data={StatusData}
+                  selectedItems={
+                    selectedQuestionPaperFilters["statuses"] || []
+                  }
+                  onSelectionChange={(items) =>
+                    handleFilterChange("statuses", items)
+                  }
                   />
                   <ScheduleTestFilters
-                    label="Mode"
-                    data={ModeFilterData}
-                    selectedItems={
-                      selectedQuestionPaperFilters["package_session_ids"] || []
-                    }
-                    onSelectionChange={(items) =>
-                      handleFilterChange("package_session_ids", items)
-                    }
+                  label="Mode"
+                  data={ModeFilterData}
+                  selectedItems={
+                    selectedQuestionPaperFilters["package_session_ids"] || []
+                  }
+                  onSelectionChange={(items) =>
+                    handleFilterChange("package_session_ids", items)
+                  }
                   />
                   <ScheduleTestFilterButtons
-                    selectedQuestionPaperFilters={selectedQuestionPaperFilters}
-                    handleSubmitFilters={handleSubmitFilters}
-                    handleResetFilters={handleResetFilters}
+                  selectedQuestionPaperFilters={selectedQuestionPaperFilters}
+                  handleSubmitFilters={handleSubmitFilters}
+                  handleResetFilters={handleResetFilters}
                   />
                 </div>
 
-                <div className="w-full sm:w-72">
+                <div className="w-full sm:w-72 sm:ml-auto p-5 sm:p-0">
                   <ScheduleTestSearchComponent
-                    onSearch={handleSearch}
-                    searchText={searchText}
-                    setSearchText={setSearchText}
-                    clearSearch={clearSearch}
+                  onSearch={handleSearch}
+                  searchText={searchText}
+                  setSearchText={setSearchText}
+                  clearSearch={clearSearch}
                   />
                 </div>
-              </div>
+                </div>
             </div>
           </div>
           {scheduleTestTabsData.map((tab) => (

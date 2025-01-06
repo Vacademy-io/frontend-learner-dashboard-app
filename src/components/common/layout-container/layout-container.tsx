@@ -3,7 +3,7 @@ import { useSidebar } from "@/components/ui/sidebar";
 import { Navbar } from "./top-navbar.tsx/navbar";
 import { cn } from "@/lib/utils";
 import React from "react";
-
+import { AppSidebar } from "./top-navbar.tsx/testsidebar";
 export const LayoutContainer = ({
     children,
     className,
@@ -14,7 +14,7 @@ export const LayoutContainer = ({
     sidebarComponent?: React.ReactNode;
 }) => {
     const { open } = useSidebar();
-    return (
+    return (        
         <div className={`flex flex-col md:flex-row w-full ${open ? "md:gap-12" : "md:gap-16"}`}>
             <div className="w-full md:w-auto">
                 <MySidebar sidebarComponent={sidebarComponent} />
@@ -24,6 +24,11 @@ export const LayoutContainer = ({
                 <Navbar />
                 <div className={cn("m-4 md:m-7 max-w-full", className)}>{children}</div>
             </div>
+            {/* TODO: implement side nab bar */}
+            {/* <div className="w-full md:w-auto">
+                <AppSidebar/>
+            </div> */}
+
         </div>
     );
 };
