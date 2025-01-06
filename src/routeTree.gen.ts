@@ -11,21 +11,12 @@
 // Import Routes
 
 import { Route as rootRoute } from './routes/__root'
-import { Route as StudentsIndexImport } from './routes/students/index'
 import { Route as LoginIndexImport } from './routes/login/index'
 import { Route as DashboardIndexImport } from './routes/dashboard/index'
-import { Route as StudentsStudentsListIndexImport } from './routes/students/students-list/index'
 import { Route as LoginForgotPasswordIndexImport } from './routes/login/forgot-password/index'
-import { Route as AssessmentQuestionPapersIndexImport } from './routes/assessment/question-papers/index'
 import { Route as AssessmentExaminationIndexImport } from './routes/assessment/examination/index'
 
 // Create/Update Routes
-
-const StudentsIndexRoute = StudentsIndexImport.update({
-  id: '/students/',
-  path: '/students/',
-  getParentRoute: () => rootRoute,
-} as any)
 
 const LoginIndexRoute = LoginIndexImport.update({
   id: '/login/',
@@ -39,24 +30,11 @@ const DashboardIndexRoute = DashboardIndexImport.update({
   getParentRoute: () => rootRoute,
 } as any)
 
-const StudentsStudentsListIndexRoute = StudentsStudentsListIndexImport.update({
-  id: '/students/students-list/',
-  path: '/students/students-list/',
-  getParentRoute: () => rootRoute,
-} as any)
-
 const LoginForgotPasswordIndexRoute = LoginForgotPasswordIndexImport.update({
   id: '/login/forgot-password/',
   path: '/login/forgot-password/',
   getParentRoute: () => rootRoute,
 } as any)
-
-const AssessmentQuestionPapersIndexRoute =
-  AssessmentQuestionPapersIndexImport.update({
-    id: '/assessment/question-papers/',
-    path: '/assessment/question-papers/',
-    getParentRoute: () => rootRoute,
-  } as any)
 
 const AssessmentExaminationIndexRoute = AssessmentExaminationIndexImport.update(
   {
@@ -84,13 +62,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginIndexImport
       parentRoute: typeof rootRoute
     }
-    '/students/': {
-      id: '/students/'
-      path: '/students'
-      fullPath: '/students'
-      preLoaderRoute: typeof StudentsIndexImport
-      parentRoute: typeof rootRoute
-    }
     '/assessment/examination/': {
       id: '/assessment/examination/'
       path: '/assessment/examination'
@@ -98,25 +69,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AssessmentExaminationIndexImport
       parentRoute: typeof rootRoute
     }
-    '/assessment/question-papers/': {
-      id: '/assessment/question-papers/'
-      path: '/assessment/question-papers'
-      fullPath: '/assessment/question-papers'
-      preLoaderRoute: typeof AssessmentQuestionPapersIndexImport
-      parentRoute: typeof rootRoute
-    }
     '/login/forgot-password/': {
       id: '/login/forgot-password/'
       path: '/login/forgot-password'
       fullPath: '/login/forgot-password'
       preLoaderRoute: typeof LoginForgotPasswordIndexImport
-      parentRoute: typeof rootRoute
-    }
-    '/students/students-list/': {
-      id: '/students/students-list/'
-      path: '/students/students-list'
-      fullPath: '/students/students-list'
-      preLoaderRoute: typeof StudentsStudentsListIndexImport
       parentRoute: typeof rootRoute
     }
   }
@@ -127,32 +84,23 @@ declare module '@tanstack/react-router' {
 export interface FileRoutesByFullPath {
   '/dashboard': typeof DashboardIndexRoute
   '/login': typeof LoginIndexRoute
-  '/students': typeof StudentsIndexRoute
   '/assessment/examination': typeof AssessmentExaminationIndexRoute
-  '/assessment/question-papers': typeof AssessmentQuestionPapersIndexRoute
   '/login/forgot-password': typeof LoginForgotPasswordIndexRoute
-  '/students/students-list': typeof StudentsStudentsListIndexRoute
 }
 
 export interface FileRoutesByTo {
   '/dashboard': typeof DashboardIndexRoute
   '/login': typeof LoginIndexRoute
-  '/students': typeof StudentsIndexRoute
   '/assessment/examination': typeof AssessmentExaminationIndexRoute
-  '/assessment/question-papers': typeof AssessmentQuestionPapersIndexRoute
   '/login/forgot-password': typeof LoginForgotPasswordIndexRoute
-  '/students/students-list': typeof StudentsStudentsListIndexRoute
 }
 
 export interface FileRoutesById {
   __root__: typeof rootRoute
   '/dashboard/': typeof DashboardIndexRoute
   '/login/': typeof LoginIndexRoute
-  '/students/': typeof StudentsIndexRoute
   '/assessment/examination/': typeof AssessmentExaminationIndexRoute
-  '/assessment/question-papers/': typeof AssessmentQuestionPapersIndexRoute
   '/login/forgot-password/': typeof LoginForgotPasswordIndexRoute
-  '/students/students-list/': typeof StudentsStudentsListIndexRoute
 }
 
 export interface FileRouteTypes {
@@ -160,50 +108,35 @@ export interface FileRouteTypes {
   fullPaths:
     | '/dashboard'
     | '/login'
-    | '/students'
     | '/assessment/examination'
-    | '/assessment/question-papers'
     | '/login/forgot-password'
-    | '/students/students-list'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/dashboard'
     | '/login'
-    | '/students'
     | '/assessment/examination'
-    | '/assessment/question-papers'
     | '/login/forgot-password'
-    | '/students/students-list'
   id:
     | '__root__'
     | '/dashboard/'
     | '/login/'
-    | '/students/'
     | '/assessment/examination/'
-    | '/assessment/question-papers/'
     | '/login/forgot-password/'
-    | '/students/students-list/'
   fileRoutesById: FileRoutesById
 }
 
 export interface RootRouteChildren {
   DashboardIndexRoute: typeof DashboardIndexRoute
   LoginIndexRoute: typeof LoginIndexRoute
-  StudentsIndexRoute: typeof StudentsIndexRoute
   AssessmentExaminationIndexRoute: typeof AssessmentExaminationIndexRoute
-  AssessmentQuestionPapersIndexRoute: typeof AssessmentQuestionPapersIndexRoute
   LoginForgotPasswordIndexRoute: typeof LoginForgotPasswordIndexRoute
-  StudentsStudentsListIndexRoute: typeof StudentsStudentsListIndexRoute
 }
 
 const rootRouteChildren: RootRouteChildren = {
   DashboardIndexRoute: DashboardIndexRoute,
   LoginIndexRoute: LoginIndexRoute,
-  StudentsIndexRoute: StudentsIndexRoute,
   AssessmentExaminationIndexRoute: AssessmentExaminationIndexRoute,
-  AssessmentQuestionPapersIndexRoute: AssessmentQuestionPapersIndexRoute,
   LoginForgotPasswordIndexRoute: LoginForgotPasswordIndexRoute,
-  StudentsStudentsListIndexRoute: StudentsStudentsListIndexRoute,
 }
 
 export const routeTree = rootRoute
@@ -218,11 +151,8 @@ export const routeTree = rootRoute
       "children": [
         "/dashboard/",
         "/login/",
-        "/students/",
         "/assessment/examination/",
-        "/assessment/question-papers/",
-        "/login/forgot-password/",
-        "/students/students-list/"
+        "/login/forgot-password/"
       ]
     },
     "/dashboard/": {
@@ -231,20 +161,11 @@ export const routeTree = rootRoute
     "/login/": {
       "filePath": "login/index.tsx"
     },
-    "/students/": {
-      "filePath": "students/index.tsx"
-    },
     "/assessment/examination/": {
       "filePath": "assessment/examination/index.tsx"
     },
-    "/assessment/question-papers/": {
-      "filePath": "assessment/question-papers/index.tsx"
-    },
     "/login/forgot-password/": {
       "filePath": "login/forgot-password/index.tsx"
-    },
-    "/students/students-list/": {
-      "filePath": "students/students-list/index.tsx"
     }
   }
 }
