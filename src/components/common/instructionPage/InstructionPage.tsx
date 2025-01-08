@@ -12,7 +12,7 @@ const InstructionPage: React.FC<{ assessment: Assessment; title: string }> = ({
   return (
     <>
       <div className="">
-        <Navbar title={assessment.} />
+        <Navbar title={assessment.title} />
         <div className="container mx-auto p-4">
           <AssessmentInstructions
             instructions={assessment.assessmentInstruction}
