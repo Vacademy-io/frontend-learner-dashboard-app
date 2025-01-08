@@ -14,7 +14,7 @@ import ScheduleTestFilterButtons from "./ScheduleTestFilterButtons";
 import { scheduleTestTabsData } from "@/constants/dummy-data";
 import { useNavHeadingStore } from "@/stores/layout-container/useNavHeadingStore";
 import LiveAssessmentList from "./LiveAssessmentList";
-import AssessmentList from "./upcomingAssessments";
+import UpcomingAssessmentList from "./upcomingAssessments";
 
 export const ScheduleTestMainComponent = () => {
   const { setNavHeading } = useNavHeadingStore();
@@ -138,9 +138,7 @@ export const ScheduleTestMainComponent = () => {
                 // Render Live Tests data
                 <LiveAssessmentList />
               ) : tab.value === "upcomingTests" ? (
-                // Render Upcoming Tests data
-                // <UpcomingAssessmentList />
-                <AssessmentList />
+                <UpcomingAssessmentList />
               ) : (
                 // Render empty state for other tabs or when no data is available
                 <div className="flex h-screen flex-col items-center justify-center">
@@ -155,87 +153,3 @@ export const ScheduleTestMainComponent = () => {
     </>
   );
 };
-
-// import { useNavigate } from '@tanstack/react-router';
-
-// const ScheduleTestMainComponent = () => {
-//   const navigate = useNavigate();
-//   const [selectedTab, setSelectedTab] = useState("liveTests");
-
-//   const handleTabClick = (tab: string) => {
-//     setSelectedTab(tab);
-
-//     // Navigate based on the selected tab
-//     if (tab === "liveTests") {
-//       navigate({ to: "/assessment/examination/live-tests" });
-//     } else if (tab === "upcomingTests") {
-//       navigate({ to: "/assessment/examination" });
-//     }
-//   };
-
-//   return (
-//     <>
-//       <ScheduleTestHeaderDescription />
-//       <div className="items-center gap-4">
-//         <Tabs value={selectedTab} onValueChange={setSelectedTab}>
-//           <div className="items-center justify-center gap-5 pb-5">
-//             <div className="flex flex-wrap gap-5 pb-5">
-//               <TabsList className="inline-flex h-auto justify-start gap-4 rounded-none border-b !bg-transparent p-0">
-//                 <TabsTrigger
-//                   value="liveTests"
-//                   onClick={() => handleTabClick("liveTests")}
-//                   className={`flex gap-1.5 rounded-none px-12 py-2 !shadow-none ${
-//                     selectedTab === "liveTests"
-//                       ? "rounded-t-sm border !border-b-0 border-primary-200 !bg-primary-50"
-//                       : "border-none bg-transparent"
-//                   }`}
-//                 >
-//                   <span
-//                     className={`${
-//                       selectedTab === "liveTests" ? "text-primary-500" : ""
-//                     }`}
-//                   >
-//                     Live
-//                   </span>
-//                   <Badge
-//                     className="rounded-[10px] bg-primary-500 p-0 px-2 text-[9px] text-white"
-//                     variant="outline"
-//                   >
-//                     {0}
-//                   </Badge>
-//                 </TabsTrigger>
-//                 <TabsTrigger
-//                   value="upcomingTests"
-//                   onClick={() => handleTabClick("upcomingTests")}
-//                   className={`flex gap-1.5 rounded-none px-12 py-2 !shadow-none ${
-//                     selectedTab === "upcomingTests"
-//                       ? "rounded-t-sm border !border-b-0 border-primary-200 !bg-primary-50"
-//                       : "border-none bg-transparent"
-//                   }`}
-//                 >
-//                   <span
-//                     className={`${
-//                       selectedTab === "upcomingTests" ? "text-primary-500" : ""
-//                     }`}
-//                   >
-//                     Upcoming
-//                   </span>
-//                   <Badge
-//                     className="rounded-[10px] bg-primary-500 p-0 px-2 text-[9px] text-white"
-//                     variant="outline"
-//                   >
-//                     {0}
-//                   </Badge>
-//                 </TabsTrigger>
-//               </TabsList>
-//             </div>
-//             {/* Filters and Search Components */}
-//             {/* ... (Remaining JSX) */}
-//           </div>
-//         </Tabs>
-//       </div>
-//     </>
-//   );
-// };
-
-// export default ScheduleTestMainComponent;

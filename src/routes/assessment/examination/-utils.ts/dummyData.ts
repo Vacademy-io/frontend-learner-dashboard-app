@@ -342,7 +342,48 @@ const assessments: Assessment[] = [
     },
   ];
 
+const UpcomingAssessment = [
+    {
+      title: "The Human Eye and The Colourful World",
+      subject: "Physics",
+      liveDate: "17 Oct - 19 Oct",
+      availability: "11:00 am - 6:00 pm",
+      duration: "20 min",
+      isLive: false,
+    },
+    {
+      title: "Polynomials",
+      subject: "Mathematics",
+      liveDate: "17 Oct",
+      availability: "Whole day",
+      duration: "20 min",
+      isLive: true,
+    },
+    {
+      title: "Chemical Reactions",
+      subject: "Chemistry",
+      liveDate: "18 Oct",
+      availability: "9:00 am - 5:00 pm",
+      duration: "30 min",
+      isLive: false,
+    },
+    {
+      title: "Trigonometry",
+      subject: "Mathematics",
+      liveDate: "19 Oct",
+      availability: "Whole day",
+      duration: "25 min",
+      isLive: true,
+    },
+    {
+      title: "Electricity",
+      subject: "Physics",
+      liveDate: "20 Oct",
+      availability: "10:00 am - 4:00 pm",
+      duration: "35 min",
+      isLive: false,
+    },
+  ];
 
-  
-
-  export default assessments;
+export default assessments;
+export { UpcomingAssessment };
