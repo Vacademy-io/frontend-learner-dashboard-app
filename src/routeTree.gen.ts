@@ -15,6 +15,7 @@ import { Route as LoginIndexImport } from './routes/login/index'
 import { Route as DashboardIndexImport } from './routes/dashboard/index'
 import { Route as LoginForgotPasswordIndexImport } from './routes/login/forgot-password/index'
 import { Route as AssessmentExaminationIndexImport } from './routes/assessment/examination/index'
+import { Route as AssessmentExaminationAssessmentIndexImport } from './routes/assessment/examination/$assessment/index'
 
 // Create/Update Routes
 
@@ -43,6 +44,13 @@ const AssessmentExaminationIndexRoute = AssessmentExaminationIndexImport.update(
     getParentRoute: () => rootRoute,
   } as any,
 )
+
+const AssessmentExaminationAssessmentIndexRoute =
+  AssessmentExaminationAssessmentIndexImport.update({
+    id: '/assessment/examination/$assessment/',
+    path: '/assessment/examination/$assessment/',
+    getParentRoute: () => rootRoute,
+  } as any)
 
 // Populate the FileRoutesByPath interface
 
@@ -76,6 +84,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginForgotPasswordIndexImport
       parentRoute: typeof rootRoute
     }
+    '/assessment/examination/$assessment/': {
+      id: '/assessment/examination/$assessment/'
+      path: '/assessment/examination/$assessment'
+      fullPath: '/assessment/examination/$assessment'
+      preLoaderRoute: typeof AssessmentExaminationAssessmentIndexImport
+      parentRoute: typeof rootRoute
+    }
   }
 }
 
@@ -86,6 +101,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginIndexRoute
   '/assessment/examination': typeof AssessmentExaminationIndexRoute
   '/login/forgot-password': typeof LoginForgotPasswordIndexRoute
+  '/assessment/examination/$assessment': typeof AssessmentExaminationAssessmentIndexRoute
 }
 
 export interface FileRoutesByTo {
@@ -93,6 +109,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginIndexRoute
   '/assessment/examination': typeof AssessmentExaminationIndexRoute
   '/login/forgot-password': typeof LoginForgotPasswordIndexRoute
+  '/assessment/examination/$assessment': typeof AssessmentExaminationAssessmentIndexRoute
 }
 
 export interface FileRoutesById {
@@ -101,6 +118,7 @@ export interface FileRoutesById {
   '/login/': typeof LoginIndexRoute
   '/assessment/examination/': typeof AssessmentExaminationIndexRoute
   '/login/forgot-password/': typeof LoginForgotPasswordIndexRoute
+  '/assessment/examination/$assessment/': typeof AssessmentExaminationAssessmentIndexRoute
 }
 
 export interface FileRouteTypes {
@@ -110,18 +128,21 @@ export interface FileRouteTypes {
     | '/login'
     | '/assessment/examination'
     | '/login/forgot-password'
+    | '/assessment/examination/$assessment'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/dashboard'
     | '/login'
     | '/assessment/examination'
     | '/login/forgot-password'
+    | '/assessment/examination/$assessment'
   id:
     | '__root__'
     | '/dashboard/'
     | '/login/'
     | '/assessment/examination/'
     | '/login/forgot-password/'
+    | '/assessment/examination/$assessment/'
   fileRoutesById: FileRoutesById
 }
 
@@ -130,6 +151,7 @@ export interface RootRouteChildren {
   LoginIndexRoute: typeof LoginIndexRoute
   AssessmentExaminationIndexRoute: typeof AssessmentExaminationIndexRoute
   LoginForgotPasswordIndexRoute: typeof LoginForgotPasswordIndexRoute
+  AssessmentExaminationAssessmentIndexRoute: typeof AssessmentExaminationAssessmentIndexRoute
 }
 
 const rootRouteChildren: RootRouteChildren = {
@@ -137,6 +159,8 @@ const rootRouteChildren: RootRouteChildren = {
   LoginIndexRoute: LoginIndexRoute,
   AssessmentExaminationIndexRoute: AssessmentExaminationIndexRoute,
   LoginForgotPasswordIndexRoute: LoginForgotPasswordIndexRoute,
+  AssessmentExaminationAssessmentIndexRoute:
+    AssessmentExaminationAssessmentIndexRoute,
 }
 
 export const routeTree = rootRoute
@@ -152,7 +176,8 @@ export const routeTree = rootRoute
         "/dashboard/",
         "/login/",
         "/assessment/examination/",
-        "/login/forgot-password/"
+        "/login/forgot-password/",
+        "/assessment/examination/$assessment/"
       ]
     },
     "/dashboard/": {
@@ -166,6 +191,9 @@ export const routeTree = rootRoute
     },
     "/login/forgot-password/": {
       "filePath": "login/forgot-password/index.tsx"
+    },
+    "/assessment/examination/$assessment/": {
+      "filePath": "assessment/examination/$assessment/index.tsx"
     }
   }
 }

@@ -13,6 +13,8 @@ import ScheduleTestTabList from "./ScheduleTestTabList";
 import ScheduleTestFilterButtons from "./ScheduleTestFilterButtons";
 import { scheduleTestTabsData } from "@/constants/dummy-data";
 import { useNavHeadingStore } from "@/stores/layout-container/useNavHeadingStore";
+import LiveAssessmentList from "./LiveAssessmentList";
+import AssessmentList from "./upcomingAssessments";
 
 export const ScheduleTestMainComponent = () => {
   const { setNavHeading } = useNavHeadingStore();
@@ -26,7 +28,7 @@ export const ScheduleTestMainComponent = () => {
 
   useEffect(() => {
     setNavHeading("Assessment");
-}, []);
+  }, []);
 
   const handleFilterChange = (
     filterKey: string,
@@ -68,13 +70,6 @@ export const ScheduleTestMainComponent = () => {
 
   return (
     <>
-      <Helmet>
-        <title>Schedule Tests</title>
-        <meta
-          name="description"
-          content="This page shows the list of all the schedules tests and also an assessment can be scheduled here."
-        />
-      </Helmet>
       <ScheduleTestHeaderDescription />
       <div className="items-center gap-4">
         <Tabs value={selectedTab} onValueChange={setSelectedTab}>
@@ -83,55 +78,54 @@ export const ScheduleTestMainComponent = () => {
               <ScheduleTestTabList selectedTab={selectedTab} />
             </div>
             <div className="flex flex-wrap gap-4">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:gap-4 w-full justify-between">
-                
+              <div className="flex flex-col sm:flex-row sm:items-center sm:gap-4 w-full justify-between">
                 <div className="flex flex-wrap gap-4">
                   <ScheduleTestFilters
-                  label="Subjects"
-                  data={SubjectFilterData}
-                  selectedItems={
-                    selectedQuestionPaperFilters["subject_ids"] || []
-                  }
-                  onSelectionChange={(items) =>
-                    handleFilterChange("subject_ids", items)
-                  }
+                    label="Subjects"
+                    data={SubjectFilterData}
+                    selectedItems={
+                      selectedQuestionPaperFilters["subject_ids"] || []
+                    }
+                    onSelectionChange={(items) =>
+                      handleFilterChange("subject_ids", items)
+                    }
                   />
                   <ScheduleTestFilters
-                  label="Status"
-                  data={StatusData}
-                  selectedItems={
-                    selectedQuestionPaperFilters["statuses"] || []
-                  }
-                  onSelectionChange={(items) =>
-                    handleFilterChange("statuses", items)
-                  }
+                    label="Status"
+                    data={StatusData}
+                    selectedItems={
+                      selectedQuestionPaperFilters["statuses"] || []
+                    }
+                    onSelectionChange={(items) =>
+                      handleFilterChange("statuses", items)
+                    }
                   />
                   <ScheduleTestFilters
-                  label="Mode"
-                  data={ModeFilterData}
-                  selectedItems={
-                    selectedQuestionPaperFilters["package_session_ids"] || []
-                  }
-                  onSelectionChange={(items) =>
-                    handleFilterChange("package_session_ids", items)
-                  }
+                    label="Mode"
+                    data={ModeFilterData}
+                    selectedItems={
+                      selectedQuestionPaperFilters["package_session_ids"] || []
+                    }
+                    onSelectionChange={(items) =>
+                      handleFilterChange("package_session_ids", items)
+                    }
                   />
                   <ScheduleTestFilterButtons
-                  selectedQuestionPaperFilters={selectedQuestionPaperFilters}
-                  handleSubmitFilters={handleSubmitFilters}
-                  handleResetFilters={handleResetFilters}
+                    selectedQuestionPaperFilters={selectedQuestionPaperFilters}
+                    handleSubmitFilters={handleSubmitFilters}
+                    handleResetFilters={handleResetFilters}
                   />
                 </div>
 
                 <div className="w-full sm:w-72 sm:ml-auto p-5 sm:p-0">
                   <ScheduleTestSearchComponent
-                  onSearch={handleSearch}
-                  searchText={searchText}
-                  setSearchText={setSearchText}
-                  clearSearch={clearSearch}
+                    onSearch={handleSearch}
+                    searchText={searchText}
+                    setSearchText={setSearchText}
+                    clearSearch={clearSearch}
                   />
                 </div>
-                </div>
+              </div>
             </div>
           </div>
           {scheduleTestTabsData.map((tab) => (
@@ -140,10 +134,20 @@ export const ScheduleTestMainComponent = () => {
               value={tab.value}
               className="my-4 rounded-xl bg-neutral-50"
             >
-              <div className="flex h-screen flex-col items-center justify-center">
-                <img src={EmptyScheduleTest} alt="logo" />
-                <span className="text-neutral-600">{tab.message}</span>
-              </div>
+              {tab.value === "liveTests" ? (
+                // Render Live Tests data
+                <LiveAssessmentList />
+              ) : tab.value === "upcomingTests" ? (
+                // Render Upcoming Tests data
+                // <UpcomingAssessmentList />
+                <AssessmentList />
+              ) : (
+                // Render empty state for other tabs or when no data is available
+                <div className="flex h-screen flex-col items-center justify-center">
+                  <img src={EmptyScheduleTest} alt="No Tests Available" />
+                  <span className="text-neutral-600">{tab.message}</span>
+                </div>
+              )}
             </TabsContent>
           ))}
         </Tabs>
@@ -151,3 +155,87 @@ export const ScheduleTestMainComponent = () => {
     </>
   );
 };
+
+// import { useNavigate } from '@tanstack/react-router';
+
+// const ScheduleTestMainComponent = () => {
+//   const navigate = useNavigate();
+//   const [selectedTab, setSelectedTab] = useState("liveTests");
+
+//   const handleTabClick = (tab: string) => {
+//     setSelectedTab(tab);
+
+//     // Navigate based on the selected tab
+//     if (tab === "liveTests") {
+//       navigate({ to: "/assessment/examination/live-tests" });
+//     } else if (tab === "upcomingTests") {
+//       navigate({ to: "/assessment/examination" });
+//     }
+//   };
+
+//   return (
+//     <>
+//       <ScheduleTestHeaderDescription />
+//       <div className="items-center gap-4">
+//         <Tabs value={selectedTab} onValueChange={setSelectedTab}>
+//           <div className="items-center justify-center gap-5 pb-5">
+//             <div className="flex flex-wrap gap-5 pb-5">
+//               <TabsList className="inline-flex h-auto justify-start gap-4 rounded-none border-b !bg-transparent p-0">
+//                 <TabsTrigger
+//                   value="liveTests"
+//                   onClick={() => handleTabClick("liveTests")}
+//                   className={`flex gap-1.5 rounded-none px-12 py-2 !shadow-none ${
+//                     selectedTab === "liveTests"
+//                       ? "rounded-t-sm border !border-b-0 border-primary-200 !bg-primary-50"
+//                       : "border-none bg-transparent"
+//                   }`}
+//                 >
+//                   <span
+//                     className={`${
+//                       selectedTab === "liveTests" ? "text-primary-500" : ""
+//                     }`}
+//                   >
+//                     Live
+//                   </span>
+//                   <Badge
+//                     className="rounded-[10px] bg-primary-500 p-0 px-2 text-[9px] text-white"
+//                     variant="outline"
+//                   >
+//                     {0}
+//                   </Badge>
+//                 </TabsTrigger>
+//                 <TabsTrigger
+//                   value="upcomingTests"
+//                   onClick={() => handleTabClick("upcomingTests")}
+//                   className={`flex gap-1.5 rounded-none px-12 py-2 !shadow-none ${
+//                     selectedTab === "upcomingTests"
+//                       ? "rounded-t-sm border !border-b-0 border-primary-200 !bg-primary-50"
+//                       : "border-none bg-transparent"
+//                   }`}
+//                 >
+//                   <span
+//                     className={`${
+//                       selectedTab === "upcomingTests" ? "text-primary-500" : ""
+//                     }`}
+//                   >
+//                     Upcoming
+//                   </span>
+//                   <Badge
+//                     className="rounded-[10px] bg-primary-500 p-0 px-2 text-[9px] text-white"
+//                     variant="outline"
+//                   >
+//                     {0}
+//                   </Badge>
+//                 </TabsTrigger>
+//               </TabsList>
+//             </div>
+//             {/* Filters and Search Components */}
+//             {/* ... (Remaining JSX) */}
+//           </div>
+//         </Tabs>
+//       </div>
+//     </>
+//   );
+// };
+
+// export default ScheduleTestMainComponent;
