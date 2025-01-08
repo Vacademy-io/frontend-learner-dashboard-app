@@ -44,3 +44,50 @@ export interface Option {
     sections: Section[];
   }
   
+
+  export interface AssessmentPreviewProps {
+    assessment?: {
+      assessmentDuration: string,
+      assessmentPreview: string,
+      canSwitchSections: boolean,
+      sections: {
+        subject: string,
+        sectionDesc: string,
+        sectionDuration: string,
+        negativeMarking: {
+          checked: boolean,
+          value: string
+        },
+        partialMarking: boolean,
+        cutoffMarking: {
+          checked: boolean,
+          value: string
+        },
+        totalMark: string
+      }[]
+    }
+  }
+
+
+
+
+
+  export interface InstructionsProps {
+    instructions: string;
+    duration: string;
+    preview: string;
+    canSwitchSections: boolean;
+  }
+
+  export interface SectionProps {
+    section: {
+      assesmentDuration: string;
+      subject: string;
+      sectionDesc: string;
+      sectionDuration: string;
+      negativeMarking: { checked: boolean; value: string };
+      partialMarking: boolean;
+      cutoffMarking: { checked: boolean; value: string };
+      totalMark: string;
+    };
+  }

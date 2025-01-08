@@ -1,57 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { useParams } from '@tanstack/react-router'
-import AssessmentPage from '../../../../components/common/assessment/AssessmentPage'
-import AssessmentPreview from '../-components/testAssessmentComponent'
 import InstructionPage from '@/components/common/instructionPage/InstructionPage';
 
-
-// Define types for the assessment data structure
-interface Question {
-    questionType: string;
-    questionId: string;
-    questionName: string;
-    questionMark: string;
-    imageDetails: any[];
-    options: Array<{
-      optionId: string;
-      optionName: string;
-    }>;
-  }
-  
-  interface Section {
-    assesmentDuration: string;
-    subject: string;
-    sectionDesc: string;
-    sectionDuration: string;
-    negativeMarking: {
-      checked: boolean;
-      value: string;
-    };
-    partialMarking: boolean;
-    cutoffMarking: {
-      checked: boolean;
-      value: string;
-    };
-    totalMark: string;
-    questions: Question[];
-  }
-  
-  interface Assessment {
-    assessmentId: string;
-    title: string;
-    mode: string;
-    status: string;
-    startDate: string;
-    endDate: string;
-    assessmentDuration: string;
-    subject: string;
-    assessmentInstruction: string;
-    assessmentPreview: string;
-    canSwitchSections: boolean;
-    sections: Section[];
-  }
-  
- 
 const assessments: Assessment[] = [
     {
       assessmentId: "A001",
@@ -172,9 +121,5 @@ export const Route = createFileRoute('/assessment/examination/$assessment/')({
 })
 
 function RouteComponent() {
-    // const { assessment } = useParams<{ assessment: string }>()
-
-    // return <AssessmentPage assessment={assessment[0]} />
-    return <AssessmentPreview assessment={assessments[0]}/>
-    // <InstructionPage assessment={assessments[0]} />
+    return <InstructionPage assessment={assessments[0]} />
 }
