@@ -10,20 +10,22 @@ export const AssessmentInstructions: React.FC<InstructionsProps> = ({
 }) => {
   return (
     <div className="bg-white shadow p-4 rounded-lg mb-4">
-      <h2 className="text-xl font-bold mb-2">Assessment Instructions</h2>
-      <p className="text-gray-700 whitespace-pre-line">{instructions}</p>
-      <div className="mt-4">
+      <h2 className="text-xl font-semibold mb-2">Assessment Instructions</h2>
+      <p className="text-gray-700 whitespace-pre-line text-sm">{instructions}</p>
+      <div className="mt-4 text-sm">
         <p>
-          <strong>Assessment Duration:</strong>
-          <p>Entire Assessment Dureation</p>
-          {duration}
+          <span className="font-semibold">Assessment Duration:</span>
+          <div className="flex items-center gap-2">
+            <p>Entire Assessment Duration</p>
+            {duration}
+          </div>
         </p>
         <p>
-          <strong>Assessment Preview:</strong> {preview}
+          <span className="font-semibold">Assessment Preview:</span> {preview}
         </p>
-        <div className="flex items-center justify-between text-sm text-gray-600">
+        <div className="flex items-center justify-between text-gray-600">
           <span>
-            <strong>Switch between sections:</strong>{" "}
+            <span className="font-semibold">Switch between sections:</span>{" "}
             {canSwitchSections ? "Yes" : "No"}
           </span>
           {canSwitchSections && (
