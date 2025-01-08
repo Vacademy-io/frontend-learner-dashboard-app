@@ -2,19 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { AlertDialog, AlertDialogContent, AlertDialogOverlay } from '@/components/ui/alert-dialog';
 import { Card, CardContent } from '@/components/ui/card';
 import { Clock, Calendar } from 'lucide-react';
-
-interface Assessment {
-  title: string;
-  subject: string;
-  liveDate: string;
-  availability: string;
-  duration: string;
-  isLive?: boolean;
-}
-
-interface AssessmentCardProps {
-  assessment: Assessment;
-}
+import { Assessment, AssessmentCardProps } from "@/types/assessment";
 
 const AssessmentCard = ({ assessment }: AssessmentCardProps) => {
   const [showPopup, setShowPopup] = useState(false);
@@ -70,9 +58,7 @@ const AssessmentCard = ({ assessment }: AssessmentCardProps) => {
           onClick={handleClose} 
         />
         <AlertDialogContent className="max-w-md bg-[#FDFAF6] rounded-lg p-6">
-          <div className="text-gray-400 mb-4 text-sm">
-            Upcoming test popup
-          </div>
+        
           <div className="text-gray-700">
             The assessment{' '}
             <span className="text-orange-500">

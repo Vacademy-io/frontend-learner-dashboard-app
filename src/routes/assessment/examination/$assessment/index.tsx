@@ -68,6 +68,51 @@ const assessments: Assessment[] = [
             },
           ],
         },
+        {
+          assesmentDuration: "20 min",
+          subject: "Biology",
+          sectionDesc: `
+          Challenge your understanding of the chapter "Human Eye" with this test. Dive into topics such as the structure of the eye, vision mechanisms, common visual defects, and their corrections. Sharpen your knowledge and prepare effectively!`,
+          sectionDuration: "NA",
+          negativeMarking: {
+          checked: true,
+          value: "1",
+          },
+          partialMarking: true,
+          cutoffMarking: {
+          checked: true,
+          value: "08",
+          },
+          totalMark: "20",
+          questions: [
+          {
+            questionType: "Multiple Choice",
+            questionId: "Q001",
+            questionName: "What is the primary function of the human eye?",
+            questionMark: "2",
+            imageDetails: [],
+            options: [
+            { optionId: "O001", optionName: "To detect sound" },
+            { optionId: "O002", optionName: "To detect light" },
+            { optionId: "O003", optionName: "To pump blood" },
+            { optionId: "O004", optionName: "To support breathing" },
+            ],
+          },
+          {
+            questionType: "Multiple Choice",
+            questionId: "Q002",
+            questionName: "Which part of the eye controls the amount of light entering it?",
+            questionMark: "2",
+            imageDetails: [],
+            options: [
+            { optionId: "O001", optionName: "Cornea" },
+            { optionId: "O002", optionName: "Iris" },
+            { optionId: "O003", optionName: "Lens" },
+            { optionId: "O004", optionName: "Retina" },
+            ],
+          },
+          ],
+        },
       ],
     },
     {

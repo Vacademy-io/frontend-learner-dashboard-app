@@ -1,5 +1,6 @@
 import React from "react";
 import { InstructionsProps } from "@/types/assessment";
+import { Check } from "lucide-react";
 
 export const AssessmentInstructions: React.FC<InstructionsProps> = ({
   instructions,
@@ -20,10 +21,15 @@ export const AssessmentInstructions: React.FC<InstructionsProps> = ({
         <p>
           <strong>Assessment Preview:</strong> {preview}
         </p>
-        <p>
-          <strong>Switch between sections:</strong>{" "}
-          {canSwitchSections ? "Yes" : "No"}
-        </p>
+        <div className="flex items-center justify-between text-sm text-gray-600">
+          <span>
+            <strong>Switch between sections:</strong>{" "}
+            {canSwitchSections ? "Yes" : "No"}
+          </span>
+          {canSwitchSections && (
+            <Check className="w-5 h-5 text-green-500" />
+          )}
+        </div>
       </div>
     </div>
   );

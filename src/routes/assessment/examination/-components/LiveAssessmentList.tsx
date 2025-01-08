@@ -178,63 +178,12 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Circle, CheckCircle2, PauseCircle } from 'lucide-react';
 import { useNavigate } from '@tanstack/react-router';
+import { MyButton } from '@/components/design-system/button';
+import { StatusChips } from '@/components/design-system/chips';
 // import { Assessment, AssessmentCardProps, AssessmentListProps } from '@/types/assessment';
 
 // Define types for the assessment data structure
-interface Question {
-  questionType: string;
-  questionId: string;
-  questionName: string;
-  questionMark: string;
-  imageDetails: any[];
-  options: Array<{
-    optionId: string;
-    optionName: string;
-  }>;
-}
-
-interface Section {
-  assesmentDuration: string;
-  subject: string;
-  sectionDesc: string;
-  sectionDuration: string;
-  negativeMarking: {
-    checked: boolean;
-    value: string;
-  };
-  partialMarking: boolean;
-  cutoffMarking: {
-    checked: boolean;
-    value: string;
-  };
-  totalMark: string;
-  questions: Question[];
-}
-
-interface Assessment {
-  assessmentId: string;
-  title: string;
-  mode: string;
-  status: string;
-  startDate: string;
-  endDate: string;
-  assessmentDuration: string;
-  subject: string;
-  assessmentInstruction: string;
-  assessmentPreview: string;
-  canSwitchSections: boolean;
-  sections: Section[];
-}
-
-// Props interface for the AssessmentCard component
-interface AssessmentCardProps {
-  assessment: Assessment;
-}
-
-// Props interface for the AssessmentList component
-interface AssessmentListProps {
-  assessments: Assessment[];
-}
+import { Assessment, AssessmentCardProps, AssessmentListProps } from '@/types/assessment';
 
 const getStatusColor = (mode: string, status: string): string => {
   if (status.toLowerCase() !== 'active') {
@@ -293,6 +242,7 @@ const AssessmentCard: React.FC<AssessmentCardProps> = ({ assessment }) => {
         <div className={`flex items-center gap-1.5 text-sm ${getStatusColor(mode, status)} px-3 py-1 rounded-full`}>
           {getStatusIcon(status)}
           <span>{status}</span>
+          {/* <StatusChips statusData = {status} /> */}
         </div>
       </div>
 
@@ -307,25 +257,26 @@ const AssessmentCard: React.FC<AssessmentCardProps> = ({ assessment }) => {
       </div>
 
       {/* Join Button */}
-      <Button 
+      <MyButton 
+        buttonType = "secondary"
         className="w-full"
         disabled={status.toLowerCase() !== 'active'}
         onClick={handleJoinAssessment}
       >
         Join Assessment
-      </Button>
+      </MyButton>
     </Card>
   );
 };
 
 const AssessmentList: React.FC<AssessmentListProps> = ({ assessments }) => {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-6">
+    <div className="w-full ">
       {assessments.map((assessment) => (
-        <AssessmentCard 
-          key={assessment.assessmentId} 
-          assessment={assessment}
-        />
+      <AssessmentCard 
+        key={assessment.assessmentId} 
+        assessment={assessment}
+      />
       ))}
     </div>
   );
@@ -449,5 +400,44 @@ const LiveAssessmentList: React.FC = () => {
 
   return <AssessmentList assessments={assessments} />;
 };
+// const LiveAssessmentList: React.FC = () => {
+//   const assessments: Assessment[] = [
+//     {
+//       "title": "The Human Eye and The Colourful World",
+//       "status": {
+//         "online": true,
+//         "state": "Active"
+//       },
+//       "start_date": "13/10/2024, 11:15 AM",
+//       "end_date": "15/10/2024, 08:30 PM",
+//       "subject": "Physics",
+//       "duration": "20 min"
+//     },
+//     {
+//       "title": "Polynomials",
+//       "status": {
+//         "online": false,
+//         "state": "Active"
+//       },
+//       "start_date": "13/10/2024, 11:15 AM",
+//       "end_date": "15/10/2024, 08:30 PM",
+//       "subject": "Physics",
+//       "duration": "20 min"
+//     },
+//     {
+//       "title": "The Human Eye and The Colourful World",
+//       "status": {
+//         "online": true,
+//         "state": "Paused"
+//       },
+//       "start_date": "13/10/2024, 11:15 AM",
+//       "end_date": "15/10/2024, 08:30 PM",
+//       "subject": "Physics",
+//       "duration": "20 min"
+//     }
+//   ];
+
+//   return <AssessmentList assessments={assessments} />;
+// };
 
 export default LiveAssessmentList;
