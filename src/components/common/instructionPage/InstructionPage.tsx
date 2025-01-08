@@ -2,28 +2,31 @@ import React from "react";
 import { AssessmentInstructions } from "@/components/common/instructionPage/AssessmentInstructions";
 import { SectionDetails } from "@/components/common/instructionPage/SectionDetails";
 import { Assessment } from "@/types/assessment";
-import { MyButton } from "@/components/design-system/button";
+import AssessmentStartModal from "./StartAssessment";
+import Navbar from "@/components/common/instructionPage/AssessmentNavbar";
 
-const InstructionPage: React.FC<{ assessment: Assessment }> = ({
+const InstructionPage: React.FC<{ assessment: Assessment; title: string }> = ({
   assessment,
+  title, // Add title prop
 }) => {
   return (
-    <div className="container mx-auto p-4">
-      <AssessmentInstructions
-        instructions={assessment.assessmentInstruction}
-        duration={assessment.assessmentDuration}
-        preview={assessment.assessmentPreview}
-        canSwitchSections={assessment.canSwitchSections}
-      />
-      {assessment.sections.map((section, index) => (
-        <SectionDetails key={index} section={section} />
-      ))}
-      <div className="flex justify-center pt-4">
-        <MyButton buttonType="primary" scale="large" layoutVariant="default">
-          Start Assessment
-        </MyButton>
+    <>
+      <div className="">
+        <Navbar title={assessment.} />
+        <div className="container mx-auto p-4">
+          <AssessmentInstructions
+            instructions={assessment.assessmentInstruction}
+            duration={assessment.assessmentDuration}
+            preview={assessment.assessmentPreview}
+            canSwitchSections={assessment.canSwitchSections}
+          />
+          {assessment.sections.map((section, index) => (
+            <SectionDetails key={index} section={section} />
+          ))}
+          <AssessmentStartModal />
+        </div>
       </div>
-    </div>
+    </>
   );
 };
 
