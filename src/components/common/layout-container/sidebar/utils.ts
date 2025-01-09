@@ -25,7 +25,7 @@ export const SidebarItemsData: SidebarItemsType[] = [
                 subItemLink: "/assessment/mock-test",
             },
             {
-                subItem: "practice Test",
+                subItem: "Practice Test",
                 subItemLink: "/assessment/practice-test",
             },
             {
