@@ -12,10 +12,12 @@ import { toast } from "sonner";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Form, FormControl, FormField, FormItem } from "@/components/ui/form";
+import { useNavigate } from "@tanstack/react-router";
 
 type FormValues = z.infer<typeof forgotPasswordSchema>;
 
 export function ForgotPassword() {
+  const navigate = useNavigate();
   const form = useForm<FormValues>({
     resolver: zodResolver(forgotPasswordSchema),
     defaultValues: {
@@ -116,17 +118,21 @@ export function ForgotPassword() {
                   >
                     Get Credentials
                   </MyButton>
-                  <div className="flex gap-3 text-body font-regular text-[4vw] md:text-[2.5vw] lg:text-[1.5vw]">
-                    <div className="text-neutral-500">
+                    <div className="flex flex-col items-center gap-4 md:gap-6 lg:gap-8">
+                    <div className="text-neutral-500 text-center text-[4vw] md:text-[2.5vw] lg:text-[1.5vw]">
                       Remembered your account details?
-                    </div>
-                    <Link
-                      to="/login"
-                      className="cursor-pointer text-primary-500"
-                    >
+                      <MyButton
+                      type="button"
+                      scale="medium"
+                      buttonType="text"
+                      layoutVariant="default"
+                      className="text-primary-500 text-[4vw] md:text-[2.5vw] lg:text-[1.5vw]"
+                      onClick={() => navigate({ to: "/login" })}
+                      >
                       Back to Login
-                    </Link>
-                  </div>
+                      </MyButton>
+                    </div>
+                    </div>
                 </div>
               </div>
             </form>

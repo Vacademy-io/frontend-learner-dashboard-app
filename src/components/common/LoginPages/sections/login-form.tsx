@@ -128,21 +128,26 @@ export function LoginForm() {
                           size="large"
                           label="Username"
                           {...field}
-                          className="md:w-[400px] lg:w-[600px] "
+                          className="w-[300px] md:w-[348px] lg:w-[348px] "
                         />
                       </FormControl>
                     </FormItem>
                   )}
                 />
                 <span>
-                  <Link to="/login/forgot-password">
-                    <div className="cursor-pointer text-sm md:text-base font-regular text-primary-500 inline-block pl-1 md:text-[1.2vh] lg:text-[1.5vh] md:mt-[1vh] lg:mt-[1vh] ">
-                      Forgot Username?
-                    </div>
-                  </Link>
+                  <MyButton
+                    type="button"
+                    scale="medium"
+                    buttonType="text"
+                    layoutVariant="default"
+                    className="text-primary-500"
+                    onClick={() => navigate({ to: "/login/forgot-password" })}
+                  >
+                    Forgot Username?
+                  </MyButton>
                 </span>
               </div>
-              <div className="flex flex-col">
+              <div className="flex flex-col ">
                 <FormField
                   control={form.control}
                   name="password"
@@ -159,22 +164,27 @@ export function LoginForm() {
                           size="large"
                           label="Password"
                           {...field}
-                          className="md:w-[400px] lg:w-[600px]"
+                          // className="md:w-[400px] lg:w-[600px]"
                         />
                       </FormControl>
                     </FormItem>
                   )}
                 />
                 <span>
-                  <Link to="/login/forgot-password">
-                    <div className="cursor-pointer text-sm md:text-base font-regular text-primary-500 inline-block pl-1 md:text-[1.2vh] lg:text-[1.5vh] md:mt-[1vh] lg:mt-[1vh]">
-                      Forgot Password?
-                    </div>
-                  </Link>
+                  <MyButton
+                    type="button"
+                    scale="medium"
+                    buttonType="text"
+                    layoutVariant="default"
+                    className="text-primary-500"
+                    onClick={() => navigate({ to: "/login/forgot-password" })}
+                  >
+                    Forgot Password?
+                  </MyButton>
                 </span>
               </div>
             </div>
-            <div className="mt-12 md:mt-8 lg:mt-12 flex flex-col items-center gap-2 md:gap-3 lg:gap-4">
+            <div className="mt-16 md:mt-16 lg:mt-18 flex flex-col items-center gap-2 md:gap-3 lg:gap-4">
               <MyButton
                 type="submit"
                 scale="large"
@@ -183,12 +193,21 @@ export function LoginForm() {
               >
                 Login
               </MyButton>
-              <div className="flex gap-3 font-regular">
-                <div className="text-neutral-500">Don’t have an account?</div>
-                <Link to="/login" className="cursor-pointer text-primary-500">
+                <div className="flex font-regular pb-5 items-center gap-1">
+                <div className="text-neutral-500 text-sm md:text-base lg:text-base">
+                  Don’t have an account?
+                </div>
+                <MyButton
+                  type="button"
+                  scale="medium"
+                  buttonType="text"
+                  layoutVariant="default"
+                  className="text-primary-500"
+                  onClick={() => navigate({ to: "/login" })}
+                >
                   Create Account
-                </Link>
-              </div>
+                </MyButton>
+                </div>
             </div>
           </form>
         </Form>

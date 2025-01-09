@@ -2,9 +2,8 @@ import { createFileRoute } from '@tanstack/react-router'
 import InstructionPage from '@/components/common/instructionPage/InstructionPage';
 import AssessmentInterface from '@/components/common/section/test';
 import assessments from '../-utils.ts/dummyData';
-// import Assessment from '@/components/common/section/test2';
+import Assessment from '@/components/common/section/test2';
 import AssessmentWrapper from '@/components/common/section/test';
-import Assessment from '@/components/common/LiveAssessmentQuestion/QuestionNavigation';
 
 // const assessments: Assessment[] = [
 //     {
@@ -175,5 +174,4 @@ function RouteComponent() {
     // return <AssessmentInterface assessmentData={assessments[0]} />
     // return <Assessment />
     // return <AssessmentWrapper/>
-    // return <Assessment />
 }

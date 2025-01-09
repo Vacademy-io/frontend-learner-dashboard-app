@@ -44,7 +44,7 @@ export const SplashScreen = ({ children }: SplashScreenProps) => {
         <motion.img
           src={SsdcLogo_Login}
           alt="logo"
-          style={{ width: "22vw", height: "22vh" }} // Matches HeaderLogo size
+          style={{ width: "20vw", height: "20vh" }} // Matches HeaderLogo size
           className="object-contain"
         />
       </motion.div>
