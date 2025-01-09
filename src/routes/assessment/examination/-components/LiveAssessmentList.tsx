@@ -41,28 +41,26 @@ const AssessmentCard: React.FC<AssessmentCardProps> = ({ assessment }) => {
 
   return (
     <Card className="w-full p-6 space-y-6">
-      <h2 className="text-lg font-semibold">{title}</h2>
-      <div className="md:flex justify-between items-center">
+      <h2 className="text-sm lg:text-base font-semibold">{title}</h2>
+      <div className="lg:flex md:flex justify-between items-center">
         <div className="">
-          <div className="flex gap-3">
+          <div className="flex gap-3 pb-3">
             <StatusChips
               status={mode.toLowerCase() === "online" ? "active" : "inactive"}
             />
-            <div className="flex items-center gap-1.5">
-              <StatusChips
-                status={mode.toLowerCase() === "online" ? "active" : "inactive"}
-              />
-            </div>
-            <div className="flex items-center gap-1.5"></div>
+            <StatusChips
+              status={status.toLowerCase() === "online" ? "active" : "inactive"}
+            />
+            
           </div>
-          <div className="space-y-2 text-sm text-gray-600">
+            <div className="space-y-2 text-xs lg:text-sm text-gray-600">
             <div>Start Date and Time: {startDate}</div>
             <div>End Date and Time: {endDate}</div>
             <div>Subject: {subject}</div>
             <div>Duration: {assessmentDuration}</div>
-          </div>
+            </div>
         </div>
-        <div className="">
+        <div className="pt-5">
             <MyButton
             buttonType="secondary"
             className="w-full max-w-xs md:w-[200px] lg:w-[300px]"

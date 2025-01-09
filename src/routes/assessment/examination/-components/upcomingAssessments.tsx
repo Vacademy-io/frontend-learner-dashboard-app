@@ -5,7 +5,7 @@ import {
   AlertDialogOverlay,
 } from "@/components/ui/alert-dialog";
 import { Card, CardContent } from "@/components/ui/card";
-import { Clock, Calendar } from "lucide-react";
+import { Clock, Calendar, CircleDot } from "lucide-react";
 import {
   Pagination,
   PaginationContent,
@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/pagination";
 import { Assessment, AssessmentCardProps } from "@/types/assessment";
 import { UpcomingAssessment } from "../-utils.ts/dummyData";
+import { StatusChips } from "@/components/design-system/chips";
 
 const ITEMS_PER_PAGE = 2;
 
@@ -42,35 +43,71 @@ const AssessmentCard = ({ assessment }: AssessmentCardProps) => {
         className="w-full mb-4 hover:shadow-lg transition-shadow cursor-pointer"
         onClick={() => setShowPopup(true)}
       >
-        <CardContent className="p-4">
-          <h3 className="font-semibold text-lg mb-2">{assessment.title}</h3>
+        <CardContent className="p-4 gap-2">
+          <div className="font-semibold text-sm mb-4">{assessment.title}</div>
 
+          <div className="flex gap-3 pb-4">
+            <StatusChips
+              status={
+                assessment.mode.toLowerCase() === "online"
+                  ? "active"
+                  : "inactive"
+              }
+            />
+          </div>
           <div className="space-y-2 text-sm text-gray-600">
             <div className="flex items-center gap-2">
-              <Calendar className="w-4 h-4" />
               <span>Live Date: {assessment.liveDate}</span>
             </div>
 
             <div className="flex items-center gap-2">
-              <Clock className="w-4 h-4" />
               <span>Live Availability: {assessment.availability}</span>
             </div>
 
-            <div className="mt-2">
-              <p className="font-medium">Subject: {assessment.subject}</p>
-              <p>Duration: {assessment.duration}</p>
-            </div>
+            <p className="font-medium">Subject: {assessment.subject}</p>
+            <p>Duration: {assessment.duration}</p>
           </div>
         </CardContent>
       </Card>
 
+      {/* <Card 
+      className="w-full max-w-sm mb-4 hover:shadow-lg transition-shadow cursor-pointer bg-white rounded-lg"
+      // onClick={onClick}
+    >
+      <CardContent className="p-4">
+        <div className="flex items-center gap-2 mb-4">
+          <CircleDot className="w-4 h-4 text-green-500" />
+          <span className="text-green-500">Online</span>
+        </div>
+
+        <h3 className="font-semibold text-lg mb-4">{assessment.title}</h3>
+
+        <div className="space-y-3 text-sm text-gray-600">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <Calendar className="w-4 h-4" />
+              <span>Start Date and Time: {assessment.liveDate}</span>
+            </div>
+            <div className="flex items-center gap-2 ml-6">
+              <span>End Date and Time: {assessment.endDateTime}</span>
+            </div>
+          </div>
+
+          <div>
+            <p className="mb-1">Subject: {assessment.subject}</p>
+            <p>Duration: {assessment.duration}</p>
+          </div>
+        </div>
+      </CardContent>
+    </Card> */}
+
       <AlertDialog open={showPopup} onOpenChange={handleClose}>
         <AlertDialogOverlay className="bg-black/50" onClick={handleClose} />
-        <AlertDialogContent className="max-w-md bg-[#FDFAF6] rounded-lg p-6 sm:p-4">
+        <AlertDialogContent className="max-w-sd bg-[#FDFAF6] rounded-lg p-6 sm:p-4 sm:min-width-[200px]">
           <div className="text-gray-700">
-        The assessment{" "}
-        <span className="text-orange-500">{assessment.title}</span> is not
-        live currently. You can appear for the assessment when it goes live
+            The assessment{" "}
+            <span className="text-orange-500">{assessment.title}</span> is not
+            live currently. You can appear for the assessment when it goes live.
           </div>
         </AlertDialogContent>
       </AlertDialog>
@@ -82,7 +119,6 @@ const UpcomingAssessmentList = () => {
   const [currentPage, setCurrentPage] = useState(1);
 
   const assessments = UpcomingAssessment;
-
 
   const totalPages = Math.ceil(assessments.length / ITEMS_PER_PAGE);
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;

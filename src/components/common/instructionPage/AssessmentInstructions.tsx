@@ -9,30 +9,29 @@ export const AssessmentInstructions: React.FC<InstructionsProps> = ({
   canSwitchSections,
 }) => {
   return (
-    <div className="bg-white shadow p-4 rounded-lg mb-4">
-      <h2 className="text-xl font-semibold mb-2">Assessment Instructions</h2>
-      <p className="text-gray-700 whitespace-pre-line text-sm">{instructions}</p>
+    <>
+      <div className="mb-2 font-semibold">Assessment Instructions</div>
+      <div className="text-gray-700 whitespace-pre-line text-sm">{instructions}</div>
       <div className="mt-4 text-sm">
-        <p>
-          <span className="font-semibold">Assessment Duration:</span>
+        <div>
+          Assessment Duration:
           <div className="flex items-center gap-2">
-            <p>Entire Assessment Duration</p>
+            <div>Entire Assessment Duration</div>
             {duration}
           </div>
-        </p>
-        <p>
-          <span className="font-semibold">Assessment Preview:</span> {preview}
-        </p>
+        </div>
+        <div>
+          Assessment Preview: {preview}
+        </div>
         <div className="flex items-center justify-between text-gray-600">
-          <span>
-            <span className="font-semibold">Switch between sections:</span>{" "}
-            {canSwitchSections ? "Yes" : "No"}
-          </span>
+          <div>
+            Switch between sections: {canSwitchSections ? "Yes" : "No"}
+          </div>
           {canSwitchSections && (
             <Check className="w-5 h-5 text-green-500" />
           )}
         </div>
       </div>
-    </div>
+    </>
   );
 };
