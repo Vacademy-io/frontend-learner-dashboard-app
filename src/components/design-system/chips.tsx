@@ -225,3 +225,38 @@ export const StatusChips = ({ status }: { status: ActivityStatus }) => {
         </ChipsWrapper>
     );
 };
+
+
+
+
+// // StatusChips Component Modification
+// export const StudentStatusChips = ({
+//     mode,
+//     status,
+//   }: {
+//     mode: "Online" | "Offline";
+//     status: "Active" | "Paused";
+//   }) => {
+//     // Determine status color and icon based on mode and status
+//     const statusData = ActivityStatusData[status.toLowerCase()];
+//     const modeIcon = mode.toLowerCase() === "online" ? CheckCircle : XCircle;
+//     const modeColor = mode.toLowerCase() === "online" ? "bg-success-50" : "bg-neutral-100";
+//     const statusColor = statusData ? statusData.color : { bg: "bg-neutral-100", icon: "text-neutral-600" };
+  
+//     return (
+//       <div className={`flex items-center gap-2 ${modeColor} px-3 py-1 rounded-full`}>
+//         <modeIcon className={`w-4 h-4 ${mode.toLowerCase() === "online" ? "fill-current" : ""}`} />
+//         <span className="capitalize text-sm">{mode}</span>
+  
+//         <div className={`flex items-center gap-1.5 ${statusColor.bg} text-sm rounded-full px-3 py-1`}>
+//           <statusData.icon className={`w-4 h-4 ${statusColor.icon}`} />
+//           <span className="capitalize text-sm">{status}</span>
+//         </div>
+//       </div>
+//     );
+//   };
+ 
+  
+
+
+export { Chips, ChipsWrapper };

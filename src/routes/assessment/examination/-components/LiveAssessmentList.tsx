@@ -19,27 +19,7 @@ import {
   AssessmentListProps,
 } from "@/types/assessment";
 import assessments from "../-utils.ts/dummyData";
-
-// Helper functions
-const getStatusColor = (mode: string, status: string): string => {
-  if (status.toLowerCase() !== "active") {
-    return "text-orange-600 bg-orange-50";
-  }
-  return mode.toLowerCase() === "online"
-    ? "text-green-600 bg-green-50"
-    : "text-gray-600 bg-gray-50";
-};
-
-const getStatusIcon = (status: string): React.ReactNode => {
-  switch (status.toLowerCase()) {
-    case "active":
-      return <CheckCircle2 className="w-4 h-4" />;
-    case "paused":
-      return <PauseCircle className="w-4 h-4" />;
-    default:
-      return null;
-  }
-};
+import { StatusChips } from "@/components/design-system/chips";
 
 // Card Component
 const AssessmentCard: React.FC<AssessmentCardProps> = ({ assessment }) => {
@@ -62,46 +42,37 @@ const AssessmentCard: React.FC<AssessmentCardProps> = ({ assessment }) => {
   return (
     <Card className="w-full p-6 space-y-6">
       <h2 className="text-lg font-semibold">{title}</h2>
-      <div className="flex gap-3">
-      <div
-        className={`flex items-center gap-1.5 text-sm ${getStatusColor(
-        mode,
-        status
-        )} px-3 py-1 rounded-full`}
-      >
-        <Circle
-        className={`w-4 h-4 ${
-          mode.toLowerCase() === "online" ? "fill-current" : ""
-        }`}
-        />
-        <span>{mode}</span>
+      <div className="md:flex justify-between items-center">
+        <div className="">
+          <div className="flex gap-3">
+            <StatusChips
+              status={mode.toLowerCase() === "online" ? "active" : "inactive"}
+            />
+            <div className="flex items-center gap-1.5">
+              <StatusChips
+                status={mode.toLowerCase() === "online" ? "active" : "inactive"}
+              />
+            </div>
+            <div className="flex items-center gap-1.5"></div>
+          </div>
+          <div className="space-y-2 text-sm text-gray-600">
+            <div>Start Date and Time: {startDate}</div>
+            <div>End Date and Time: {endDate}</div>
+            <div>Subject: {subject}</div>
+            <div>Duration: {assessmentDuration}</div>
+          </div>
+        </div>
+        <div className="">
+            <MyButton
+            buttonType="secondary"
+            className="w-full max-w-xs md:w-[200px] lg:w-[300px]"
+            disabled={status.toLowerCase() !== "active"}
+            onClick={handleJoinAssessment}
+            >
+            Join Assessment
+            </MyButton>
+        </div>
       </div>
-      <div
-        className={`flex items-center gap-1.5 text-sm ${getStatusColor(
-        mode,
-        status
-        )} px-3 py-1 rounded-full`}
-      >
-        {getStatusIcon(status)}
-        <span>{status}</span>
-      </div>
-      </div>
-      <div className="space-y-2 text-sm text-gray-600">
-      <div>
-        <div>Start Date and Time: {startDate}</div>
-        <div>End Date and Time: {endDate}</div>
-      </div>
-      <div>Subject: {subject}</div>
-      <div>Duration: {assessmentDuration}</div>
-      </div>
-      <MyButton
-      buttonType="secondary"
-      className="w-full"
-      disabled={status.toLowerCase() !== "active"}
-      onClick={handleJoinAssessment}
-      >
-      Join Assessment
-      </MyButton>
     </Card>
   );
 };
@@ -122,7 +93,7 @@ const AssessmentList: React.FC<AssessmentListProps> = ({ assessments }) => {
 
   return (
     <div className="w-full space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4">
         {currentAssessments.map((assessment) => (
           <AssessmentCard
             key={assessment.assessmentId}

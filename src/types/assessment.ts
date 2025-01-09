@@ -9,7 +9,10 @@ export interface Question {
   questionName: string;
   questionMark: string;
   imageDetails: any[];
-  options: Option[];
+  options: Array<{
+    optionId: string;
+    optionName: string;
+  }>;
 }
 
 export interface MarkingRule {
