@@ -1,6 +1,6 @@
 import { Assessment } from "@/types/previewInstructionAssessment";
 
-const assessments: Assessment[] = [
+const dummyAssessment: Assessment[] = [
   {
     assessmentId: "A001",
     title: "The Human Eye and The Colourful World",
@@ -710,5 +710,5 @@ const UpcomingAssessment = [
   },
 ];
 
-export default assessments;
+export default dummyAssessment;
 export { UpcomingAssessment };

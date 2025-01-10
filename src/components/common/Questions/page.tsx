@@ -132,7 +132,6 @@ import { useAssessmentStore } from '@/stores/assessment-store'
 //   )
 // }
 
-
 // This would typically come from an API or database
 const dummyAssessment = {
   assessmentId: "A001",

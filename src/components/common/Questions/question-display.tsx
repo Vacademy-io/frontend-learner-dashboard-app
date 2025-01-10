@@ -3,18 +3,24 @@ import { Button } from '@/components/ui/button'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent } from '@/components/ui/card'
-import { Flag, X } from 'lucide-react'
+import { Flag, X, AlertCircle } from 'lucide-react'
 import { useAssessmentStore } from '@/stores/assessment-store'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+
 
 export function QuestionDisplay() {
   const { 
-    currentQuestion, 
-    answers, 
-    setAnswer, 
+    currentQuestion,
+    currentSection,
+    answers,
+    setAnswer,
     markForReview,
     clearResponse,
-    questionStates 
+    questionStates,
+    sectionTimers
   } = useAssessmentStore()
+
+  const isTimeUp = sectionTimers[currentSection]?.timeLeft === 0
 
   if (!currentQuestion) {
     return (
@@ -23,6 +29,17 @@ export function QuestionDisplay() {
           <p className="text-center text-muted-foreground">Select a question to begin</p>
         </CardContent>
       </Card>
+    )
+  }
+
+  if (isTimeUp) {
+    return (
+      <Alert variant="destructive" className="mb-6">
+        <AlertCircle className="h-4 w-4" />
+        <AlertDescription>
+          Time is up for this section. Please move to the next available section.
+        </AlertDescription>
+      </Alert>
     )
   }
 
@@ -65,13 +82,12 @@ export function QuestionDisplay() {
 
       {currentQuestion.imageDetails && currentQuestion.imageDetails.length > 0 && (
         <div className="relative h-64 w-full">
-          {/* <Image
+          <Image
             src="/placeholder.svg"
             alt="Question diagram"
             fill
             className="object-contain"
-          /> */}
-          <h1>img</h1>
+          />
         </div>
       )}
 

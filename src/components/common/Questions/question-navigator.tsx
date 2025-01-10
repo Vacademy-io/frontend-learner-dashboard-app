@@ -9,6 +9,11 @@ import { useAssessmentStore } from '@/stores/assessment-store'
 import { ViewToggle } from './view-toggle'
 import { QuestionListView } from './question-list-view'
 
+
+
+
+
+
 interface QuestionNavigatorProps {
   isOpen: boolean
 }

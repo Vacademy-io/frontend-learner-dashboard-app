@@ -4,6 +4,9 @@ import { Flag } from 'lucide-react'
 // import Image from 'next/image'
 import { useAssessmentStore } from '@/stores/assessment-store'
 
+
+
+
 export function QuestionListView() {
   const { 
     assessment,
@@ -11,16 +14,25 @@ export function QuestionListView() {
     currentQuestion,
     questionStates,
     setCurrentQuestion,
-    setQuestionState 
+    setQuestionState,
+    sectionTimers 
   } = useAssessmentStore()
 
   if (!assessment) return null
 
   const currentSectionQuestions = assessment.sections[currentSection].questions
+  const isTimeUp = sectionTimers[currentSection]?.timeLeft === 0
 
   const handleQuestionClick = (question: Question) => {
+    if (isTimeUp) return
     setCurrentQuestion(question)
     setQuestionState(question.questionId, { isVisited: true })
+  }
+
+  const getQuestionClass = (state: QuestionState) => {
+    if (state.isAnswered) return 'border-green-200 bg-green-50'
+    if (!state.isVisited) return 'border-gray-200'
+    return 'border-pink-200 bg-pink-50'
   }
 
   return (
@@ -34,10 +46,11 @@ export function QuestionListView() {
             <div
               key={question.questionId}
               className={cn(
-                "relative rounded-lg border p-4 cursor-pointer transition-colors",
-                isActive ? "bg-accent" : "hover:bg-accent/50",
-                state?.isAnswered && "border-green-200",
-                state?.isMarkedForReview && "border-orange-200"
+                "relative rounded-lg border p-4 transition-colors",
+                !isTimeUp && "cursor-pointer hover:bg-accent/50",
+                isActive && "ring-2 ring-primary",
+                state && getQuestionClass(state),
+                isTimeUp && "opacity-50"
               )}
               onClick={() => handleQuestionClick(question)}
             >
@@ -61,7 +74,6 @@ export function QuestionListView() {
                     fill
                     className="object-contain"
                   /> */}
-                  <h2>img2</h2>
                 </div>
               )}
             </div>

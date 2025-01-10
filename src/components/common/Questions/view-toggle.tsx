@@ -2,6 +2,9 @@ import { LayoutGrid, List } from 'lucide-react'
 import { Button } from "@/components/ui/button"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 
+
+
+
 interface ViewToggleProps {
   view: "grid" | "list"
   onViewChange: (view: "grid" | "list") => void

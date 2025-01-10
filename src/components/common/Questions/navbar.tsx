@@ -29,6 +29,11 @@ import { useAssessmentStore } from '@/stores/assessment-store'
 import { SubmitModal } from '@/components/modals/submit-modal'
 import { TimesUpModal } from '@/components/modals/times-up-modal'
 import { useRouter } from '@tanstack/react-router'
+
+
+
+
+
 export function Navbar() {
   const router = useRouter()
   const { 
@@ -72,7 +77,7 @@ export function Navbar() {
         </div>
       </div>
 
-      <SubmitModal
+      <SubmitModal 
         open={showSubmitModal}
         onOpenChange={setShowSubmitModal}
         onConfirm={handleSubmit}

@@ -12,9 +12,9 @@ export const Route = createFileRoute('/assessment/examination/$assessment/')({
 })
 
 function RouteComponent() {
-    return <InstructionPage assessment={assessments[0]} />
+    // return <InstructionPage assessment={assessments[0]} />
     // return <AssessmentInterface assessmentData={assessments[0]} />
     // return <Assessment />
     // return <AssessmentWrapper/>
-    // return <Page />
+    return <Page />
 }
