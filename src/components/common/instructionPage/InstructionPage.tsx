@@ -1,7 +1,7 @@
 import React from "react";
 import { AssessmentInstructions } from "@/components/common/instructionPage/AssessmentInstructions";
 import { SectionDetails } from "@/components/common/instructionPage/SectionDetails";
-import { Assessment } from "@/types/assessment";
+import { Assessment } from "@/types/previewInstructionAssessment";
 import AssessmentStartModal from "./StartAssessment";
 import Navbar from "@/components/common/instructionPage/AssessmentNavbar";
 import { Separator } from "@/components/ui/separator";

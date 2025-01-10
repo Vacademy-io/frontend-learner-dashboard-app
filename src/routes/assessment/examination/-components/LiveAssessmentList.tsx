@@ -17,7 +17,7 @@ import {
   Assessment,
   AssessmentCardProps,
   AssessmentListProps,
-} from "@/types/assessment";
+} from "@/types/previewInstructionAssessment";
 import assessments from "../-utils.ts/dummyData";
 import { StatusChips } from "@/components/design-system/chips";
 
@@ -51,24 +51,23 @@ const AssessmentCard: React.FC<AssessmentCardProps> = ({ assessment }) => {
             <StatusChips
               status={status.toLowerCase() === "online" ? "active" : "inactive"}
             />
-            
           </div>
-            <div className="space-y-2 text-xs lg:text-sm text-gray-600">
+          <div className="space-y-2 text-xs lg:text-sm text-gray-600">
             <div>Start Date and Time: {startDate}</div>
             <div>End Date and Time: {endDate}</div>
             <div>Subject: {subject}</div>
             <div>Duration: {assessmentDuration}</div>
-            </div>
+          </div>
         </div>
         <div className="pt-5">
-            <MyButton
+          <MyButton
             buttonType="secondary"
             className="w-full max-w-xs md:w-[200px] lg:w-[300px]"
             disabled={status.toLowerCase() !== "active"}
             onClick={handleJoinAssessment}
-            >
+          >
             Join Assessment
-            </MyButton>
+          </MyButton>
         </div>
       </div>
     </Card>

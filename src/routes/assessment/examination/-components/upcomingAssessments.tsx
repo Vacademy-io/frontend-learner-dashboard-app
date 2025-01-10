@@ -14,7 +14,10 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
-import { Assessment, AssessmentCardProps } from "@/types/assessment";
+import {
+  Assessment,
+  AssessmentCardProps,
+} from "@/types/previewInstructionAssessment";
 import { UpcomingAssessment } from "../-utils.ts/dummyData";
 import { StatusChips } from "@/components/design-system/chips";
 

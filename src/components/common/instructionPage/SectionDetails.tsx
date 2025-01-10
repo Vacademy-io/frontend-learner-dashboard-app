@@ -74,11 +74,9 @@
 
 // export default SectionDetails;
 
-
-
 import React from "react";
 import { Check } from "lucide-react";
-import { SectionProps } from "@/types/assessment";
+import { SectionProps } from "@/types/previewInstructionAssessment";
 import { StatusChips } from "@/components/design-system/chips";
 
 export const SectionDetails: React.FC<SectionProps> = ({ section }) => {

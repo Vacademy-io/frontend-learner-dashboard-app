@@ -1,4 +1,4 @@
-import { Assessment } from "@/types/assessment";
+import { Assessment } from "@/types/previewInstructionAssessment";
 
 const assessments: Assessment[] = [
   {
@@ -196,7 +196,39 @@ const assessments: Assessment[] = [
         questions: [
           {
             questionType: "Multiple Choice",
-            questionId: "Q011",
+            questionId: "Q01",
+            questionName: "What is the speed of light in a vacuum?",
+            questionMark: "2",
+            imageDetails: [],
+            options: [
+              { optionId: "O001", optionName: "300,000 km/s" },
+              { optionId: "O002", optionName: "150,000 km/s" },
+              { optionId: "O003", optionName: "450,000 km/s" },
+              { optionId: "O004", optionName: "500,000 km/s" },
+            ],
+          },
+        ],
+      },
+      {
+        assesmentDuration: "20 min",
+        subject: "Physics",
+        sectionDesc: `
+          Explore the fascinating topics of the colorful world around us. Delve into the physical principles behind light, color, and the human eye's ability to perceive these colors.`,
+        sectionDuration: "NA",
+        negativeMarking: {
+          checked: true,
+          value: "1",
+        },
+        partialMarking: true,
+        cutoffMarking: {
+          checked: true,
+          value: "08",
+        },
+        totalMark: "20",
+        questions: [
+          {
+            questionType: "Multiple Choice",
+            questionId: "Q01",
             questionName: "What is the speed of light in a vacuum?",
             questionMark: "2",
             imageDetails: [],
