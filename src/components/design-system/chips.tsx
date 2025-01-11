@@ -295,22 +295,22 @@
 
 // // import React from 'react';
 
-// export const PauseIcon = ({ className = '', size = 24 }) => {
-//   return (
-//     <div className={`inline-flex ${className}`} style={{ width: size, height: size }}>
-//     <svg 
-//       xmlns="http://www.w3.org/2000/svg" 
-//       viewBox="0 0 24 24"
-//       width={size}
-//       height={size}
-//     >
-//       <circle cx="12" cy="12" r="10" fill="#E5E7EB"/>
-//       <rect x="9" y="8" width="2" height="8" rx="1" fill="#6B7280"/>
-//       <rect x="13" y="8" width="2" height="8" rx="1" fill="#6B7280"/>
-//     </svg>
-//     </div>
-//   );
-// };
+export const PauseIcon = ({ className = '', size = 24 }) => {
+  return (
+    <div className={`inline-flex ${className}`} style={{ width: size, height: size }}>
+    <svg 
+      xmlns="http://www.w3.org/2000/svg" 
+      viewBox="0 0 24 24"
+      width={size}
+      height={size}
+    >
+      <circle cx="12" cy="12" r="10" fill="#E5E7EB"/>
+      <rect x="9" y="8" width="2" height="8" rx="1" fill="#6B7280"/>
+      <rect x="13" y="8" width="2" height="8" rx="1" fill="#6B7280"/>
+    </svg>
+    </div>
+  );
+};
 
 // export default PauseIcon;
 
@@ -345,8 +345,6 @@ export const StatusChip: React.FC<StatusChipProps> = ({
         text: 'text-gray-600',
         dot: 'bg-gray-400',
         border: 'border-gray-300',
-        hoverBg: 'hover:bg-gray-100',
-        hoverBorder: 'hover:border-gray-400',
       };
     }
     
@@ -354,9 +352,7 @@ export const StatusChip: React.FC<StatusChipProps> = ({
       bg: 'bg-green-50',
       text: 'text-green-700',
       dot: 'bg-green-500',
-      border: 'border-green-300',
-      hoverBg: 'hover:bg-green-100',
-      hoverBorder: 'hover:border-green-400',
+      border: 'border-gray-300',
     };
   };
 
@@ -365,12 +361,20 @@ export const StatusChip: React.FC<StatusChipProps> = ({
 
   return (
     <div 
-      className={`inline-flex items-center gap-2 rounded-sm px-3 py-1 border ${styles.bg} ${styles.border} ${styles.hoverBg} ${styles.hoverBorder} transition-all duration-200 ${className}`}
+      className={`inline-flex items-center gap-2 rounded-sm px-3 py-1 border ${styles.bg} ${styles.border} transition-all duration-200 ${className}`}
     >
       {status === 'Paused' ? (
-        <Pause className={`h-3 w-3 ${styles.text}`} />
+        <PauseIcon/>
       ) : (
-        showDot && <div className={`h-2 w-2 rounded-full ${styles.dot}`} />
+        status ? (
+            
+        //   <StatusCheck />
+        <div className="flex items-center justify-center rounded-full bg-green-500 p-1">
+      <Check className="h-2 w-2 text-white" />
+    </div>
+        ) : (
+          showDot && <div className={`h-2 w-2 rounded-full ${styles.dot}`} />
+        )
       )}
       <div className="flex items-center gap-1">
         <span className={`text-sm font-medium ${styles.text}`}>
@@ -385,6 +389,6 @@ export const StatusChip: React.FC<StatusChipProps> = ({
 
 export const StatusCheck = () => (
     <div className="flex items-center justify-center rounded-full bg-green-500 p-1">
-      <Check className="h-4 w-4 text-white" />
+      <Check className="h-3 w-3 text-white" />
     </div>
   );

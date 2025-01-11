@@ -13,20 +13,30 @@ const InstructionPage: React.FC<{ assessment: Assessment; title: string }> = ({
   return (
     <>
       <div className="">
-        <Navbar title={assessment.title} />
-        <div className="p-4 lg:p-8">
+        <div className="fixed top-0 w-full z-50">
+          <Navbar title={assessment.title} />
+        </div>
+        <div className="pt-24 pb-16 p-4 lg:p-8 lg:pt-24 lg:pb-16">
+          {" "}
+          {/* Add padding-top to account for the fixed navbar */}
           <AssessmentInstructions
             instructions={assessment.assessmentInstruction}
             duration={assessment.assessmentDuration}
             preview={assessment.assessmentPreview}
             canSwitchSections={assessment.canSwitchSections}
           />
-          {/* <div className="border-b-2 border-gray-300 my-4"></div> */}
-          <Separator orientation="horizontal" className="my-4 " />
           {assessment.sections.map((section, index) => (
+            <div className="">
+
+          <Separator orientation="horizontal" className="my-4 " />
             <SectionDetails key={index} section={section} />
+            </div>
           ))}
-          <AssessmentStartModal />
+          <div className="fixed bottom-0 bg-white w-full z-50">
+            <div className="pb-4">
+              <AssessmentStartModal />
+            </div>
+          </div>
         </div>
       </div>
     </>

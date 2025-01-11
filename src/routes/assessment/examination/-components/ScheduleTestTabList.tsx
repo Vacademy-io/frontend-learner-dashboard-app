@@ -1,5 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import { TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { dummyAssessment, UpcomingAssessment } from "../-utils.ts/dummyData";
 
 const ScheduleTestTabList = ({ selectedTab }: { selectedTab: string }) => {
     return (
@@ -19,7 +20,7 @@ const ScheduleTestTabList = ({ selectedTab }: { selectedTab: string }) => {
                     className="rounded-[10px] bg-primary-500 p-0 px-2 text-[9px] text-white"
                     variant="outline"
                 >
-                    {0}
+                    {6}
                 </Badge>
             </TabsTrigger>
             <TabsTrigger
@@ -37,7 +38,7 @@ const ScheduleTestTabList = ({ selectedTab }: { selectedTab: string }) => {
                     className="rounded-[10px] bg-primary-500 p-0 px-2 text-[9px] text-white"
                     variant="outline"
                 >
-                    {0}
+                    {UpcomingAssessment.length}
                 </Badge>
             </TabsTrigger>
             

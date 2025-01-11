@@ -48,7 +48,7 @@ export const ScheduleTestMainComponent = () => {
             <TabsContent
               key={tab.value}
               value={tab.value}
-              className="my-4 rounded-xl bg-neutral-50"
+              className="rounded-xl bg-neutral-50"
             >
               {tab.value === "liveTests" ? (
                 // Render Live Tests data

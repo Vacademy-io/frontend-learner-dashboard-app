@@ -118,15 +118,17 @@ export function ForgotPassword() {
                   >
                     Get Credentials
                   </MyButton>
-                    <div className="flex flex-col items-center gap-4 md:gap-6 lg:gap-8">
-                    <div className="text-neutral-500 text-center text-[4vw] md:text-[2.5vw] lg:text-[1.5vw]">
-                      Remembered your account details?
+                  <div className="flex font-regular items-center ">
+                <div className="text-neutral-500 text-sm md:text-base lg:text-base">
+                Remembered your account details?
+                
+                      
                       <MyButton
                       type="button"
                       scale="medium"
                       buttonType="text"
                       layoutVariant="default"
-                      className="text-primary-500 text-[4vw] md:text-[2.5vw] lg:text-[1.5vw]"
+                      className="text-primary-500"
                       onClick={() => navigate({ to: "/login" })}
                       >
                       Back to Login

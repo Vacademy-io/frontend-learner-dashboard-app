@@ -43,7 +43,7 @@ const AssessmentCard = ({ assessment }: AssessmentCardProps) => {
   return (
     <>
       <Card
-        className="w-full mb-4 hover:shadow-lg transition-shadow cursor-pointer"
+        className="w-full  hover:shadow-lg transition-shadow cursor-pointer"
         onClick={() => setShowPopup(true)}
       >
         <CardContent className="p-4 gap-2">
@@ -138,7 +138,7 @@ const UpcomingAssessmentList = () => {
   };
 
   return (
-    <div className="p-4 space-y-4">
+    <div className="">
       <div className="space-y-4">
         {currentAssessments.map((assessment, index) => (
           <AssessmentCard key={index} assessment={assessment} />

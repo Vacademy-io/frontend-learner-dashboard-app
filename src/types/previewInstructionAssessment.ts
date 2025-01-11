@@ -89,5 +89,6 @@ export interface SectionProps {
 }
 export interface AssessmentCardProps {
   assessment: Assessment;
+  index: number;
 }
 

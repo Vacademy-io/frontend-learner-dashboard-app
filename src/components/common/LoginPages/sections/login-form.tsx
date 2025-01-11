@@ -193,7 +193,7 @@ export function LoginForm() {
               >
                 Login
               </MyButton>
-                <div className="flex font-regular pb-5 items-center gap-1">
+                <div className="flex font-regular pb-5 items-center">
                 <div className="text-neutral-500 text-sm md:text-base lg:text-base">
                   Don’t have an account?
                 </div>

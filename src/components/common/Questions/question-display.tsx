@@ -8,6 +8,7 @@ import { useAssessmentStore } from '@/stores/assessment-store'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 
 
+
 export function QuestionDisplay() {
   const { 
     currentQuestion,
@@ -82,12 +83,12 @@ export function QuestionDisplay() {
 
       {currentQuestion.imageDetails && currentQuestion.imageDetails.length > 0 && (
         <div className="relative h-64 w-full">
-          <Image
+          {/* <Image
             src="/placeholder.svg"
             alt="Question diagram"
             fill
             className="object-contain"
-          />
+          /> */}
         </div>
       )}
 
