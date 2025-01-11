@@ -19,7 +19,8 @@ import {
   AssessmentListProps,
 } from "@/types/previewInstructionAssessment";
 import assessments from "../-utils.ts/dummyData";
-import { StatusChips } from "@/components/design-system/chips";
+import { StatusChip } from "@/components/design-system/chips";
+// import { StatusChips } from "@/components/design-system/chips";
 
 // Card Component
 const AssessmentCard: React.FC<AssessmentCardProps> = ({ assessment }) => {
@@ -35,9 +36,12 @@ const AssessmentCard: React.FC<AssessmentCardProps> = ({ assessment }) => {
     assessmentDuration,
   } = assessment;
 
+  // const handleJoinAssessment = () => {
+  //   navigate({ to: `/assessment/examination/${assessmentId}` });
+  // };
   const handleJoinAssessment = () => {
     navigate({ to: `/assessment/examination/${assessmentId}` });
-  };
+};
 
   return (
     <Card className="w-full p-6 space-y-6">
@@ -45,12 +49,14 @@ const AssessmentCard: React.FC<AssessmentCardProps> = ({ assessment }) => {
       <div className="lg:flex md:flex justify-between items-center">
         <div className="">
           <div className="flex gap-3 pb-3">
-            <StatusChips
+            {/* <StatusChips
               status={mode.toLowerCase() === "online" ? "active" : "inactive"}
             />
             <StatusChips
               status={status.toLowerCase() === "online" ? "active" : "inactive"}
-            />
+            /> */}
+            <StatusChip mode={mode}  />
+            <StatusChip status={status}  />
           </div>
           <div className="space-y-2 text-xs lg:text-sm text-gray-600">
             <div>Start Date and Time: {startDate}</div>

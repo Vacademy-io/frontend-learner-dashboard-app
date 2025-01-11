@@ -19,9 +19,9 @@ import {
   AssessmentCardProps,
 } from "@/types/previewInstructionAssessment";
 import { UpcomingAssessment } from "../-utils.ts/dummyData";
-import { StatusChips } from "@/components/design-system/chips";
+import { StatusChip, StatusChips } from "@/components/design-system/chips";
 
-const ITEMS_PER_PAGE = 2;
+const ITEMS_PER_PAGE = 3;
 
 const AssessmentCard = ({ assessment }: AssessmentCardProps) => {
   const [showPopup, setShowPopup] = useState(false);
@@ -50,13 +50,14 @@ const AssessmentCard = ({ assessment }: AssessmentCardProps) => {
           <div className="font-semibold text-sm mb-4">{assessment.title}</div>
 
           <div className="flex gap-3 pb-4">
-            <StatusChips
+            {/* <StatusChips
               status={
                 assessment.mode.toLowerCase() === "online"
                   ? "active"
                   : "inactive"
               }
-            />
+            /> */}
+                  <StatusChip mode={assessment.mode}  />
           </div>
           <div className="space-y-2 text-sm text-gray-600">
             <div className="flex items-center gap-2">
@@ -104,16 +105,20 @@ const AssessmentCard = ({ assessment }: AssessmentCardProps) => {
       </CardContent>
     </Card> */}
 
-      <AlertDialog open={showPopup} onOpenChange={handleClose}>
-        <AlertDialogOverlay className="bg-black/50" onClick={handleClose} />
-        <AlertDialogContent className="max-w-sd bg-[#FDFAF6] rounded-lg p-6 sm:p-4 sm:min-width-[200px]">
-          <div className="text-gray-700">
-            The assessment{" "}
-            <span className="text-orange-500">{assessment.title}</span> is not
-            live currently. You can appear for the assessment when it goes live.
-          </div>
-        </AlertDialogContent>
-      </AlertDialog>
+<div className="sm:max-w-[90%] md:max-w-[400px] lg:max-w-[500px]">
+  <AlertDialog open={showPopup} onOpenChange={handleClose}>
+    <AlertDialogOverlay className="bg-black/50" onClick={handleClose} />
+    <AlertDialogContent 
+      className="max-w-sm bg-[#FDFAF6] rounded-lg p-4 sm:mx-4 sm:p-6 ">
+      <div className="text-gray-700">
+        The assessment{" "}
+        <span className="text-orange-500">{assessment.title}</span> is not live currently. 
+        You can appear for the assessment when it goes live.
+      </div>
+    </AlertDialogContent>
+  </AlertDialog>
+</div>
+
     </>
   );
 };
