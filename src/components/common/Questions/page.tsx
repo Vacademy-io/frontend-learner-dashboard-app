@@ -592,25 +592,60 @@ const dummyAssessment = {
   ],
 }
 
+// export default function Page() {
+//   const { setAssessment } = useAssessmentStore()
+
+//   useEffect(() => {
+//     setAssessment(dummyAssessment)
+//   }, [setAssessment])
+
+//   return (
+//     <div className="flex flex-col min-h-screen bg-gray-50">
+//       <Navbar />
+//       <SectionTabs />
+//       <div className="flex flex-1 overflow-hidden">
+//         <Sidebar className="w-80 border-r" />
+//         <main className="flex-1 p-4 md:p-6 overflow-auto">
+//           <QuestionDisplay />
+//         </main>
+//       </div>
+//       <Footer />
+//     </div>
+//   )
+// }
+
+
+
+
 export default function Page() {
   const { setAssessment } = useAssessmentStore()
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false)
 
   useEffect(() => {
     setAssessment(dummyAssessment)
   }, [setAssessment])
+
+  const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen)
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-50">
       <Navbar />
       <SectionTabs />
       <div className="flex flex-1 overflow-hidden">
-        <Sidebar className="w-80 border-r" />
-        <main className="flex-1 p-4 md:p-6 overflow-auto">
+        <Sidebar 
+          className={`w-80 border-r transition-all duration-300 ease-in-out ${
+            isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
+          } md:translate-x-0`} 
+          isOpen={isSidebarOpen}
+          onClose={() => setIsSidebarOpen(false)}
+        />
+        <main className={`flex-1 p-4 md:p-6 overflow-auto transition-all duration-300 ease-in-out ${
+          isSidebarOpen ? 'md:ml-80' : 'md:ml-0'
+        }`}>
           <QuestionDisplay />
         </main>
       </div>
-      <Footer />
+      <Footer onToggleSidebar={toggleSidebar} />
     </div>
   )
 }
-

@@ -8,7 +8,7 @@ const dummyAssessment: Assessment[] = [
     status: "Active",
     startDate: "13/10/2024, 11:15 AM",
     endDate: "15/10/2024, 08:30 PM",
-    assessmentDuration: "30 min",
+    assessmentDuration: "30 min", 
     subject: "Physics",
     assessmentInstruction: `
     1. Attempt All Questions: Answer all questions. Ensure accuracy and completeness in each response.

@@ -123,7 +123,102 @@ import { QuestionListView } from './question-list-view'
 
 
 
-export function QuestionNavigator() {
+// export function QuestionNavigator() {
+//   const [view, setView] = React.useState<"grid" | "list">("grid")
+//   const { 
+//     assessment, 
+//     currentSection,
+//     currentQuestion, 
+//     questionStates, 
+//     setCurrentQuestion, 
+//     setQuestionState 
+//   } = useAssessmentStore()
+
+//   if (!assessment) return null
+
+//   const currentSectionQuestions = assessment.sections[currentSection].questions
+
+//   const handleQuestionClick = (question: Question) => {
+//     setCurrentQuestion(question)
+//     setQuestionState(question.questionId, { isVisited: true })
+//   }
+
+//   const getQuestionButtonClass = (state: QuestionState) => {
+//     if (state.isAnswered) return 'bg-green-100 hover:bg-green-200 text-green-700'
+//     if (!state.isVisited) return 'bg-white hover:bg-gray-100 text-gray-700'
+//     return 'bg-pink-100 hover:bg-pink-200 text-pink-700'
+//   }
+
+//   return (
+//     <div className="flex flex-col h-full">
+//       <div className="p-4 border-b">
+//         <ViewToggle view={view} onViewChange={setView} />
+//       </div>
+
+//       <ScrollArea className="flex-1">
+//         {view === "grid" ? (
+//           <div className="p-4">
+//             <div className="grid grid-cols-2 gap-2 mb-4 text-xs">
+//               <div className="flex items-center gap-1">
+//                 <div className="w-3 h-3 bg-green-100 rounded" />
+//                 <span>Answered</span>
+//               </div>
+//               <div className="flex items-center gap-1">
+//                 <div className="w-3 h-3 bg-pink-100 rounded" />
+//                 <span>Not Answered</span>
+//               </div>
+//               <div className="flex items-center gap-1">
+//                 <div className="w-3 h-3 bg-white border rounded" />
+//                 <span>Not Visited</span>
+//               </div>
+//               <div className="flex items-center gap-1">
+//                 <Flag className="w-3 h-3" />
+//                 <span>Marked for review</span>
+//               </div>
+//             </div>
+            
+//             <div className="grid grid-cols-5 gap-2">
+//               {currentSectionQuestions.map((question, index) => {
+//                 const state = questionStates[question.questionId]
+//                 const isActive = currentQuestion?.questionId === question.questionId
+//                 return (
+//                   <div key={question.questionId} className="relative">
+//                     <Button
+//                       variant="outline"
+//                       size="sm"
+//                       className={cn(
+//                         'w-full aspect-square text-sm font-medium p-0',
+//                         state && getQuestionButtonClass(state),
+//                         isActive && 'ring-2 ring-primary'
+//                       )}
+//                       onClick={() => handleQuestionClick(question)}
+//                     >
+//                       {index + 1}
+//                     </Button>
+//                     {state?.isMarkedForReview && (
+//                       <Flag className="absolute -top-1 -right-1 w-2 h-2 text-orange-500" />
+//                     )}
+//                   </div>
+//                 )
+//               })}
+//             </div>
+//           </div>
+//         ) : (
+//           <QuestionListView />
+//         )}
+//       </ScrollArea>
+//     </div>
+//   )
+// }
+
+
+
+
+interface QuestionNavigatorProps {
+  onClose: () => void
+}
+
+export function QuestionNavigator({ onClose }: QuestionNavigatorProps) {
   const [view, setView] = React.useState<"grid" | "list">("grid")
   const { 
     assessment, 
@@ -141,6 +236,7 @@ export function QuestionNavigator() {
   const handleQuestionClick = (question: Question) => {
     setCurrentQuestion(question)
     setQuestionState(question.questionId, { isVisited: true })
+    onClose()
   }
 
   const getQuestionButtonClass = (state: QuestionState) => {
@@ -204,7 +300,7 @@ export function QuestionNavigator() {
             </div>
           </div>
         ) : (
-          <QuestionListView />
+          <QuestionListView onQuestionClick={handleQuestionClick} />
         )}
       </ScrollArea>
     </div>

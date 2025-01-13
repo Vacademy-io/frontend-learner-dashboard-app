@@ -7,8 +7,6 @@ import { Flag, X, AlertCircle } from 'lucide-react'
 import { useAssessmentStore } from '@/stores/assessment-store'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 
-
-
 // export function QuestionDisplay() {
 //   const { 
 //     currentQuestion,
@@ -117,6 +115,114 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 
 
 
+// export function QuestionDisplay() {
+//   const { 
+//     currentQuestion,
+//     currentSection,
+//     answers,
+//     setAnswer,
+//     markForReview,
+//     clearResponse,
+//     questionStates,
+//     sectionTimers
+//   } = useAssessmentStore()
+
+//   const isTimeUp = sectionTimers[currentSection]?.timeLeft === 0
+
+//   if (!currentQuestion) {
+//     return (
+//       <Card className="w-full max-w-4xl mx-auto">
+//         <CardContent className="p-6">
+//           <p className="text-center text-muted-foreground">Select a question to begin</p>
+//         </CardContent>
+//       </Card>
+//     )
+//   }
+
+//   if (isTimeUp) {
+//     return (
+//       <Alert variant="destructive" className="mb-6 max-w-4xl mx-auto">
+//         <AlertCircle className="h-4 w-4" />
+//         <AlertDescription>
+//           Time is up for this section. Please move to the next available section.
+//         </AlertDescription>
+//       </Alert>
+//     )
+//   }
+
+//   const currentAnswer = answers[currentQuestion.questionId]
+//   const isMarkedForReview = questionStates[currentQuestion.questionId]?.isMarkedForReview
+
+//   return (
+//     <div className="space-y-8 max-w-4xl mx-auto">
+//       <div className="flex items-start justify-between">
+//         <div>
+//           <h3 className="text-2xl font-semibold">
+//             Question {currentQuestion.questionId.slice(1)} 
+//             <span className="ml-2 text-lg text-muted-foreground">
+//               {currentQuestion.questionMark} Marks
+//             </span>
+//           </h3>
+//           <p className="mt-4 text-lg">{currentQuestion.questionName}</p>
+//         </div>
+//         <div className="flex gap-2">
+//           <Button
+//             variant="outline"
+//             size="sm"
+//             className={isMarkedForReview ? "text-orange-500" : ""}
+//             onClick={() => markForReview(currentQuestion.questionId)}
+//           >
+//             <Flag className="mr-2 h-4 w-4" />
+//             Review Later
+//           </Button>
+//           <Button
+//             variant="outline"
+//             size="sm"
+//             onClick={() => clearResponse(currentQuestion.questionId)}
+//             disabled={!currentAnswer}
+//           >
+//             <X className="mr-2 h-4 w-4" />
+//             Clear Response
+//           </Button>
+//         </div>
+//       </div>
+
+//       {currentQuestion.imageDetails && currentQuestion.imageDetails.length > 0 && (
+//         <div className="relative h-96 w-full">
+//           {/* <Image
+//             src="/placeholder.svg"
+//             alt="Question diagram"
+//             fill
+//             className="object-contain"
+//           /> */}
+//         </div>
+//       )}
+
+//       <RadioGroup
+//         value={currentAnswer || ""}
+//         onValueChange={(value) => setAnswer(currentQuestion.questionId, value)}
+//         className="space-y-6"
+//       >
+//         {currentQuestion.options.map((option) => (
+//           <div
+//             key={option.optionId}
+//             className="flex items-center space-x-3 rounded-lg border p-6 hover:bg-accent"
+//           >
+//             <RadioGroupItem value={option.optionId} id={option.optionId} />
+//             <Label htmlFor={option.optionId} className="flex-grow cursor-pointer text-lg">
+//               {option.optionName}
+//             </Label>
+//           </div>
+//         ))}
+//       </RadioGroup>
+//     </div>
+//   )
+// }
+
+
+
+
+
 export function QuestionDisplay() {
   const { 
     currentQuestion,
@@ -156,7 +262,7 @@ export function QuestionDisplay() {
   const isMarkedForReview = questionStates[currentQuestion.questionId]?.isMarkedForReview
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-full">
       <div className="flex items-start justify-between">
         <div>
           <h3 className="text-lg font-semibold">
