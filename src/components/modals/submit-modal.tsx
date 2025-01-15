@@ -8,7 +8,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { Navigate } from "@tanstack/react-router"
 import { AlertCircle } from 'lucide-react'
 
 interface SubmitModalProps {
@@ -18,10 +17,6 @@ interface SubmitModalProps {
 }
 
 export function SubmitModal({ open, onOpenChange, onConfirm }: SubmitModalProps) {
-  const handleConfirm = () => {
-    onConfirm()
-    Navigate({ to: `/assessment/examination/` });
-  }
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
@@ -36,7 +31,7 @@ export function SubmitModal({ open, onOpenChange, onConfirm }: SubmitModalProps)
         </AlertDialogHeader>
         <AlertDialogFooter className="flex-col gap-2 sm:flex-col">
           <AlertDialogAction
-            onClick={handleConfirm}
+            onClick={onConfirm}
             className="w-full bg-orange-500 hover:bg-orange-600"
           >
             Submit

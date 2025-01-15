@@ -28,12 +28,12 @@ export function QuestionListView() {
 
   const getQuestionClass = (state: QuestionState) => {
     if (state.isAnswered) return 'border-green-200 bg-green-50'
-    if (!state.isVisited) return 'border-gray-200'
+    if (!state.isVisited) return 'border-red-200'
     return 'border-pink-200 bg-pink-50'
   }
 
   return (
-    <ScrollArea className="h-full">
+    <ScrollArea className="h-full pb-16">
       <div className="space-y-2 p-4">
         {currentSectionQuestions.map((question, index) => {
           const state = questionStates[question.questionId]

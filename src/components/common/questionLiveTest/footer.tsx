@@ -47,6 +47,7 @@ export function Footer({ onToggleSidebar }: FooterProps) {
         variant="outline"
         size="icon"
         onClick={onToggleSidebar}
+        className="md:block" // Remove the 'hidden' class
       >
         <PanelLeft className="h-4 w-4" />
       </Button>

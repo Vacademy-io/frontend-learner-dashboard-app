@@ -10,12 +10,12 @@
 
 // export function Navbar() {
 //   const router = useRouter()
-//   const { 
+//   const {
 //     assessment,
 //     sectionTimers,
 //     submitAssessment
 //   } = useAssessmentStore()
-  
+
 //   const [showSubmitModal, setShowSubmitModal] = useState(false)
 //   const [showTimesUpModal, setShowTimesUpModal] = useState(false)
 
@@ -41,7 +41,7 @@
 //         </div>
 //         <div className="flex items-center gap-4">
 //           <SectionTimer />
-//           <Button 
+//           <Button
 //             variant="default"
 //             onClick={() => setShowSubmitModal(true)}
 //             className="bg-orange-500 hover:bg-orange-600"
@@ -70,157 +70,295 @@
 
 
 
-'use client'
 
 
-import { useState, useEffect } from 'react'
-import { Button } from '@/components/ui/button'
-import { SectionTimer } from './section-timer'
-import { useAssessmentStore } from '@/stores/assessment-store'
-import { Navigate, useRouter } from '@tanstack/react-router'
-import { SubmitModal } from '@/components/modals/submit-modal'
-import { TimesUpModal } from '@/components/modals/times-up-modal'
-import { HelpModal } from '@/components/modals/help-modals'
-import { AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogAction } from '@/components/ui/alert-dialog'
+
+// "use client";
+
+// import { useState, useEffect } from "react";
+// import { Button } from "@/components/ui/button";
+// import { SectionTimer } from "./section-timer";
+// import { useAssessmentStore } from "@/stores/assessment-store";
+// import { Navigate, useRouter } from "@tanstack/react-router";
+// import { SubmitModal } from "@/components/modals/submit-modal";
+// import { TimesUpModal } from "@/components/modals/times-up-modal";
+// import { HelpModal } from "@/components/modals/help-modals";
+// import {
+//   AlertDialog,
+//   AlertDialogContent,
+//   AlertDialogDescription,
+//   AlertDialogAction,
+// } from "@/components/ui/alert-dialog";
+// import {
+//   DropdownMenu,
+//   DropdownMenuContent,
+//   DropdownMenuItem,
+//   DropdownMenuTrigger,
+// } from "@/components/ui/dropdown-menu";
+// import { HelpCircle } from "lucide-react";
+// import { MyButton } from "@/components/design-system/button";
+
+// export function Navbar() {
+//   const router = useRouter();
+//   const {
+//     assessment,
+//     sectionTimers,
+//     submitAssessment,
+//     currentSection,
+//     setCurrentSection,
+//     moveToNextAvailableSection,
+//   } = useAssessmentStore();
+
+//   const [showSubmitModal, setShowSubmitModal] = useState(false);
+//   const [showTimesUpModal, setShowTimesUpModal] = useState(false);
+//   const [showWarningModal, setShowWarningModal] = useState(false);
+//   const [warningCount, setWarningCount] = useState(0);
+//   const [timeLeft, setTimeLeft] = useState<number | null>(null)
+
+//   const [helpType, setHelpType] = useState<
+//     "instructions" | "alerts" | "reattempt" | "time" | null
+//   >(null);
+
+//   if (!assessment) return null;
+
+//   const isAllTimeUp = Object.values(sectionTimers).every(
+//     (timer) => timer.timeLeft === 0
+//   );
+
+//   const formatTime = (seconds: number) => {
+//     const hours = Math.floor(seconds / 3600)
+//     const minutes = Math.floor((seconds % 3600) / 60)
+//     const remainingSeconds = seconds % 60
+//     return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(remainingSeconds).padStart(2, '0')}`
+//   }
+
+//   const handleSubmit = () => {
+//     submitAssessment();
+//     Navigate({ to: `/assessment/report` });
+//   };
+
+//   const handleEndSection = () => {
+//     if (assessment.canSwitchSections) {
+//       moveToNextAvailableSection();
+//     } else {
+//       setCurrentSection(currentSection + 1);
+//     }
+//   };
+
+//   if (isAllTimeUp && !showTimesUpModal) {
+//     setShowTimesUpModal(true);
+//   }
+
+//   const handleWarningClose = () => {
+//     setShowWarningModal(false);
+//     if (warningCount >= 3) {
+//       handleSubmit();
+//     }
+//   };
+
+  
+
+//   return (
+//     <>
+//       <div className="sticky top-0 z-50 flex h-16 items-center justify-between border-b bg-background px-4">
+//         <div className="flex  gap-4">
+//           <SectionTimer />
+//           {timeLeft !== null && (
+//             <div className="flex items-center gap-2 text-lg font-mono">
+//               <Clock className="h-5 w-5" />
+//               <span>{formatTime(timeLeft)}</span>
+//             </div>
+//           )}
+//           <div className="items-end">
+//           <MyButton onClick={() => setShowSubmitModal(true)}>
+//             Submit
+//           </MyButton>
+//           </div>
+//         </div>
+//       </div>
+
+//       <SubmitModal
+//         open={showSubmitModal}
+//         onOpenChange={setShowSubmitModal}
+//         onConfirm={handleSubmit}
+//       />
+
+//       <TimesUpModal
+//         open={showTimesUpModal}
+//         onOpenChange={setShowTimesUpModal}
+//         onFinish={handleSubmit}
+//       />
+
+//       <AlertDialog open={showWarningModal} onOpenChange={setShowWarningModal}>
+//         <AlertDialogContent>
+//           <AlertDialogDescription>
+//             Warning: You are attempting to leave the test environment. This is
+//             warning {warningCount} of 3. If you attempt to leave again, your
+//             test will be automatically submitted.
+//           </AlertDialogDescription>
+//           <AlertDialogAction onClick={handleWarningClose}>
+//             Return to Test
+//           </AlertDialogAction>
+//         </AlertDialogContent>
+//       </AlertDialog>
+
+//       <HelpModal
+//         open={helpType !== null}
+//         onOpenChange={(open) => !open && setHelpType(null)}
+//         type={helpType || "instructions"}
+//       />
+//     </>
+//   );
+// }
+
+
+
+
+"use client";
+
+import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { SectionTimer } from "./section-timer";
+import { useAssessmentStore } from "@/stores/assessment-store";
+import { Navigate, useRouter } from "@tanstack/react-router";
+import { SubmitModal } from "@/components/modals/submit-modal";
+import { TimesUpModal } from "@/components/modals/times-up-modal";
+import { HelpModal } from "@/components/modals/help-modals";
+import { Clock } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogAction,
+} from "@/components/ui/alert-dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { HelpCircle } from 'lucide-react'
+} from "@/components/ui/dropdown-menu";
+import { HelpCircle } from "lucide-react";
+import { MyButton } from "@/components/design-system/button";
 
 export function Navbar() {
-  const router = useRouter()
-  const { 
+  const router = useRouter();
+  const {
     assessment,
     sectionTimers,
     submitAssessment,
     currentSection,
     setCurrentSection,
-    moveToNextAvailableSection
-  } = useAssessmentStore()
+    moveToNextAvailableSection,
+  } = useAssessmentStore();
 
-  const [showSubmitModal, setShowSubmitModal] = useState(false)
-  const [showTimesUpModal, setShowTimesUpModal] = useState(false)
-  const [showWarningModal, setShowWarningModal] = useState(false)
-  const [warningCount, setWarningCount] = useState(0)
-  const [helpType, setHelpType] = useState<'instructions' | 'alerts' | 'reattempt' | 'time' | null>(null)
+  const [showSubmitModal, setShowSubmitModal] = useState(false);
+  const [showTimesUpModal, setShowTimesUpModal] = useState(false);
+  const [showWarningModal, setShowWarningModal] = useState(false);
+  const [warningCount, setWarningCount] = useState(0);
+  const [timeLeft, setTimeLeft] = useState<number | null>(null);
+  const [totalTimeLeft, setTotalTimeLeft] = useState<number>(1200); // 20 minutes in seconds
+
+  const [helpType, setHelpType] = useState<
+    "instructions" | "alerts" | "reattempt" | "time" | null
+  >(null);
 
   useEffect(() => {
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      e.preventDefault()
-      e.returnValue = ''
+    let interval: NodeJS.Timeout;
+    if (totalTimeLeft > 0) {
+      interval = setInterval(() => {
+        setTotalTimeLeft((prev) => {
+          if (prev <= 1) {
+            clearInterval(interval);
+            setShowTimesUpModal(true);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
     }
+    return () => clearInterval(interval);
+  }, [totalTimeLeft]);
 
-    const handleVisibilityChange = () => {
-      if (document.hidden) {
-        setWarningCount((prev) => prev + 1)
-        setShowWarningModal(true)
-      }
-    }
+  if (!assessment) return null;
 
-    window.addEventListener('beforeunload', handleBeforeUnload)
-    document.addEventListener('visibilitychange', handleVisibilityChange)
+  const isAllTimeUp = Object.values(sectionTimers).every(
+    (timer) => timer.timeLeft === 0
+  ) || totalTimeLeft === 0;
 
-    return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload)
-      document.removeEventListener('visibilitychange', handleVisibilityChange)
-    }
-  }, [])
-
-  if (!assessment) return null
-
-  const isAllTimeUp = Object.values(sectionTimers).every(timer => timer.timeLeft === 0)
+  const formatTime = (seconds: number) => {
+    const hours = Math.floor(seconds / 3600)
+    const minutes = Math.floor((seconds % 3600) / 60)
+    const remainingSeconds = seconds % 60
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(remainingSeconds).padStart(2, '0')}`
+  }
 
   const handleSubmit = () => {
-    submitAssessment()
-    router.push('/assessment/completed')
-  }
+    submitAssessment();
+    Navigate({ to: `/assessment/report` });
+  };
 
   const handleEndSection = () => {
     if (assessment.canSwitchSections) {
-      moveToNextAvailableSection()
+      moveToNextAvailableSection();
     } else {
-      setCurrentSection(currentSection + 1)
+      setCurrentSection(currentSection + 1);
     }
-  }
+  };
 
   if (isAllTimeUp && !showTimesUpModal) {
-    setShowTimesUpModal(true)
+    setShowTimesUpModal(true);
   }
 
   const handleWarningClose = () => {
-    setShowWarningModal(false)
+    setShowWarningModal(false);
     if (warningCount >= 3) {
-      handleSubmit()
+      handleSubmit();
     }
-  }
+  };
 
   return (
     <>
       <div className="sticky top-0 z-50 flex h-16 items-center justify-between border-b bg-background px-4">
-        <div className="flex items-center gap-4">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="icon">
-                <HelpCircle className="h-5 w-5" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start">
-              <DropdownMenuItem onClick={() => setHelpType('instructions')}>
-                Instructions
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setHelpType('alerts')}>
-                Assessment Alerts
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setHelpType('reattempt')}>
-                Request Reattempt
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setHelpType('time')}>
-                Request Time Increase
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <h2 className="text-lg font-semibold">{assessment.title}</h2>
-        </div>
-        <div className="flex items-center gap-4">
-          <SectionTimer />
-          {!assessment.canSwitchSections && (
-            <Button 
-              variant="outline"
-              onClick={handleEndSection}
-            >
-              End Section
-            </Button>
+        <div className="flex gap-4">
+          {/* Total Assessment Timer */}
+          <div className="flex items-center gap-2 text-lg font-mono">
+            <Clock className="h-5 w-5" />
+            <span>Total: {formatTime(totalTimeLeft)}</span>
+          </div>
+          {/* Section Timer */}
+          <SectionTimer />  
+          {timeLeft !== null && (
+            <div className="flex items-center gap-2 text-lg font-mono">
+              <Clock className="h-5 w-5" />
+              <span>{formatTime(timeLeft)}</span>
+            </div>
           )}
-          <Button 
-            variant="default"
-            onClick={() => setShowSubmitModal(true)}
-            className="bg-orange-500 hover:bg-orange-600"
-          >
-            Submit
-          </Button>
+          <div className="items-end">
+            <MyButton onClick={() => setShowSubmitModal(true)}>
+              Submit
+            </MyButton>
+          </div>
         </div>
       </div>
 
-      <SubmitModal 
+      <SubmitModal
         open={showSubmitModal}
         onOpenChange={setShowSubmitModal}
         onConfirm={handleSubmit}
       />
 
-      <TimesUpModal
+      {/* <TimesUpModal
         open={showTimesUpModal}
         onOpenChange={setShowTimesUpModal}
         onFinish={handleSubmit}
-      />
+      /> */}
 
       <AlertDialog open={showWarningModal} onOpenChange={setShowWarningModal}>
         <AlertDialogContent>
           <AlertDialogDescription>
-            Warning: You are attempting to leave the test environment. This is warning {warningCount} of 3. 
-            If you attempt to leave again, your test will be automatically submitted.
+            Warning: You are attempting to leave the test environment. This is
+            warning {warningCount} of 3. If you attempt to leave again, your
+            test will be automatically submitted.
           </AlertDialogDescription>
           <AlertDialogAction onClick={handleWarningClose}>
             Return to Test
@@ -231,9 +369,8 @@ export function Navbar() {
       <HelpModal
         open={helpType !== null}
         onOpenChange={(open) => !open && setHelpType(null)}
-        type={helpType || 'instructions'}
+        type={helpType || "instructions"}
       />
     </>
-  )
+  );
 }
-

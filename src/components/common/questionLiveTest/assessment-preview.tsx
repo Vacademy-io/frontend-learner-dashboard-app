@@ -199,11 +199,11 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useAssessmentStore } from '../store/assessment-store'
+import { useAssessmentStore } from '@/stores/assessment-store'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Button } from '@/components/ui/button'
-import { useRouter } from 'next/navigation'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
+import { useRouter } from '@tanstack/react-router'
 
 export function AssessmentPreview() {
   const { assessment } = useAssessmentStore()

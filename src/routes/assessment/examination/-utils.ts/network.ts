@@ -1,7 +1,8 @@
 import { Capacitor } from '@capacitor/core'
 import { Network } from '@capacitor/network'
 import { Preferences } from '@capacitor/preferences'
-import { toast } from '@/components/ui/use-toast'
+// import { toast } from '@/components/ui/toast'
+import { toast } from "sonner";
 
 let isOnline = true
 
@@ -9,16 +10,26 @@ export const initNetworkListeners = () => {
   if (Capacitor.isNativePlatform()) {
     Network.addListener('networkStatusChange', status => {
       if (status.connected && !isOnline) {
-        toast({
-          title: "Back online",
-          description: "Your responses will be synced",
-        })
+        // toast({
+        //   title: "Back online",
+        //   description: "Your responses will be synced",
+        // })
+        toast.error("Login Error", {
+          description: "Invalid credentials",
+          className: "error-toast",
+          duration: 3000,
+        });
       } else if (!status.connected && isOnline) {
-        toast({
-          title: "No internet connection",
-          description: "Your responses will be saved locally",
-          variant: "destructive"
-        })
+        // toast({
+        //   title: "No internet connection",
+        //   description: "Your responses will be saved locally",
+        //   // variant: "destructive"
+        // })
+        toast.error("Login Error", {
+          description: "Invalid credentials",
+          className: "error-toast",
+          duration: 3000,
+        });
       }
       isOnline = status.connected
     })
