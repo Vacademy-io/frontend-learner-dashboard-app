@@ -13,11 +13,11 @@ export const Route = createFileRoute('/assessment/examination/$assessmentId/')({
 })
 const assessmentPreview  = true
 function RouteComponent() {
-  // return <InstructionPage assessment={dummyAssessment[0]} />
+  return <InstructionPage assessment={dummyAssessment[0]} />
   // return <AssessmentInterface assessmentData={assessments[0]} />
   // return <dummyAssessment />
   // return <AssessmentWrapper/>
-  return <Page />
+  // return <Page />
 }
 
 // function RouteComponent() {

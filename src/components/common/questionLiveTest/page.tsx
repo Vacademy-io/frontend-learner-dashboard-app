@@ -411,8 +411,8 @@ const dummyAssessment = {
   endDate: "15/10/2024, 08:30 PM",
   testDuration: {
     entireTestDuration: "20:00",
-    sectionWiseDuration: true,
-    questionWiseDuration: false,
+    sectionWiseDuration: false,
+    questionWiseDuration: true,
   },
   subject: "Physics",
   assessmentInstruction: `1. Attempt All Questions: Answer all questions. Ensure accuracy and completeness in each response.`,
