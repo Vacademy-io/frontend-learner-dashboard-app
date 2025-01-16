@@ -55,7 +55,8 @@ export function QuestionListView() {
                 <div className="flex items-center gap-2">
                   <span className="font-medium">{index + 1}</span>
                   <span className="text-sm text-muted-foreground">
-                    MCQ (Single Correct)
+                    {/* MCQ (Single Correct) */}
+                    {question.questionType}
                   </span>
                 </div>
                 {state?.isMarkedForReview && (

@@ -52,7 +52,7 @@
 //       totalMark: "20",
 //       questions: [
 //           {
-//             questionType: "Multiple Choice",
+//             questionType: "MCQ (Single Correct)",
 //             questionId: "Q001",
 //             questionName: "What is the primary function of the human eye?",
 //             questionMark: "2",
@@ -65,7 +65,7 @@
 //             ],
 //           },
 //           {
-//             questionType: "Multiple Choice",
+//             questionType: "MCQ (Single Correct)",
 //             questionId: "Q002",
 //             questionName:
 //               "Which part of the eye controls the amount of light entering it?",
@@ -79,7 +79,7 @@
 //             ],
 //           },
 //           {
-//             questionType: "Multiple Choice",
+//             questionType: "MCQ (Single Correct)",
 //             questionId: "Q003",
 //             questionName: "What is the function of the cornea?",
 //             questionMark: "2",
@@ -92,7 +92,7 @@
 //             ],
 //           },
 //           {
-//             questionType: "Multiple Choice",
+//             questionType: "MCQ (Single Correct)",
 //             questionId: "Q004",
 //             questionName:
 //               "Which eye defect is caused by the elongation of the eyeball?",
@@ -106,7 +106,7 @@
 //             ],
 //           },
 //           {
-//             questionType: "Multiple Choice",
+//             questionType: "MCQ (Single Correct)",
 //             questionId: "Q005",
 //             questionName:
 //               "Which structure in the eye focuses light onto the retina?",
@@ -120,7 +120,7 @@
 //             ],
 //           },
 //           {
-//             questionType: "Multiple Choice",
+//             questionType: "MCQ (Single Correct)",
 //             questionId: "Q006",
 //             questionName: "Which of these is a common cause of cataracts?",
 //             questionMark: "2",
@@ -133,7 +133,7 @@
 //             ],
 //           },
 //           {
-//             questionType: "Multiple Choice",
+//             questionType: "MCQ (Single Correct)",
 //             questionId: "Q007",
 //             questionName:
 //               "Which part of the eye is responsible for detecting color?",
@@ -147,7 +147,7 @@
 //             ],
 //           },
 //           {
-//             questionType: "Multiple Choice",
+//             questionType: "MCQ (Single Correct)",
 //             questionId: "Q008",
 //             questionName: "What is the effect of hypermetropia?",
 //             questionMark: "2",
@@ -166,7 +166,7 @@
 //             ],
 //           },
 //           {
-//             questionType: "Multiple Choice",
+//             questionType: "MCQ (Single Correct)",
 //             questionId: "Q009",
 //             questionName: "What does the retina contain?",
 //             questionMark: "2",
@@ -179,7 +179,7 @@
 //             ],
 //           },
 //           {
-//             questionType: "Multiple Choice",
+//             questionType: "MCQ (Single Correct)",
 //             questionId: "Q010",
 //             questionName: "What is the role of the pupil?",
 //             questionMark: "2",
@@ -212,7 +212,7 @@
 //       totalMark: "20",
 //       questions: [
 //         {
-//           questionType: "Multiple Choice",
+//           questionType: "MCQ (Single Correct)",
 //           questionId: "Q011",
 //           questionName: "What is the speed of light in a vacuum?",
 //           questionMark: "2",
@@ -224,7 +224,7 @@
 //             { optionId: "O004", optionName: "500,000 km/s" },
 //           ],
 //         },{
-//             questionType: "Multiple Choice",
+//             questionType: "MCQ (Single Correct)",
 //             questionId: "Q012",
 //             questionName: "What is the speed of light in a vacuum?",
 //             questionMark: "2",
@@ -237,7 +237,7 @@
 //             ],
 //           },
 //           {
-//             questionType: "Multiple Choice",
+//             questionType: "MCQ (Single Correct)",
 //             questionId: "Q013",
 //             questionName: "What is the speed of light in a vacuum?",
 //             questionMark: "2",
@@ -412,7 +412,7 @@ const dummyAssessment = {
   testDuration: {
     entireTestDuration: "20:00",
     sectionWiseDuration: true,
-    questionWiseDuration: true,
+    questionWiseDuration: false,
   },
   subject: "Physics",
   assessmentInstruction: `1. Attempt All Questions: Answer all questions. Ensure accuracy and completeness in each response.`,
@@ -435,7 +435,7 @@ const dummyAssessment = {
       totalMark: "20",
       questions: [
         {
-          questionType: "Multiple Choice",
+          questionType: "multiple select MCQ",
           questionId: "Q001",
           questionName: "What is the primary function of the human eye?",
           questionMark: "2",
@@ -449,11 +449,12 @@ const dummyAssessment = {
           ],
         },
         {
-          questionType: "Multiple Choice",
+          questionType: "MCQ (Single Correct)",
           questionId: "Q002",
           questionName:
             "Which part of the eye controls the amount of light entering it?",
           questionMark: "2",
+          questionDuration: "01:00",
           imageDetails: [],
           options: [
             { optionId: "O001", optionName: "Cornea" },
@@ -463,10 +464,11 @@ const dummyAssessment = {
           ],
         },
         {
-          questionType: "Multiple Choice",
+          questionType: "MCQ (Single Correct)",
           questionId: "Q003",
           questionName: "What is the function of the cornea?",
           questionMark: "2",
+          questionDuration: "01:00",
           imageDetails: [],
           options: [
             { optionId: "O001", optionName: "Focus light" },
@@ -476,11 +478,12 @@ const dummyAssessment = {
           ],
         },
         {
-          questionType: "Multiple Choice",
+          questionType: "MCQ (Single Correct)",
           questionId: "Q004",
           questionName:
             "Which eye defect is caused by the elongation of the eyeball?",
           questionMark: "2",
+          questionDuration: "01:00",
           imageDetails: [],
           options: [
             { optionId: "O001", optionName: "Hypermetropia" },
@@ -490,11 +493,12 @@ const dummyAssessment = {
           ],
         },
         {
-          questionType: "Multiple Choice",
+          questionType: "MCQ (Single Correct)",
           questionId: "Q005",
           questionName:
             "Which structure in the eye focuses light onto the retina?",
           questionMark: "2",
+          questionDuration: "01:00",
           imageDetails: [],
           options: [
             { optionId: "O001", optionName: "Lens" },
@@ -504,10 +508,11 @@ const dummyAssessment = {
           ],
         },
         {
-          questionType: "Multiple Choice",
+          questionType: "MCQ (Single Correct)",
           questionId: "Q006",
           questionName: "Which of these is a common cause of cataracts?",
           questionMark: "2",
+          questionDuration: "01:00",
           imageDetails: [],
           options: [
             { optionId: "O001", optionName: "High blood pressure" },
@@ -517,11 +522,12 @@ const dummyAssessment = {
           ],
         },
         {
-          questionType: "Multiple Choice",
+          questionType: "MCQ (Single Correct)",
           questionId: "Q007",
           questionName:
             "Which part of the eye is responsible for detecting color?",
           questionMark: "2",
+          questionDuration: "01:00",
           imageDetails: [],
           options: [
             { optionId: "O001", optionName: "Lens" },
@@ -531,10 +537,11 @@ const dummyAssessment = {
           ],
         },
         {
-          questionType: "Multiple Choice",
+          questionType: "MCQ (Single Correct)",
           questionId: "Q008",
           questionName: "What is the effect of hypermetropia?",
           questionMark: "2",
+          questionDuration: "01:00",
           imageDetails: [],
           options: [
             { optionId: "O001", optionName: "Inability to see far objects" },
@@ -550,10 +557,11 @@ const dummyAssessment = {
           ],
         },
         {
-          questionType: "Multiple Choice",
+          questionType: "MCQ (Single Correct)",
           questionId: "Q009",
           questionName: "What does the retina contain?",
           questionMark: "2",
+          questionDuration: "01:00",
           imageDetails: [],
           options: [
             { optionId: "O001", optionName: "Photoreceptor cells" },
@@ -563,10 +571,11 @@ const dummyAssessment = {
           ],
         },
         {
-          questionType: "Multiple Choice",
+          questionType: "MCQ (Single Correct)",
           questionId: "Q010",
           questionName: "What is the role of the pupil?",
           questionMark: "2",
+          questionDuration: "01:00",
           imageDetails: [],
           options: [
             {
@@ -596,10 +605,11 @@ const dummyAssessment = {
       totalMark: "20",
       questions: [
         {
-          questionType: "Multiple Choice",
+          questionType: "multiple select MCQ",
           questionId: "Q011",
           questionName: "What is the speed of light in a vacuum?",
           questionMark: "2",
+          questionDuration: "01:00",
           imageDetails: [],
           options: [
             { optionId: "O001", optionName: "300,000 km/s" },
@@ -613,51 +623,85 @@ const dummyAssessment = {
   ],
 };
 
+// export default function Page() {
+//   const { setAssessment, loadStoredData, setTestEndTime } =
+//     useAssessmentStore();
+//   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+//   // const searchParams = useSearchParams()
+//   // const showPreview = searchParams.get('preview') === 'true'
+
+//   useEffect(() => {
+//     initNetworkListeners();
+//     loadStoredData().then(() => {
+//       // Only set the assessment if it's not already in storage
+//       if (!useAssessmentStore.getState().assessment) {
+//         setAssessment(dummyAssessment);
+//         // Set test end time (20 minutes from now)
+//         const endTime = Date.now() + 20 * 60 * 1000;
+//         setTestEndTime(endTime);
+//       }
+//     });
+//   }, [setAssessment, loadStoredData, setTestEndTime]);
+
+//   const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
+
+//   // if (showPreview) {
+//   //   return <AssessmentPreview />
+//   // }
+
+//   return (
+//     <>
+//       <div className="flex flex-col min-h-screen bg-gray-50">
+//         <Navbar />
+//         <SectionTabs />
+//         <div className="flex-1 overflow-hidden">
+//           <main className="w-full p-4 md:p-6 overflow-auto">
+//             <QuestionDisplay />
+//           </main>
+//         </div>
+//         <Footer onToggleSidebar={toggleSidebar} />
+//         <Sidebar
+//           isOpen={isSidebarOpen}
+//           onClose={() => setIsSidebarOpen(false)}
+//         />
+//       </div>
+//       {/* <NetworkStatus /> */}
+//       {/* <TestCountdown /> */}
+//       <Toaster />
+//     </>
+//   );
+// }
+
+
+
+
+
 export default function Page() {
-  const { setAssessment, loadStoredData, setTestEndTime } =
-    useAssessmentStore();
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  // const searchParams = useSearchParams()
-  // const showPreview = searchParams.get('preview') === 'true'
+  const { setAssessment, loadResponses, saveResponses } = useAssessmentStore()
 
   useEffect(() => {
-    initNetworkListeners();
-    loadStoredData().then(() => {
-      // Only set the assessment if it's not already in storage
-      if (!useAssessmentStore.getState().assessment) {
-        setAssessment(dummyAssessment);
-        // Set test end time (20 minutes from now)
-        const endTime = Date.now() + 20 * 60 * 1000;
-        setTestEndTime(endTime);
-      }
-    });
-  }, [setAssessment, loadStoredData, setTestEndTime]);
+    setAssessment(dummyAssessment)
+    loadResponses()
 
-  const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
+    const saveInterval = setInterval(() => {
+      saveResponses()
+    }, 5000) // Save every 5 seconds
 
-  // if (showPreview) {
-  //   return <AssessmentPreview />
-  // }
+    return () => clearInterval(saveInterval)
+  }, [setAssessment, loadResponses, saveResponses])
 
   return (
-    <>
-      <div className="flex flex-col min-h-screen bg-gray-50">
-        <Navbar />
-        <SectionTabs />
-        <div className="flex-1 overflow-hidden">
-          <main className="w-full p-4 md:p-6 overflow-auto">
-            <QuestionDisplay />
-          </main>
-        </div>
-        <Footer onToggleSidebar={toggleSidebar} />
-        <Sidebar
-          isOpen={isSidebarOpen}
-          onClose={() => setIsSidebarOpen(false)}
-        />
+    <div className="flex flex-col min-h-screen bg-gray-50">
+      <Navbar />
+      <SectionTabs />
+      <div className="flex flex-1 overflow-hidden">
+        <Sidebar className="w-80 border-r" />
+        <main className="flex-1 p-4 md:p-6 overflow-auto">
+          <QuestionDisplay />
+        </main>
       </div>
-      {/* <NetworkStatus /> */}
-      {/* <TestCountdown /> */}
-      <Toaster />
-    </>
-  );
+      <Footer />
+    </div>
+  )
 }
+
