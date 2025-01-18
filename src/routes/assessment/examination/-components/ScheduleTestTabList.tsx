@@ -20,7 +20,7 @@ const ScheduleTestTabList = ({ selectedTab }: { selectedTab: string }) => {
                     className="rounded-[10px] bg-primary-500 p-0 px-2 text-[9px] text-white"
                     variant="outline"
                 >
-                    {6}
+                    {8}
                 </Badge>
             </TabsTrigger>
             <TabsTrigger

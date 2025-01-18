@@ -1,9 +1,11 @@
 import React, { useState } from "react";
 import { X } from "lucide-react";
 import { MyButton } from "@/components/design-system/button";
+import { useNavigate } from "@tanstack/react-router";
 
 const AssessmentStartModal = () => {
   const [isOpen, setIsOpen] = useState(false);
+  const navigate = useNavigate();
 
   const handleClose = () => {
     setIsOpen(false);
@@ -39,21 +41,23 @@ const AssessmentStartModal = () => {
             {/* Content */}
             <div className="p-6">
               <div className="flex items-center gap-2 mb-4">
-                <span className="text-red-500 sm:text-sm lg:text-[16px]">Attention</span>
+                <span className="text-red-500 sm:text-sm lg:text-[16px]">
+                  Attention
+                </span>
                 {/* <div className="w-4 h-4 rounded-full border border-red-500 flex items-center justify-center">
                   <span className="text-red-500 text-sm">!</span>
                   
                 </div> */}
-                    <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="18"
-                    height="18"
-                    fill="red"
-                    viewBox="0 0 256 256"
-                    className="text-red-500"
-                    >
-                    <path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm0,192a88,88,0,1,1,88-88A88.1,88.1,0,0,1,128,216Zm-8-80V80a8,8,0,0,1,16,0v56a8,8,0,0,1-16,0Zm20,36a12,12,0,1,1-12-12A12,12,0,0,1,140,172Z"></path>
-                    </svg>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="18"
+                  height="18"
+                  fill="red"
+                  viewBox="0 0 256 256"
+                  className="text-red-500"
+                >
+                  <path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm0,192a88,88,0,1,1,88-88A88.1,88.1,0,0,1,128,216Zm-8-80V80a8,8,0,0,1,16,0v56a8,8,0,0,1-16,0Zm20,36a12,12,0,1,1-12-12A12,12,0,0,1,140,172Z"></path>
+                </svg>
               </div>
 
               <p className="text-gray-600 sm:text-sm lg:text-[16px]">
@@ -65,7 +69,11 @@ const AssessmentStartModal = () => {
             {/* Footer */}
             <div className="p-4 flex justify-center">
               <MyButton
-                onClick={() => setIsOpen(true)}
+                onClick={() =>
+                  navigate({
+                    to: "/assessment/examination/$assessmentId/assessmentPreview",
+                  })
+                }
                 buttonType="primary"
                 scale="large"
                 layoutVariant="default"

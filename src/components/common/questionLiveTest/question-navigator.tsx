@@ -77,14 +77,14 @@ export function QuestionNavigator({ onClose }: QuestionNavigatorProps) {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="p-4 border-b">
+      <div className="p-4 border-b ">
         <ViewToggle view={view} onViewChange={setView} />
       </div>
 
       
         <div className="p-4">
           {/* answred and not answerd section */}
-          <div className="grid grid-cols-2 gap-2 mb-4 text-xs">
+          <div className="grid grid-cols-2 gap-2 mb-2 text-xs">
             {Object.entries(getCounts()).map(([key, count]) => (
               <div key={key} className="flex items-center gap-2">
                 <div className="relative">

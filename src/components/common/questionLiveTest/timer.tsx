@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { Clock } from 'lucide-react'
 
 interface TimerProps {
-  duration: string // Format: "HH:mm"
+  duration: string 
 }
 
 export function Timer({ duration }: TimerProps) {

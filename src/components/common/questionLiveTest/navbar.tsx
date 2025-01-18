@@ -214,31 +214,46 @@
 
 
 
-"use client";
 
-import { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import { SectionTimer } from "./section-timer";
-import { useAssessmentStore } from "@/stores/assessment-store";
-import { Navigate, useRouter } from "@tanstack/react-router";
-import { SubmitModal } from "@/components/modals/submit-modal";
-import { TimesUpModal } from "@/components/modals/times-up-modal";
-import { HelpModal } from "@/components/modals/help-modals";
-import { Clock } from "lucide-react";
-import {
-  AlertDialog,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogAction,
-} from "@/components/ui/alert-dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { HelpCircle } from "lucide-react";
-import { MyButton } from "@/components/design-system/button";
+
+
+
+// 'use client'
+
+// import { useState, useEffect } from 'react'
+// import { Button } from '@/components/ui/button'
+// import { SectionTimer } from './section-timer'
+// import { SubmitModal } from './modals/submit-modal'
+// import { TimesUpModal } from './modals/times-up-modal'
+// import { useAssessmentStore } from '../store/assessment-store'
+// import { useRouter } from 'next/navigation'
+// import { Clock } from 'lucide-react'
+
+// "use client";
+
+// import { useState, useEffect } from "react";
+// import { Button } from "@/components/ui/button";
+// import { SectionTimer } from "./section-timer";
+// import { useAssessmentStore } from "@/stores/assessment-store";
+// import { Navigate, useRouter } from "@tanstack/react-router";
+// import { SubmitModal } from "@/components/modals/submit-modal";
+// import { TimesUpModal } from "@/components/modals/times-up-modal";
+// import { HelpModal } from "@/components/modals/help-modals";
+// import { Clock } from "lucide-react";
+// import {
+//   AlertDialog,
+//   AlertDialogContent,
+//   AlertDialogDescription,
+//   AlertDialogAction,
+// } from "@/components/ui/alert-dialog";
+// import {
+//   DropdownMenu,
+//   DropdownMenuContent,
+//   DropdownMenuItem,
+//   DropdownMenuTrigger,
+// } from "@/components/ui/dropdown-menu";
+// import { HelpCircle } from "lucide-react";
+// import { MyButton } from "@/components/design-system/button";
 
 // export function Navbar() {
 //   const router = useRouter();
@@ -382,6 +397,426 @@ import { MyButton } from "@/components/design-system/button";
 
 
 
+// export function Navbar() {
+//   const router = useRouter()
+//   const { 
+//     assessment,
+//     sectionTimers,
+//     submitAssessment,
+//     entireTestTimer,
+//     updateEntireTestTimer
+//   } = useAssessmentStore()
+  
+//   const [showSubmitModal, setShowSubmitModal] = useState(false)
+//   const [showTimesUpModal, setShowTimesUpModal] = useState(false)
+
+//   useEffect(() => {
+//     const timer = setInterval(() => {
+//       updateEntireTestTimer();
+//     }, 1000);
+
+//     return () => clearInterval(timer);
+//   }, [updateEntireTestTimer]);
+
+//   if (!assessment) return null
+
+//   const isAllTimeUp = Object.values(sectionTimers).every(timer => timer.timeLeft === 0)
+
+//   const handleSubmit = () => {
+//     submitAssessment()
+//     router.push('/assessment/completed') // Replace with your completion page route
+//   }
+
+//   // Show times up modal when all sections are complete
+//   if (isAllTimeUp && !showTimesUpModal) {
+//     setShowTimesUpModal(true)
+//   }
+
+//   return (
+//     <>
+//       <div className="sticky top-0 z-50 flex h-16 items-center justify-between border-b bg-background px-4">
+//         <div className="flex items-center gap-4">
+//           <h2 className="text-lg font-semibold">{assessment.title}</h2>
+//         </div>
+//         <div className="flex items-center gap-4">
+//           {assessment && (
+//             <div className="flex items-center gap-2 text-lg font-mono">
+//               <Clock className="h-5 w-5" />
+//               <span>
+//                 {String(Math.floor((entireTestTimer % 3600000) / 60000)).padStart(2, '0')}:
+//                 {String(Math.floor((entireTestTimer % 60000) / 1000)).padStart(2, '0')}
+//               </span>
+//             </div>
+//           )}
+//           <Button 
+//             variant="default"
+//             onClick={() => setShowSubmitModal(true)}
+//             className="bg-orange-500 hover:bg-orange-600"
+//           >
+//             Submit
+//           </Button>
+//         </div>
+//       </div>
+
+//       <SubmitModal 
+//         open={showSubmitModal}
+//         onOpenChange={setShowSubmitModal}
+//         onConfirm={handleSubmit}
+//       />
+
+//       {/* <TimesUpModal
+//         open={showTimesUpModal}
+//         onOpenChange={setShowTimesUpModal}
+//         onFinish={handleSubmit}
+//       /> */}
+      
+//     </>
+//   )
+// }
+
+
+
+
+// 'use client'
+
+// import { useState, useEffect } from 'react'
+// import { Button } from '@/components/ui/button'
+// import { SectionTimer } from './section-timer'
+// import { SubmitModal } from './modals/submit-modal'
+// import { TimesUpModal } from './modals/times-up-modal'
+// import { useAssessmentStore } from '../store/assessment-store'
+// import { useRouter } from 'next/navigation'
+// import { Clock } from 'lucide-react'
+
+
+
+// export function Navbar() {
+//   const router = useRouter()
+//   const { 
+//     assessment,
+//     sectionTimers,
+//     submitAssessment,
+//     entireTestTimer,
+//     updateEntireTestTimer,
+//     saveResponses
+//   } = useAssessmentStore()
+  
+//   const [showSubmitModal, setShowSubmitModal] = useState(false)
+//   const [showTimesUpModal, setShowTimesUpModal] = useState(false)
+
+//   useEffect(() => {
+//     const timer = setInterval(() => {
+//       updateEntireTestTimer();
+//     }, 1000);
+
+//     return () => clearInterval(timer);
+//   }, [updateEntireTestTimer]);
+
+//   useEffect(() => {
+//     const saveInterval = setInterval(() => {
+//       saveResponses();
+//     }, 5000); // Save every 5 seconds
+
+//     return () => clearInterval(saveInterval);
+//   }, [saveResponses]);
+
+//   if (!assessment) return null
+
+//   const isAllTimeUp = Object.values(sectionTimers).every(timer => timer.timeLeft === 0)
+
+//   const handleSubmit = () => {
+//     submitAssessment()
+//     // router.push('/assessment/completed') 
+//   }
+
+//   // Show times up modal when all sections are complete
+//   if (isAllTimeUp && !showTimesUpModal) {
+//     setShowTimesUpModal(true)
+//   }
+
+//   return (
+//     <>
+//       <div className="sticky top-0 z-50 flex h-16 items-center justify-between border-b bg-background px-4" style={{ background: 'var(--Primary-50, #FFF9F4)' }}>
+        
+//         <div className="flex items-center gap-4">
+//           {assessment && (
+//         <div className="flex items-center gap-2 text-lg font-mono">
+//           <Clock className="h-5 w-5" />
+//           {/* entireTestDuration */}
+//           <span>
+//                 {String(Math.floor(entireTestTimer / 60000)).padStart(2, '0')}:
+//                 {String(Math.floor((entireTestTimer % 60000) / 1000)).padStart(2, '0')}
+//               </span>
+//             </div>
+//           )}
+//           <Button 
+//             variant="default"
+//             onClick={() => setShowSubmitModal(true)}
+//             className="bg-orange-500 hover:bg-orange-600"
+//           >
+//             Submit
+//           </Button>
+//         </div>
+//       </div>
+
+//       <SubmitModal 
+//         open={showSubmitModal}
+//         onOpenChange={setShowSubmitModal}
+//         onConfirm={handleSubmit}
+//       />
+
+//       <TimesUpModal
+//         open={showTimesUpModal}
+//         onOpenChange={setShowTimesUpModal}
+//         onFinish={handleSubmit}
+//       />
+      
+//     </>
+//   )
+// }
+
+
+
+
+import { useState, useEffect } from 'react'
+// import { useRouter } from 'next/router'
+import { Button } from '@/components/ui/button'
+import { Clock } from 'lucide-react'
+import { useAssessmentStore } from '@/stores/assessment-store'
+import { SubmitModal } from "@/components/modals/submit-modal";
+import { TimesUpModal } from "@/components/modals/times-up-modal";
+import { useRouter } from '@tanstack/react-router';
+
+
+
+
+
+
+
+// export function Navbar() {
+//   const router = useRouter()
+//   const {
+//     assessment,
+//     sectionTimers,
+//     submitAssessment,
+//     entireTestTimer,
+//     updateEntireTestTimer,
+//     saveResponses
+//   } = useAssessmentStore()
+//   const [showSubmitModal, setShowSubmitModal] = useState(false)
+//   const [showTimesUpModal, setShowTimesUpModal] = useState(false)
+//   const [localTimer, setLocalTimer] = useState(entireTestTimer)
+
+//   // Update local timer state when entireTestTimer changes
+//   useEffect(() => {
+//     setLocalTimer(entireTestTimer)
+//   }, [entireTestTimer])
+
+//   // Main timer effect for entire test duration
+//   useEffect(() => {
+//     // Move the condition inside the effect
+//     if (assessment) {
+//       const timer = setInterval(() => {
+//         updateEntireTestTimer()
+//       }, 1000)
+//       return () => clearInterval(timer)
+//     }
+//   }, [assessment, updateEntireTestTimer])
+
+//   // Auto-save effect
+//   useEffect(() => {
+//     const saveInterval = setInterval(() => {
+//       saveResponses()
+//     }, 5000) // Save every 5 seconds
+//     return () => clearInterval(saveInterval)
+//   }, [saveResponses])
+
+//   // Times up modal effect
+//   useEffect(() => {
+//     if (!assessment) return
+//     const isAllTimeUp = Object.values(sectionTimers).every(timer => timer.timeLeft === 0)
+//     if (isAllTimeUp && !showTimesUpModal) {
+//       setShowTimesUpModal(true)
+//     }
+//   }, [assessment, sectionTimers, showTimesUpModal])
+
+//   if (!assessment) return null
+
+//   const handleSubmit = () => {
+//     submitAssessment()
+//     // router.push('/assessment/completed')
+//   }
+
+//   // Format time for display
+//   const formatTime = (ms: number) => {
+//     const minutes = Math.floor(ms / 60000)
+//     const seconds = Math.floor((ms % 60000) / 1000)
+//     return {
+//       minutes: String(minutes).padStart(2, '0'),
+//       seconds: String(seconds).padStart(2, '0')
+//     }
+//   }
+
+//   const formattedTime = formatTime(localTimer)
+
+//   return (
+//     <>
+//       <div 
+//         className="sticky top-0 z-50 flex h-16 items-center justify-between border-b bg-background px-4" 
+//         style={{ background: 'var(--Primary-50, #FFF9F4)' }}
+//       >
+//         <div className="flex items-center gap-4">
+//           {assessment && (
+//             <div className="flex items-center gap-2 text-lg font-mono">
+//               <Clock className="h-5 w-5" />
+//               <span className="tabular-nums">
+//                 {formattedTime.minutes}:{formattedTime.seconds}
+//               </span>
+//             </div>
+//           )}
+//           <Button
+//             variant="default"
+//             onClick={() => setShowSubmitModal(true)}
+//             className="bg-orange-500 hover:bg-orange-600"
+//           >
+//             Submit
+//           </Button>
+//         </div>
+//       </div>
+//       <SubmitModal
+//         open={showSubmitModal}
+//         onOpenChange={setShowSubmitModal}
+//         onConfirm={handleSubmit}
+//       />
+//       <TimesUpModal
+//         open={showTimesUpModal}
+//         onOpenChange={setShowTimesUpModal}
+//         onFinish={handleSubmit}
+//       />
+//     </>
+//   )
+// }
+
+
+
+// export function Navbar() {
+//   const router = useRouter();
+//   const {
+//     assessment,
+//     sectionTimers,
+//     submitAssessment,
+//     entireTestTimer,
+//     updateEntireTestTimer,
+//     saveResponses,
+//   } = useAssessmentStore();
+
+//   const [localTimer, setLocalTimer] = useState(entireTestTimer);
+//   const [showSubmitModal, setShowSubmitModal] = useState(false);
+//   const [showTimesUpModal, setShowTimesUpModal] = useState(false);
+
+//   // Sync local timer with global state initially
+//   useEffect(() => {
+//     setLocalTimer(entireTestTimer);
+//   }, [entireTestTimer]);
+
+//   // Main timer effect
+//   useEffect(() => {
+//     if (assessment) {
+//       const timer = setInterval(() => {
+//         setLocalTimer((prev) => {
+//           if (prev > 0) {
+//             const updatedTime = prev - 1000;
+//             updateEntireTestTimer(); // Sync global state
+//             return updatedTime;
+//           } else {
+//             clearInterval(timer);
+//             return 0;
+//           }
+//         });
+//       }, 1000);
+//       return () => clearInterval(timer);
+//     }
+//   }, [assessment, updateEntireTestTimer]);
+
+//   // Auto-save effect
+//   useEffect(() => {
+//     const saveInterval = setInterval(() => {
+//       saveResponses();
+//     }, 5000); // Save every 5 seconds
+//     return () => clearInterval(saveInterval);
+//   }, [saveResponses]);
+
+//   // Times up modal effect
+//   useEffect(() => {
+//     if (!assessment) return;
+//     const isAllTimeUp = Object.values(sectionTimers).every(
+//       (timer) => timer.timeLeft === 0
+//     );
+//     if (isAllTimeUp && !showTimesUpModal) {
+//       setShowTimesUpModal(true);
+//     }
+//   }, [assessment, sectionTimers, showTimesUpModal]);
+
+//   if (!assessment) return null;
+
+//   const handleSubmit = () => {
+//     submitAssessment();
+//     // router.push('/assessment/completed');
+//   };
+
+//   // Format time for display
+//   const formatTime = (ms) => {
+//     const minutes = Math.floor(ms / 60000);
+//     const seconds = Math.floor((ms % 60000) / 1000);
+//     return {
+//       minutes: String(minutes).padStart(2, "0"),
+//       seconds: String(seconds).padStart(2, "0"),
+//     };
+//   };
+
+//   const formattedTime = formatTime(localTimer);
+
+//   return (
+//     <>
+//       <div
+//         className="sticky top-0 z-50 flex h-16 items-center justify-between border-b bg-background px-4"
+//         style={{ background: "var(--Primary-50, #FFF9F4)" }}
+//       >
+//         <div className="flex items-center gap-4">
+//           {assessment && (
+//             <div className="flex items-center gap-2 text-lg font-mono">
+//               <Clock className="h-5 w-5" />
+//               <span className="tabular-nums">
+//                 {formattedTime.minutes}:{formattedTime.seconds}
+//               </span>
+//             </div>
+//           )}
+//           <Button
+//             variant="default"
+//             onClick={() => setShowSubmitModal(true)}
+//             className="bg-orange-500 hover:bg-orange-600"
+//           >
+//             Submit
+//           </Button>
+//         </div>
+//       </div>
+//       <SubmitModal
+//         open={showSubmitModal}
+//         onOpenChange={setShowSubmitModal}
+//         onConfirm={handleSubmit}
+//       />
+//       <TimesUpModal
+//         open={showTimesUpModal}
+//         onOpenChange={setShowTimesUpModal}
+//         onFinish={handleSubmit}
+//       />
+//     </>
+//   );
+// }
+
+
+
+
 export function Navbar() {
   const router = useRouter()
   const { 
@@ -389,7 +824,8 @@ export function Navbar() {
     sectionTimers,
     submitAssessment,
     entireTestTimer,
-    updateEntireTestTimer
+    updateEntireTestTimer,
+    saveResponses
   } = useAssessmentStore()
   
   const [showSubmitModal, setShowSubmitModal] = useState(false)
@@ -403,13 +839,21 @@ export function Navbar() {
     return () => clearInterval(timer);
   }, [updateEntireTestTimer]);
 
+  useEffect(() => {
+    const saveInterval = setInterval(() => {
+      saveResponses();
+    }, 5000); // Save every 5 seconds
+
+    return () => clearInterval(saveInterval);
+  }, [saveResponses]);
+
   if (!assessment) return null
 
   const isAllTimeUp = Object.values(sectionTimers).every(timer => timer.timeLeft === 0)
 
   const handleSubmit = () => {
     submitAssessment()
-    router.push('/assessment/completed') // Replace with your completion page route
+    // router.push('/assessment/completed') 
   }
 
   // Show times up modal when all sections are complete
@@ -419,16 +863,13 @@ export function Navbar() {
 
   return (
     <>
-      <div className="sticky top-0 z-50 flex h-16 items-center justify-between border-b bg-background px-4">
-        <div className="flex items-center gap-4">
-          <h2 className="text-lg font-semibold">{assessment.title}</h2>
-        </div>
+      <div className="sticky top-0 z-50 flex h-16 items-center justify-between border-b bg-background px-4" style={{ background: 'var(--Primary-50, #FFF9F4)' }}>
+        
         <div className="flex items-center gap-4">
           {assessment && (
-            <div className="flex items-center gap-2 text-lg font-mono">
-              <Clock className="h-5 w-5" />
-              <span>
-                {String(Math.floor((entireTestTimer % 3600000) / 60000)).padStart(2, '0')}:
+        <div className="flex items-center gap-2 text-lg font-mono">
+          <span>
+                {String(Math.floor(entireTestTimer / 60000)).padStart(2, '0')}:
                 {String(Math.floor((entireTestTimer % 60000) / 1000)).padStart(2, '0')}
               </span>
             </div>
@@ -449,11 +890,12 @@ export function Navbar() {
         onConfirm={handleSubmit}
       />
 
-      {/* <TimesUpModal
+      <TimesUpModal
         open={showTimesUpModal}
         onOpenChange={setShowTimesUpModal}
         onFinish={handleSubmit}
-      /> */}
+      />
+      
     </>
   )
 }

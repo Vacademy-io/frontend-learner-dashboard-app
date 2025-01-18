@@ -16,6 +16,8 @@ import { Route as DashboardIndexImport } from './routes/dashboard/index'
 import { Route as LoginForgotPasswordIndexImport } from './routes/login/forgot-password/index'
 import { Route as AssessmentExaminationIndexImport } from './routes/assessment/examination/index'
 import { Route as AssessmentExaminationAssessmentIdIndexImport } from './routes/assessment/examination/$assessmentId/index'
+import { Route as AssessmentExaminationAssessmentIdAssessmentPreviewImport } from './routes/assessment/examination/$assessmentId/assessmentPreview'
+import { Route as AssessmentExaminationAssessmentIdLearnerLiveTestImport } from './routes/assessment/examination/$assessmentId/LearnerLiveTest'
 
 // Create/Update Routes
 
@@ -52,6 +54,20 @@ const AssessmentExaminationAssessmentIdIndexRoute =
     getParentRoute: () => rootRoute,
   } as any)
 
+const AssessmentExaminationAssessmentIdAssessmentPreviewRoute =
+  AssessmentExaminationAssessmentIdAssessmentPreviewImport.update({
+    id: '/assessment/examination/$assessmentId/assessmentPreview',
+    path: '/assessment/examination/$assessmentId/assessmentPreview',
+    getParentRoute: () => rootRoute,
+  } as any)
+
+const AssessmentExaminationAssessmentIdLearnerLiveTestRoute =
+  AssessmentExaminationAssessmentIdLearnerLiveTestImport.update({
+    id: '/assessment/examination/$assessmentId/LearnerLiveTest',
+    path: '/assessment/examination/$assessmentId/LearnerLiveTest',
+    getParentRoute: () => rootRoute,
+  } as any)
+
 // Populate the FileRoutesByPath interface
 
 declare module '@tanstack/react-router' {
@@ -84,6 +100,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginForgotPasswordIndexImport
       parentRoute: typeof rootRoute
     }
+    '/assessment/examination/$assessmentId/LearnerLiveTest': {
+      id: '/assessment/examination/$assessmentId/LearnerLiveTest'
+      path: '/assessment/examination/$assessmentId/LearnerLiveTest'
+      fullPath: '/assessment/examination/$assessmentId/LearnerLiveTest'
+      preLoaderRoute: typeof AssessmentExaminationAssessmentIdLearnerLiveTestImport
+      parentRoute: typeof rootRoute
+    }
+    '/assessment/examination/$assessmentId/assessmentPreview': {
+      id: '/assessment/examination/$assessmentId/assessmentPreview'
+      path: '/assessment/examination/$assessmentId/assessmentPreview'
+      fullPath: '/assessment/examination/$assessmentId/assessmentPreview'
+      preLoaderRoute: typeof AssessmentExaminationAssessmentIdAssessmentPreviewImport
+      parentRoute: typeof rootRoute
+    }
     '/assessment/examination/$assessmentId/': {
       id: '/assessment/examination/$assessmentId/'
       path: '/assessment/examination/$assessmentId'
@@ -101,6 +131,8 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginIndexRoute
   '/assessment/examination': typeof AssessmentExaminationIndexRoute
   '/login/forgot-password': typeof LoginForgotPasswordIndexRoute
+  '/assessment/examination/$assessmentId/LearnerLiveTest': typeof AssessmentExaminationAssessmentIdLearnerLiveTestRoute
+  '/assessment/examination/$assessmentId/assessmentPreview': typeof AssessmentExaminationAssessmentIdAssessmentPreviewRoute
   '/assessment/examination/$assessmentId': typeof AssessmentExaminationAssessmentIdIndexRoute
 }
 
@@ -109,6 +141,8 @@ export interface FileRoutesByTo {
   '/login': typeof LoginIndexRoute
   '/assessment/examination': typeof AssessmentExaminationIndexRoute
   '/login/forgot-password': typeof LoginForgotPasswordIndexRoute
+  '/assessment/examination/$assessmentId/LearnerLiveTest': typeof AssessmentExaminationAssessmentIdLearnerLiveTestRoute
+  '/assessment/examination/$assessmentId/assessmentPreview': typeof AssessmentExaminationAssessmentIdAssessmentPreviewRoute
   '/assessment/examination/$assessmentId': typeof AssessmentExaminationAssessmentIdIndexRoute
 }
 
@@ -118,6 +152,8 @@ export interface FileRoutesById {
   '/login/': typeof LoginIndexRoute
   '/assessment/examination/': typeof AssessmentExaminationIndexRoute
   '/login/forgot-password/': typeof LoginForgotPasswordIndexRoute
+  '/assessment/examination/$assessmentId/LearnerLiveTest': typeof AssessmentExaminationAssessmentIdLearnerLiveTestRoute
+  '/assessment/examination/$assessmentId/assessmentPreview': typeof AssessmentExaminationAssessmentIdAssessmentPreviewRoute
   '/assessment/examination/$assessmentId/': typeof AssessmentExaminationAssessmentIdIndexRoute
 }
 
@@ -128,6 +164,8 @@ export interface FileRouteTypes {
     | '/login'
     | '/assessment/examination'
     | '/login/forgot-password'
+    | '/assessment/examination/$assessmentId/LearnerLiveTest'
+    | '/assessment/examination/$assessmentId/assessmentPreview'
     | '/assessment/examination/$assessmentId'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -135,6 +173,8 @@ export interface FileRouteTypes {
     | '/login'
     | '/assessment/examination'
     | '/login/forgot-password'
+    | '/assessment/examination/$assessmentId/LearnerLiveTest'
+    | '/assessment/examination/$assessmentId/assessmentPreview'
     | '/assessment/examination/$assessmentId'
   id:
     | '__root__'
@@ -142,6 +182,8 @@ export interface FileRouteTypes {
     | '/login/'
     | '/assessment/examination/'
     | '/login/forgot-password/'
+    | '/assessment/examination/$assessmentId/LearnerLiveTest'
+    | '/assessment/examination/$assessmentId/assessmentPreview'
     | '/assessment/examination/$assessmentId/'
   fileRoutesById: FileRoutesById
 }
@@ -151,6 +193,8 @@ export interface RootRouteChildren {
   LoginIndexRoute: typeof LoginIndexRoute
   AssessmentExaminationIndexRoute: typeof AssessmentExaminationIndexRoute
   LoginForgotPasswordIndexRoute: typeof LoginForgotPasswordIndexRoute
+  AssessmentExaminationAssessmentIdLearnerLiveTestRoute: typeof AssessmentExaminationAssessmentIdLearnerLiveTestRoute
+  AssessmentExaminationAssessmentIdAssessmentPreviewRoute: typeof AssessmentExaminationAssessmentIdAssessmentPreviewRoute
   AssessmentExaminationAssessmentIdIndexRoute: typeof AssessmentExaminationAssessmentIdIndexRoute
 }
 
@@ -159,6 +203,10 @@ const rootRouteChildren: RootRouteChildren = {
   LoginIndexRoute: LoginIndexRoute,
   AssessmentExaminationIndexRoute: AssessmentExaminationIndexRoute,
   LoginForgotPasswordIndexRoute: LoginForgotPasswordIndexRoute,
+  AssessmentExaminationAssessmentIdLearnerLiveTestRoute:
+    AssessmentExaminationAssessmentIdLearnerLiveTestRoute,
+  AssessmentExaminationAssessmentIdAssessmentPreviewRoute:
+    AssessmentExaminationAssessmentIdAssessmentPreviewRoute,
   AssessmentExaminationAssessmentIdIndexRoute:
     AssessmentExaminationAssessmentIdIndexRoute,
 }
@@ -177,6 +225,8 @@ export const routeTree = rootRoute
         "/login/",
         "/assessment/examination/",
         "/login/forgot-password/",
+        "/assessment/examination/$assessmentId/LearnerLiveTest",
+        "/assessment/examination/$assessmentId/assessmentPreview",
         "/assessment/examination/$assessmentId/"
       ]
     },
@@ -191,6 +241,12 @@ export const routeTree = rootRoute
     },
     "/login/forgot-password/": {
       "filePath": "login/forgot-password/index.tsx"
+    },
+    "/assessment/examination/$assessmentId/LearnerLiveTest": {
+      "filePath": "assessment/examination/$assessmentId/LearnerLiveTest.tsx"
+    },
+    "/assessment/examination/$assessmentId/assessmentPreview": {
+      "filePath": "assessment/examination/$assessmentId/assessmentPreview.tsx"
     },
     "/assessment/examination/$assessmentId/": {
       "filePath": "assessment/examination/$assessmentId/index.tsx"

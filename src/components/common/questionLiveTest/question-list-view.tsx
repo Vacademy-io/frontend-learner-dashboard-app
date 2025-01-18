@@ -28,7 +28,7 @@ export function QuestionListView() {
 
   const getQuestionClass = (state: QuestionState) => {
     if (state.isAnswered) return 'border-green-200 bg-green-50'
-    if (!state.isVisited) return 'border-red-200'
+    if (!state.isVisited) return 'border-gray-200'
     return 'border-pink-200 bg-pink-50'
   }
 
