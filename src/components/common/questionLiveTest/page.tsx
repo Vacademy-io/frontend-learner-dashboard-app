@@ -28,15 +28,106 @@ const dummyAssessment = {
   startDate: "13/10/2024, 11:15 AM",
   endDate: "15/10/2024, 08:30 PM",
   testDuration: {
-    entireTestDuration: "00:00:09",
+    entireTestDuration: "00:01:00",
     sectionWiseDuration: true,
     questionWiseDuration: true,
   },
   subject: "Physics",
   assessmentInstruction: `1. Attempt All Questions: Answer all questions. Ensure accuracy and completeness in each response.`,
-  assessmentPreview: "02:00",
+  assessmentPreview: {
+    checked: true,
+    Duration: "01:00",
+  },
   canSwitchSections: false,
   sections: [
+    {
+      subject: "Biology",
+      sectionDesc: "Challenge your understanding of the chapter 'Human Eye'",
+      sectionDuration: "03:00",
+      negativeMarking: {
+        checked: true,
+        value: "1",
+      },
+      partialMarking: true,
+      cutoffMarking: {
+        checked: true,
+        value: "08",
+      },
+      totalMark: "20",
+      questions: [
+        {
+          "questionType": "MCQ (Multiple Correct)",
+          "questionId": "Q1",
+          "questionName": "What is the primary function of the human eye?",
+          "questionMark": "2",
+          "questionDuration": "00:03",
+          "imageDetails": [],
+          "options": [
+            { "optionId": "O001", "optionName": "To detect UFOs" },
+            { "optionId": "O002", "optionName": "To judge people silently" },
+            { "optionId": "O003", "optionName": "To find lost socks" },
+            { "optionId": "O004", "optionName": "To scroll social media endlessly" }
+          ]
+        },
+        {
+          "questionType": "MCQ (Single Correct)",
+          "questionId": "Q2",
+          "questionName": "Which part of the eye controls the amount of light entering it?",
+          "questionMark": "2",
+          "questionDuration": "00:03",
+          "imageDetails": [],
+          "options": [
+            { "optionId": "O001", "optionName": "Cornea (also a great name for a sci-fi villain)" },
+            { "optionId": "O002", "optionName": "Iris (because it's always watching)" },
+            { "optionId": "O003", "optionName": "Lens (just like in your phone camera)" },
+            { "optionId": "O004", "optionName": "Retina (sounds like a fancy dessert)" }
+          ]
+        },
+        {
+          "questionType": "MCQ (Single Correct)",
+          "questionId": "Q3",
+          "questionName": "Which eye defect is caused by the elongation of the eyeball?",
+          "questionMark": "2",
+          "questionDuration": "01:00",
+          "imageDetails": [],
+          "options": [
+            { "optionId": "O001", "optionName": "Hypermetropia (when your eyeball says 'I’m too long!')" },
+            { "optionId": "O002", "optionName": "Myopia (aka Netflix syndrome)" },
+            { "optionId": "O003", "optionName": "Astigmatism (when your eyes party too hard)" },
+            { "optionId": "O004", "optionName": "Presbyopia (don’t Google this, you’ll squint)" }
+          ]
+        },
+        {
+          "questionType": "MCQ (Single Correct)",
+          "questionId": "Q4",
+          "questionName": "Which structure in the eye focuses light onto the retina?",
+          "questionMark": "2",
+          "questionDuration": "01:00",
+          "imageDetails": [],
+          "options": [
+            { "optionId": "O001", "optionName": "Lens (basically your eye’s photographer)" },
+            { "optionId": "O002", "optionName": "Cornea (the unpaid intern doing the first shift)" },
+            { "optionId": "O003", "optionName": "Retina (the canvas for light graffiti)" },
+            { "optionId": "O004", "optionName": "Pupil (just there for the vibes)" }
+          ]
+        },
+        {
+          "questionType": "MCQ (Single Correct)",
+          "questionId": "Q5",
+          "questionName": "Which part of the eye is responsible for detecting color?",
+          "questionMark": "2",
+          "questionDuration": "01:00",
+          "imageDetails": [],
+          "options": [
+            { "optionId": "O001", "optionName": "Lens (but only if it’s wearing color contacts)" },
+            { "optionId": "O002", "optionName": "Retina (the eye’s personal rainbow collector)" },
+            { "optionId": "O003", "optionName": "Pupil (it's too busy posing for pictures)" },
+            { "optionId": "O004", "optionName": "Iris (always outshining everyone else)" }
+          ]
+        }
+      ]
+      ,
+    },
     {
       subject: "Biology",
       sectionDesc: "Challenge your understanding of the chapter 'Human Eye'",

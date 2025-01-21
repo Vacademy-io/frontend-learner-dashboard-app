@@ -71,7 +71,7 @@ const AssessmentStartModal = () => {
               <MyButton
                 onClick={() =>
                   navigate({
-                    to: "/assessment/examination/$assessmentId/assessmentPreview",
+                    to: "/assessment/examination/$assessmentId/LearnerLiveTest",
                   })
                 }
                 buttonType="primary"

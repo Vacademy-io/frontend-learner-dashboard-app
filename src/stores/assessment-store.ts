@@ -957,6 +957,55 @@ export const useAssessmentStore = create<AssessmentStore>((set, get) => ({
   answers: {},
   sectionTimers: {},
   questionTimers: {},
+  // setAssessment: (assessment) => set((state) => {
+  //   const questionStates: Record<string, QuestionState> = {};
+  //   const sectionTimers: Record<number, SectionTimer> = {};
+  //   const questionTimers: Record<string, number> = {};
+    
+  //   assessment.sections.forEach((section, index) => {
+  //     if (assessment.testDuration.sectionWiseDuration) {
+  //       const [minutes, seconds] = section.sectionDuration.split(':').map(Number);
+  //       sectionTimers[index] = {
+  //         timeLeft: (minutes * 60 + seconds) * 1000,
+  //         isRunning: !assessment.canSwitchSections ? index === 0 : false
+  //       };
+  //     } else {
+  //       // If no section-wise duration, set a large default value
+  //       sectionTimers[index] = {
+  //         timeLeft: Number.MAX_SAFE_INTEGER,
+  //         isRunning: !assessment.canSwitchSections ? index === 0 : false
+  //       };
+  //     }
+      
+  //     section.questions.forEach(question => {
+  //       questionStates[question.questionId] = {
+  //         isAnswered: false,
+  //         isVisited: false,
+  //         isMarkedForReview: false,
+  //         isDisabled: false
+  //       };
+        
+  //       if (assessment.testDuration.questionWiseDuration && question.questionDuration) {
+  //         const [minutes, seconds] = question.questionDuration.split(':').map(Number);
+  //         questionTimers[question.questionId] = (minutes * 60 + seconds) * 1000;
+  //       }
+  //     });
+  //   });
+    
+  //   // const [hours, minutes] = assessment.testDuration.entireTestDuration.split(':').map(Number);
+  //   // const entireTestTimer = (hours * 3600 + minutes * 60) * 1000;
+  //   const [hours, minutes] = assessment.testDuration.entireTestDuration.split(':').map(Number);
+  //   const entireTestTimer = (hours * 3600 + minutes * 60) * 1000;
+    
+  //   return { 
+  //     assessment, 
+  //     questionStates, 
+  //     sectionTimers, 
+  //     questionTimers, 
+  //     entireTestTimer,
+  //     currentSection: 0
+  //   };
+  // }),
   setAssessment: (assessment) => set((state) => {
     const questionStates: Record<string, QuestionState> = {};
     const sectionTimers: Record<number, SectionTimer> = {};
@@ -967,13 +1016,10 @@ export const useAssessmentStore = create<AssessmentStore>((set, get) => ({
         const [minutes, seconds] = section.sectionDuration.split(':').map(Number);
         sectionTimers[index] = {
           timeLeft: (minutes * 60 + seconds) * 1000,
-          isRunning: !assessment.canSwitchSections ? index === 0 : false
-        };
-      } else {
-        // If no section-wise duration, set a large default value
-        sectionTimers[index] = {
-          timeLeft: Number.MAX_SAFE_INTEGER,
-          isRunning: !assessment.canSwitchSections ? index === 0 : false
+          // Only start first section if canSwitchSections is false
+          isRunning: !assessment.canSwitchSections ? index === 0 : false,
+          // Track if section has been activated
+          hasStarted: index === 0
         };
       }
       
@@ -992,8 +1038,6 @@ export const useAssessmentStore = create<AssessmentStore>((set, get) => ({
       });
     });
     
-    // const [hours, minutes] = assessment.testDuration.entireTestDuration.split(':').map(Number);
-    // const entireTestTimer = (hours * 3600 + minutes * 60) * 1000;
     const [hours, minutes] = assessment.testDuration.entireTestDuration.split(':').map(Number);
     const entireTestTimer = (hours * 3600 + minutes * 60) * 1000;
     
@@ -1117,6 +1161,7 @@ export const useAssessmentStore = create<AssessmentStore>((set, get) => ({
 
     return { sectionTimers: updatedTimers };
   }),
+  
   updateQuestionTimer: (questionId, timeLeft) => set((state) => ({
     questionTimers: {
       ...state.questionTimers,
