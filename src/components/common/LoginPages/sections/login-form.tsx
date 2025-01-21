@@ -92,7 +92,7 @@ export function LoginForm() {
 
   // Conditionally render the splash screen
   if (showSplash) {
-    return <SplashScreen isAnimationEnabled children={undefined} />;
+    return <SplashScreen isAnimationEnabled  />;
   }
 
   // Login form content
@@ -164,7 +164,6 @@ export function LoginForm() {
                           size="large"
                           label="Password"
                           {...field}
-                          // className="md:w-[400px] lg:w-[600px]"
                         />
                       </FormControl>
                     </FormItem>

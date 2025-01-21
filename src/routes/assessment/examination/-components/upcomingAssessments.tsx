@@ -50,14 +50,7 @@ const AssessmentCard = ({ assessment }: AssessmentCardProps) => {
           <div className="font-semibold text-sm mb-4">{assessment.title}</div>
 
           <div className="flex gap-3 pb-4">
-            {/* <StatusChips
-              status={
-                assessment.mode.toLowerCase() === "online"
-                  ? "active"
-                  : "inactive"
-              }
-            /> */}
-                  <StatusChip mode={assessment.mode}  />
+            <StatusChip mode={assessment.mode}  />
           </div>
           <div className="space-y-2 text-sm text-gray-600">
             <div className="flex items-center gap-2">
@@ -74,37 +67,7 @@ const AssessmentCard = ({ assessment }: AssessmentCardProps) => {
         </CardContent>
       </Card>
 
-      {/* <Card 
-      className="w-full max-w-sm mb-4 hover:shadow-lg transition-shadow cursor-pointer bg-white rounded-lg"
-      // onClick={onClick}
-    >
-      <CardContent className="p-4">
-        <div className="flex items-center gap-2 mb-4">
-          <CircleDot className="w-4 h-4 text-green-500" />
-          <span className="text-green-500">Online</span>
-        </div>
-
-        <h3 className="font-semibold text-lg mb-4">{assessment.title}</h3>
-
-        <div className="space-y-3 text-sm text-gray-600">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <Calendar className="w-4 h-4" />
-              <span>Start Date and Time: {assessment.liveDate}</span>
-            </div>
-            <div className="flex items-center gap-2 ml-6">
-              <span>End Date and Time: {assessment.endDateTime}</span>
-            </div>
-          </div>
-
-          <div>
-            <p className="mb-1">Subject: {assessment.subject}</p>
-            <p>Duration: {assessment.duration}</p>
-          </div>
-        </div>
-      </CardContent>
-    </Card> */}
-
+     
 <div className="sm:max-w-[90%] md:max-w-[400px] lg:max-w-[500px]">
   <AlertDialog open={showPopup} onOpenChange={handleClose}>
     <AlertDialogOverlay className="bg-black/50" onClick={handleClose} />

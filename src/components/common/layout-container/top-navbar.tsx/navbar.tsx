@@ -4,38 +4,13 @@ import {
   MagnifyingGlass,
   Bell,
   Sliders,
-  CaretDown,
-  CaretUp,
-  List,
 } from "@phosphor-icons/react";
-import { cn } from "@/lib/utils";
-// import { DummyProfile } from "@/assets/svgs";
 import { useNavHeadingStore } from "@/stores/layout-container/useNavHeadingStore";
 import { FiSidebar } from "react-icons/fi";
-import { AppSidebar } from "./testsidebar";
 
-const IconContainer = ({
-  children,
-  className,
-}: {
-  children: React.ReactNode;
-  className?: string;
-}) => {
-  return (
-    <div
-      className={cn(
-        "flex size-9 cursor-pointer items-center justify-center rounded-full border border-neutral-300",
-        className
-      )}
-    >
-      {children}
-    </div>
-  );
-};
 
 export function Navbar() {
   const notifications = true;
-  // const [dropdown, setDropdown] = useState<boolean>(true);
   const { navHeading } = useNavHeadingStore();
 
   return (

@@ -7,7 +7,7 @@ import { useInstituteQuery } from "@/services/student-list-section/getInstituteD
 import { ScheduleTestFilters } from "./ScheduleTestFilters";
 import { useFilterDataForAssesment } from "../../examination/-utils.ts/useFiltersData";
 import { ScheduleTestSearchComponent } from "./ScheduleTestSearchComponent";
-import { MyFilterOption } from "@/types/my-filter";
+// import { MyFilterOption } from "@/types/my-filter";
 import { ScheduleTestHeaderDescription } from "./ScheduleTestHeaderDescription";
 import ScheduleTestTabList from "./ScheduleTestTabList";
 import ScheduleTestFilterButtons from "./ScheduleTestFilterButtons";
@@ -20,12 +20,6 @@ import { useSidebar } from "@/components/ui/sidebar";
 export const ScheduleTestMainComponent = () => {
   const { setNavHeading } = useNavHeadingStore();
   const [selectedTab, setSelectedTab] = useState("liveTests");
-  const { data: initData } = useSuspenseQuery(useInstituteQuery());
-  const { ModeFilterData, SubjectFilterData, StatusData } =
-    useFilterDataForAssesment(initData);
-  const [selectedQuestionPaperFilters, setSelectedQuestionPaperFilters] =
-    useState<Record<string, MyFilterOption[]>>({});
-  const [searchText, setSearchText] = useState("");
 
   useEffect(() => {
     setNavHeading("Assessment");

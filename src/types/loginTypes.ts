@@ -4,7 +4,7 @@ import { z } from "zod";
 
 // SplashScreen Props
 export interface SplashScreenProps {
-    children: ReactNode;
+    children?: ReactNode;
     isAnimationEnabled: boolean;
 }
 
