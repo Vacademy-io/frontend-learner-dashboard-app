@@ -8,7 +8,7 @@ import { Separator } from "@/components/ui/separator";
 
 const InstructionPage: React.FC<{ assessment: Assessment; title: string }> = ({
   assessment,
-  title, // Add title prop
+  title, 
 }) => {
   return (
     <>

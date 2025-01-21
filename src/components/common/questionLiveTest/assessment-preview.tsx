@@ -5,9 +5,6 @@ import { useAssessmentStore } from '@/stores/assessment-store';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from "@tanstack/react-router";
-import { Navbar } from './navbar';
-import { SectionTabs } from './section-tabs';
-import { Clock } from 'lucide-react';
 import { MyButton } from '@/components/design-system/button';
 
 const dummyAssessment = {
@@ -297,7 +294,6 @@ export function AssessmentPreview() {
 
   if (!assessment) return null;
 
-  // setTimeLeft(assessment.assessmentPreview);
   const formatTime = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
     const secs = seconds % 60;

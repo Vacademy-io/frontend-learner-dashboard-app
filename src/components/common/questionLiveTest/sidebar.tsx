@@ -1,11 +1,6 @@
 'use client'
 
-import * as React from 'react'
-import { cn } from '@/lib/utils'
-import { Button } from '@/components/ui/button'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
-import { PanelLeft } from 'lucide-react'
 import { QuestionNavigator } from './question-navigator'
 
 

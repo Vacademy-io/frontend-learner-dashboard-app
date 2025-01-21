@@ -8,16 +8,6 @@ interface ViewToggleProps {
 }
 
 export function ViewToggle({ view, onViewChange }: ViewToggleProps) {
-  // return (
-  //   <ToggleGroup type="single" value={view} onValueChange={(v) => v && onViewChange(v as "grid" | "list")}>
-  //     <ToggleGroupItem value="grid" aria-label="Grid view">
-  //       <LayoutGrid className="h-4 w-4" />
-  //     </ToggleGroupItem>
-  //     <ToggleGroupItem value="list" aria-label="List view">
-  //       <List className="h-4 w-4" />
-  //     </ToggleGroupItem>
-  //   </ToggleGroup>
-  // )
   return (
     <ToggleGroup
       type="single"
