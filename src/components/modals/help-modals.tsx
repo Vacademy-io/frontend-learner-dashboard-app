@@ -81,14 +81,7 @@ export function HelpModal({ open, onOpenChange, type }: HelpModalProps) {
       <DialogContent className="max-w-md">
         <DialogHeader className="flex flex-row items-center justify-between">
           <DialogTitle>{getTitle()}</DialogTitle>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-6 w-6 p-0"
-            onClick={() => onOpenChange(false)}
-          >
-            <X className="h-4 w-4" />
-          </Button>
+          
         </DialogHeader>
         {getContent()}
       </DialogContent>

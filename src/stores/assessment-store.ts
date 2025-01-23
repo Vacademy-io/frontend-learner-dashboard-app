@@ -870,10 +870,10 @@
 
 
 import { create } from 'zustand'
-import { Plugins } from '@capacitor/core'
+// import { Capacitor } from '@capacitor/core'
 import { Assessment, Question, QuestionState } from '../types/assessment'
 
-const { Storage } = Plugins
+import { Storage } from "@capacitor/storage"
 
 interface MarkedResponse {
   questionId: string
@@ -952,7 +952,7 @@ interface AssessmentStore {
 export const useAssessmentStore = create<AssessmentStore>((set, get) => ({
   assessment: null,
   currentSection: 0,
-  currentQuestion: null,
+  currentQuestion: 0,
   questionStates: {},
   answers: {},
   sectionTimers: {},
@@ -1200,99 +1200,66 @@ export const useAssessmentStore = create<AssessmentStore>((set, get) => ({
 
     return null;
   },
-  //  moveToNextAvailableSection: () => {
-  //   const state = get();
-  //   if (!state.assessment) return;
-
-  //   // Check if section-wise duration is enabled
-  //   if (state.assessment.testDuration.sectionWiseDuration) {
-  //     const currentSectionTimer = state.sectionTimers[state.currentSection];
-      
-  //     // If current section still has time and canSwitchSections is false, don't move
-  //     if (!state.assessment.canSwitchSections && currentSectionTimer?.timeLeft > 0) {
-  //       return;
-  //     }
-
-  //     // Mark current section as completed
-  //     const updatedTimers = { ...state.sectionTimers };
-  //     if (updatedTimers[state.currentSection]) {
-  //       updatedTimers[state.currentSection].timeLeft = 0;
-  //       updatedTimers[state.currentSection].isRunning = false;
-  //     }
-
-  //     // Find next available section
-  //     let nextSection = state.currentSection + 1;
-  //     while (nextSection < state.assessment.sections.length) {
-  //       if (updatedTimers[nextSection]?.timeLeft > 0) {
-  //         // Start the timer for next section
-  //         updatedTimers[nextSection].isRunning = true;
-          
-  //         set({ 
-  //           currentSection: nextSection,
-  //           sectionTimers: updatedTimers
-  //         });
-
-  //         // Set first question of new section
-  //         const firstQuestion = state.assessment.sections[nextSection].questions[0];
-  //         if (firstQuestion) {
-  //           state.setCurrentQuestion(firstQuestion);
-  //         }
-  //         return;
-  //       }
-  //       nextSection++;
-  //     }
-  //   } else {
-  //     // If no section-wise duration, just move to next section
-  //     const nextSection = state.currentSection + 1;
-  //     if (nextSection < state.assessment.sections.length) {
-  //       set({ currentSection: nextSection });
-  //       const firstQuestion = state.assessment.sections[nextSection].questions[0];
-  //       if (firstQuestion) {
-  //         state.setCurrentQuestion(firstQuestion);
-  //       }
-  //       return;
-  //     }
-  //   }
-
-  //   // Only submit if entire test timer is up
-  //   if (state.entireTestTimer === 0) {
-  //     set({ isSubmitted: true });
-  //   }
-  // },
-  moveToNextAvailableSection: () => {
+   moveToNextAvailableSection: () => {
     const state = get();
     if (!state.assessment) return;
 
-    // Find next available section
-    const nextSectionIndex = state.findNextAvailableSection();
-
-    if (nextSectionIndex !== null) {
-      // Update section timers
-      const updatedTimers = { ...state.sectionTimers };
+    // Check if section-wise duration is enabled
+    if (state.assessment.testDuration.sectionWiseDuration) {
+      const currentSectionTimer = state.sectionTimers[state.currentSection];
       
-      // Stop current section timer
+      // If current section still has time and canSwitchSections is false, don't move
+      if (!state.assessment.canSwitchSections && currentSectionTimer?.timeLeft > 0) {
+        return;
+      }
+
+      // Mark current section as completed
+      const updatedTimers = { ...state.sectionTimers };
       if (updatedTimers[state.currentSection]) {
+        updatedTimers[state.currentSection].timeLeft = 0;
         updatedTimers[state.currentSection].isRunning = false;
       }
 
-      // Start next section timer
-      updatedTimers[nextSectionIndex].isRunning = true;
+      // Find next available section
+      let nextSection = state.currentSection + 1;
+      while (nextSection < state.assessment.sections.length) {
+        if (updatedTimers[nextSection]?.timeLeft > 0) {
+          // Start the timer for next section
+          updatedTimers[nextSection].isRunning = true;
+          
+          set({ 
+            currentSection: nextSection,
+            sectionTimers: updatedTimers
+          });
 
-      // Set first question of new section
-      const firstQuestion = state.assessment.sections[nextSectionIndex].questions[0];
-
-      set({
-        currentSection: nextSectionIndex,
-        currentQuestion: firstQuestion,
-        sectionTimers: updatedTimers
-      });
+          // Set first question of new section
+          const firstQuestion = state.assessment.sections[nextSection].questions[0];
+          if (firstQuestion) {
+            state.setCurrentQuestion(firstQuestion);
+          }
+          return;
+        }
+        nextSection++;
+      }
     } else {
-      // If no sections available and entire test time is up, submit the test
-      if (state.entireTestTimer <= 0) {
-        set({ isSubmitted: true });
+      // If no section-wise duration, just move to next section
+      const nextSection = state.currentSection + 1;
+      if (nextSection < state.assessment.sections.length) {
+        set({ currentSection: nextSection });
+        const firstQuestion = state.assessment.sections[nextSection].questions[0];
+        if (firstQuestion) {
+          state.setCurrentQuestion(firstQuestion);
+        }
+        return;
       }
     }
+
+    // Only submit if entire test timer is up
+    if (state.entireTestTimer === 0) {
+      set({ isSubmitted: true });
+    }
   },
+  
   moveToNextQuestion: () => {
     const state = get()
     const { assessment, currentSection, currentQuestion } = state

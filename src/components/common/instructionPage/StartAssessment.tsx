@@ -66,7 +66,7 @@ const AssessmentStartModal = () => {
               </p>
             </div>
 
-            {/* Footer */}
+            {/* Footer  */}
             <div className="p-4 flex justify-center">
               <MyButton
                 onClick={() =>

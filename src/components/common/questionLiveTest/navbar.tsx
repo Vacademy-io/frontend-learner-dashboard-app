@@ -153,13 +153,13 @@ export function Navbar() {
         onConfirm={handleSubmit}
       />
 
-      <TimesUpModal
+      {/* <TimesUpModal
         open={showTimesUpModal}
         onOpenChange={setShowTimesUpModal}
         onFinish={handleSubmit}
-      />
+      /> */}
 
-      <AlertDialog open={showWarningModal} onOpenChange={setShowWarningModal}>
+      {/* <AlertDialog open={showWarningModal} onOpenChange={setShowWarningModal}>
         <AlertDialogContent>
           <AlertDialogDescription>
             Warning: You are attempting to leave the test environment. This is warning {warningCount} of 3. 
@@ -169,7 +169,7 @@ export function Navbar() {
             Return to Test
           </AlertDialogAction>
         </AlertDialogContent>
-      </AlertDialog>
+      </AlertDialog> */}
 
       <HelpModal
         open={helpType !== null}

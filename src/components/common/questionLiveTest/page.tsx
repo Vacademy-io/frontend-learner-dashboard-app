@@ -20,7 +20,7 @@ import { initNetworkListeners } from "@/routes/assessment/examination/-utils.ts/
 
 
 
-const dummyAssessment = {
+export const dummyAssessment = {
   assessmentId: "A001",
   title: "The Human Eye and The Colourful World",
   mode: "Online",
@@ -30,7 +30,7 @@ const dummyAssessment = {
   testDuration: {
     entireTestDuration: "00:01:00",
     sectionWiseDuration: true,
-    questionWiseDuration: true,
+    questionWiseDuration: false,
   },
   subject: "Physics",
   assessmentInstruction: `1. Attempt All Questions: Answer all questions. Ensure accuracy and completeness in each response.`,
@@ -38,96 +38,9 @@ const dummyAssessment = {
     checked: true,
     Duration: "01:00",
   },
-  canSwitchSections: false,
+  canSwitchSections: true,
   sections: [
-    {
-      subject: "Biology",
-      sectionDesc: "Challenge your understanding of the chapter 'Human Eye'",
-      sectionDuration: "03:00",
-      negativeMarking: {
-        checked: true,
-        value: "1",
-      },
-      partialMarking: true,
-      cutoffMarking: {
-        checked: true,
-        value: "08",
-      },
-      totalMark: "20",
-      questions: [
-        {
-          "questionType": "MCQ (Multiple Correct)",
-          "questionId": "Q1",
-          "questionName": "What is the primary function of the human eye?",
-          "questionMark": "2",
-          "questionDuration": "00:03",
-          "imageDetails": [],
-          "options": [
-            { "optionId": "O001", "optionName": "To detect UFOs" },
-            { "optionId": "O002", "optionName": "To judge people silently" },
-            { "optionId": "O003", "optionName": "To find lost socks" },
-            { "optionId": "O004", "optionName": "To scroll social media endlessly" }
-          ]
-        },
-        {
-          "questionType": "MCQ (Single Correct)",
-          "questionId": "Q2",
-          "questionName": "Which part of the eye controls the amount of light entering it?",
-          "questionMark": "2",
-          "questionDuration": "00:03",
-          "imageDetails": [],
-          "options": [
-            { "optionId": "O001", "optionName": "Cornea (also a great name for a sci-fi villain)" },
-            { "optionId": "O002", "optionName": "Iris (because it's always watching)" },
-            { "optionId": "O003", "optionName": "Lens (just like in your phone camera)" },
-            { "optionId": "O004", "optionName": "Retina (sounds like a fancy dessert)" }
-          ]
-        },
-        {
-          "questionType": "MCQ (Single Correct)",
-          "questionId": "Q3",
-          "questionName": "Which eye defect is caused by the elongation of the eyeball?",
-          "questionMark": "2",
-          "questionDuration": "01:00",
-          "imageDetails": [],
-          "options": [
-            { "optionId": "O001", "optionName": "Hypermetropia (when your eyeball says 'I’m too long!')" },
-            { "optionId": "O002", "optionName": "Myopia (aka Netflix syndrome)" },
-            { "optionId": "O003", "optionName": "Astigmatism (when your eyes party too hard)" },
-            { "optionId": "O004", "optionName": "Presbyopia (don’t Google this, you’ll squint)" }
-          ]
-        },
-        {
-          "questionType": "MCQ (Single Correct)",
-          "questionId": "Q4",
-          "questionName": "Which structure in the eye focuses light onto the retina?",
-          "questionMark": "2",
-          "questionDuration": "01:00",
-          "imageDetails": [],
-          "options": [
-            { "optionId": "O001", "optionName": "Lens (basically your eye’s photographer)" },
-            { "optionId": "O002", "optionName": "Cornea (the unpaid intern doing the first shift)" },
-            { "optionId": "O003", "optionName": "Retina (the canvas for light graffiti)" },
-            { "optionId": "O004", "optionName": "Pupil (just there for the vibes)" }
-          ]
-        },
-        {
-          "questionType": "MCQ (Single Correct)",
-          "questionId": "Q5",
-          "questionName": "Which part of the eye is responsible for detecting color?",
-          "questionMark": "2",
-          "questionDuration": "01:00",
-          "imageDetails": [],
-          "options": [
-            { "optionId": "O001", "optionName": "Lens (but only if it’s wearing color contacts)" },
-            { "optionId": "O002", "optionName": "Retina (the eye’s personal rainbow collector)" },
-            { "optionId": "O003", "optionName": "Pupil (it's too busy posing for pictures)" },
-            { "optionId": "O004", "optionName": "Iris (always outshining everyone else)" }
-          ]
-        }
-      ]
-      ,
-    },
+    
     {
       subject: "Biology",
       sectionDesc: "Challenge your understanding of the chapter 'Human Eye'",
@@ -360,130 +273,6 @@ const dummyAssessment = {
         },
       ],
     },
-    // {
-    //   subject: "Physics",
-    //   sectionDesc: "Explore the fascinating topics of the colorful world",
-    //   sectionDuration: "10:00",
-    //   negativeMarking: {
-    //     checked: true,
-    //     value: "1",
-    //   },
-    //   partialMarking: true,
-    //   cutoffMarking: {
-    //     checked: true,
-    //     value: "08",
-    //   },
-    //   totalMark: "20",
-    //   questions: [
-    //     {
-    //       questionType: "MCQ (Multiple Correct)",
-    //       questionId: "Q011",
-    //       questionName: "What is the speed of light in a vacuum?",
-    //       questionMark: "2",
-    //       questionDuration: "01:00",
-    //       imageDetails: [],
-    //       options: [
-    //         { optionId: "O001", optionName: "300,000 km/s" },
-    //         { optionId: "O002", optionName: "150,000 km/s" },
-    //         { optionId: "O003", optionName: "450,000 km/s" },
-    //         { optionId: "O004", optionName: "500,000 km/s" },
-    //       ],
-    //     },
-    //   ],
-    // },
-    // {
-    //   subject: "Physics",
-    //   sectionDesc: "Explore the fascinating topics of the colorful world",
-    //   sectionDuration: "10:00",
-    //   negativeMarking: {
-    //     checked: true,
-    //     value: "1",
-    //   },
-    //   partialMarking: true,
-    //   cutoffMarking: {
-    //     checked: true,
-    //     value: "08",
-    //   },
-    //   totalMark: "20",
-    //   questions: [
-    //     {
-    //       questionType: "MCQ (Multiple Correct)",
-    //       questionId: "Q011",
-    //       questionName: "What is the speed of light in a vacuum?",
-    //       questionMark: "2",
-    //       questionDuration: "01:00",
-    //       imageDetails: [],
-    //       options: [
-    //         { optionId: "O001", optionName: "300,000 km/s" },
-    //         { optionId: "O002", optionName: "150,000 km/s" },
-    //         { optionId: "O003", optionName: "450,000 km/s" },
-    //         { optionId: "O004", optionName: "500,000 km/s" },
-    //       ],
-    //     },
-    //   ],
-    // },
-    // {
-    //   subject: "Physics",
-    //   sectionDesc: "Explore the fascinating topics of the colorful world",
-    //   sectionDuration: "10:00",
-    //   negativeMarking: {
-    //     checked: true,
-    //     value: "1",
-    //   },
-    //   partialMarking: true,
-    //   cutoffMarking: {
-    //     checked: true,
-    //     value: "08",
-    //   },
-    //   totalMark: "20",
-    //   questions: [
-    //     {
-    //       questionType: "MCQ (Multiple Correct)",
-    //       questionId: "Q011",
-    //       questionName: "What is the speed of light in a vacuum?",
-    //       questionMark: "2",
-    //       questionDuration: "01:00",
-    //       imageDetails: [],
-    //       options: [
-    //         { optionId: "O001", optionName: "300,000 km/s" },
-    //         { optionId: "O002", optionName: "150,000 km/s" },
-    //         { optionId: "O003", optionName: "450,000 km/s" },
-    //         { optionId: "O004", optionName: "500,000 km/s" },
-    //       ],
-    //     },
-    //   ],
-    // },
-    // {
-    //   subject: "Physics",
-    //   sectionDesc: "Explore the fascinating topics of the colorful world",
-    //   sectionDuration: "10:00",
-    //   negativeMarking: {
-    //     checked: true,
-    //     value: "1",
-    //   },
-    //   partialMarking: true,
-    //   cutoffMarking: {
-    //     checked: true,
-    //     value: "08",
-    //   },
-    //   totalMark: "20",
-    //   questions: [
-    //     {
-    //       questionType: "MCQ (Multiple Correct)",
-    //       questionId: "Q011",
-    //       questionName: "What is the speed of light in a vacuum?",
-    //       questionMark: "2",
-    //       questionDuration: "01:00",
-    //       imageDetails: [],
-    //       options: [
-    //         { optionId: "O001", optionName: "300,000 km/s" },
-    //         { optionId: "O002", optionName: "150,000 km/s" },
-    //         { optionId: "O003", optionName: "450,000 km/s" },
-    //         { optionId: "O004", optionName: "500,000 km/s" },
-    //       ],
-    //     },
-    //   ],
-    // },
     
   ],
 };
