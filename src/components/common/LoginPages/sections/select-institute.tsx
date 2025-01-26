@@ -1,91 +1,151 @@
-import { useState } from "react"
-import { MyButton } from "@/components/design-system/button"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { useParams } from "@tanstack/react-router"
+import { FormContainer } from "@/components/common/LoginPages/layout/form-container";
+import { Heading } from "@/components/common/LoginPages/ui/heading";
+import { MyInput } from "@/components/design-system/input";
+import { Link } from "@tanstack/react-router";
+import { forgotPasswordSchema } from "@/schemas/login/login";
+import { z } from "zod";
+import { forgotPassword } from "@/hooks/login/send-link-button";
+import { sendResetLink } from "@/hooks/login/reset-link-click";
+import { useMutation } from "@tanstack/react-query";
+import { MyButton } from "@/components/design-system/button";
+import { toast } from "sonner";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Form, FormControl, FormField, FormItem } from "@/components/ui/form";
+import { useNavigate } from "@tanstack/react-router";
+import { MyDropdown } from "@/components/design-system/dropdown";
+import { fetchAndStoreInstituteDetails } from "@/services/fetchAndStoreInstituteDetails";
 
-interface InstituteSelectionProps {
-  institutes: string[]
-  onSelect: (instituteId: string) => void
-}
+type FormValues = z.infer<typeof forgotPasswordSchema>;
 
+export function InstituteSelection() {
+  const navigate = useNavigate();
+  const form = useForm<FormValues>({
+    resolver: zodResolver(forgotPasswordSchema),
+    defaultValues: {
+      email: "",
+    },
+    mode: "onTouched",
+  });
 
+  const loginToInstitute = useMutation({
+    mutationFn: (email: string) => forgotPassword(email),
+    onSuccess: async (response) => {
+      // Store tokens in Capacitor Storage
+      await setTokenInStorage(TokenKey.accessToken, response.accessToken);
+      await setTokenInStorage(TokenKey.refreshToken, response.refreshToken);
+      console.log("Access Token:", response.accessToken);
 
-export function InstituteSelection( InstituteSelectionProps) {
-    
-  const [selectedInstitute, setSelectedInstitute] = useState<string | undefined>()
+      // Decode token to get user data
+      const decodedData = await getTokenDecodedData(response.accessToken);
 
-  const handleSelection = () => {
-    if (selectedInstitute) {
-      onSelect(selectedInstitute)
-    }
+      // Check authorities in decoded data
+      const authorities = decodedData.authorities;
+      const userId = decodedData.user;
+      const authorityKeys = authorities ? Object.keys(authorities) : [];
+
+      const instituteId = Object.keys(authorities)[0];
+
+      // await fetchAndStoreInstituteDetails(instituteId, userId);
+      const details = await fetchAndStoreInstituteDetails(instituteId, userId);
+
+      if (details) {
+        navigate({ to: "/dashboard" });
+        // Navigate after successful fetch
+      }
+    },
+    onError: () => {
+      toast.error(" Error entring Institute", {
+        description: "This account doesn't exist",
+        className: "error-toast",
+        duration: 2000,
+      });
+    },
+  });
+
+  const sendResetLinkMutation = useMutation({
+    mutationFn: sendResetLink,
+    onSuccess: (response) => {
+      if (response.status != "success") {
+        toast.error("Failed to reset the password", {
+          className: "error-toast",
+          duration: 3000,
+        });
+      }
+    },
+    onError: () => {
+      toast.error("Failed to reset the password", {
+        className: "error-toast",
+        duration: 3000,
+      });
+    },
+  });
+
+  function onSubmit(values: FormValues) {
+    loginToInstitute.mutate(values.email);
   }
 
   return (
-    <div className="w-full max-w-md mx-auto">
-      <h2 className="text-2xl font-bold mb-4 text-center">Select Your Institute</h2>
-      {/* <Select onValueChange={setSelectedInstitute}>
-        <SelectTrigger className="w-full">
-          <SelectValue placeholder="Select an institute" />
-        </SelectTrigger>
-        <SelectContent>
-          {institutes.map((institute) => (
-            <SelectItem key={institute} value={institute}>
-              {institute}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select> */}
-      <div className="mt-8 flex justify-center">
-        <MyButton
-          type="button"
-          scale="large"
-          buttonType="primary"
-          layoutVariant="default"
-          onClick={handleSelection}
-          disabled={!selectedInstitute}
-        >
-          Continue
-        </MyButton>
-      </div>
+    <div>
+      <FormContainer>
+        <div className="flex w-full flex-col items-center justify-center gap-10 md:gap-8 lg:gap-6 px-4 md:px-8 lg:px-12">
+          <Heading
+            heading="Welcome, Student!"
+            subHeading="Ready to make things happen? Enter your Institute ID to create your request and start now!"
+          />
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="w-full">
+              <div className="flex w-full flex-col items-center justify-center gap-20 md:gap-25 lg:gap-30">
+                <FormField
+                  control={form.control}
+                  name="email"
+                  render={({ field: { onChange, value, ...field } }) => (
+                    <FormItem>
+                      <FormControl>
+                        <MyDropdown
+                          dropdownList={[
+                            "Institute A",
+                            "Institute B",
+                            "Institute C",
+                            "Institute D",
+                          ]}
+                          placeholder="Select an Institute"
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+
+                <div className="flex flex-col items-center gap-4 md:gap-6 lg:gap-8 justify-center">
+                  <MyButton
+                    type="submit"
+                    scale="large"
+                    buttonType="primary"
+                    layoutVariant="default"
+                  >
+                    Login to Institute
+                  </MyButton>
+                  <div className="flex flex-row font-regular items-center justify-center">
+                    <div className="text-neutral-500 text-sm md:text-base lg:text-base text-center">
+                      Want to Login with other account?
+                      <MyButton
+                        type="button"
+                        scale="medium"
+                        buttonType="text"
+                        layoutVariant="default"
+                        className="text-primary-500"
+                        onClick={() => navigate({ to: "/login" })}
+                      >
+                        Back to Login
+                      </MyButton>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </form>
+          </Form>
+        </div>
+      </FormContainer>
     </div>
-  )
+  );
 }
-
-
-
-
-// import React, { useState } from "react";
-// import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem} from "@/components/ui/dropdown-menu";
-// import { MyButton } from "@/components/design-system/button";
-
-// export const InstituteSelection = ({ authorityKeys }: { authorityKeys: string[] }) => {
-//   const [selectedInstitute, setSelectedInstitute] = useState<string | null>(null);
-
-  
-//   const handleSelect = (institute: string) => {
-//     setSelectedInstitute(institute);
-//     console.log("Selected Institute:", institute); // Perform any additional actions here
-//   };
-
-//   return (
-//     <div className="w-full max-w-xs">
-//       <DropdownMenu>
-//         <DropdownMenuTrigger asChild>
-//           <MyButton className="w-full">{selectedInstitute || "Select an Institute"}</MyButton>
-//         </DropdownMenuTrigger>
-//         <DropdownMenuContent>
-//           {authorityKeys.map((institute) => (
-//             <DropdownMenuItem
-//               key={institute}
-//               onClick={() => handleSelect(institute)}
-//             >
-//               {institute}
-//             </DropdownMenuItem>
-//           ))}
-//         </DropdownMenuContent>
-//       </DropdownMenu>
-//     </div>
-//   );
-// };
-
-// // export default InstictuteSelection;

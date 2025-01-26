@@ -205,13 +205,13 @@ const removeTokensAndLogout = async (): Promise<void> => {
 // Get access token from storage
 export const getAccessToken = async () => {
     const { value } = await Storage.get({ key: 'accessToken' });
-    return value; // Directly return the token without stringifying
+    return value; 
 };
 
 // Get refresh token from storage
 export const getRefreshToken = async () => {
     const { value } = await Storage.get({ key: 'refreshToken' });
-    return value; // Directly return the token without stringifying
+    return value; 
 };
 
 export {
@@ -221,7 +221,7 @@ export {
     getTokenFromStorage,
     isTokenExpired,
     getTokenDecodedData,
-    // New exports for institute ID management
+    // exports for institute ID management
     setInstituteIdInStorage,
     getInstituteIdFromStorage,
     removeInstituteIdFromStorage,

@@ -3,6 +3,8 @@ import { Preferences } from '@capacitor/preferences';
 import { useNavigate } from '@tanstack/react-router';
 import { toast } from 'sonner'; // Assuming you're using sonner for toasts
 
+export const BASE_URL = "https://backend-stage.vacademy.io";
+
 interface InstituteDetails {
   institute_name: string;
   id: string;
@@ -38,7 +40,7 @@ export const fetchAndStoreInstituteDetails = async (
 
     // Call API to get institute details
     const instituteDetailsResponse = await axios.get<InstituteDetails>(
-      `/admin-core-service/learner/v1/details/${instituteId}`,
+      `admin-core-service/learner/v1/details/${instituteId}`,
     //   GET_INIT_DETAIL
       {
         params: {
@@ -54,7 +56,7 @@ export const fetchAndStoreInstituteDetails = async (
     // Store institute details in Capacitor Preferences
     await Preferences.set({
       key: 'InstituteDetails',
-      value: JSON.stringify(instituteDetails)
+      value: instituteDetails
     });
 
 

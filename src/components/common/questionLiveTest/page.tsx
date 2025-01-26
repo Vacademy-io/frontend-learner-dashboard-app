@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useState } from "react";
@@ -18,8 +17,6 @@ import { Toaster } from "@/components/ui/toaster";
 import { initNetworkListeners } from "@/routes/assessment/examination/-utils.ts/network";
 // import { NetworkStatus } from './network-status'
 
-
-
 export const dummyAssessment = {
   assessmentId: "A001",
   title: "The Human Eye and The Colourful World",
@@ -28,19 +25,24 @@ export const dummyAssessment = {
   startDate: "13/10/2024, 11:15 AM",
   endDate: "15/10/2024, 08:30 PM",
   testDuration: {
-    entireTestDuration: "00:01:00",
+    entireTestDuration: "02:01",
     sectionWiseDuration: true,
     questionWiseDuration: false,
   },
   subject: "Physics",
-  assessmentInstruction: `1. Attempt All Questions: Answer all questions. Ensure accuracy and completeness in each response.`,
+  assessmentInstruction: `1. Attempt All Questions: Answer all questions. Ensure accuracy and completeness in each response.
+  2. Objective Format: All questions are multiple-choice. Select the best answer for each question.
+3. Single Attempt Only: This Assessment allows for one submission only. Once you submit, you cannot change your answers.
+4. Negative Marking: Incorrect answers may result in a deduction of points.
+5. Submission Guidelines: Double-check all answers before submitting. Click Submit only when you are ready.
+6. No External Help: This is an individual Assessment. Using textbooks, notes, or assistance from others is not permitted.
+7. Stay Focused: Avoid switching tabs or leaving the exam screen, as it may be flagged as suspicious behavior. Good luck! Answer carefully and review each question before proceeding.`,
   assessmentPreview: {
     checked: true,
-    Duration: "01:00",
+    Duration: "00:30",
   },
   canSwitchSections: true,
   sections: [
-    
     {
       subject: "Biology",
       sectionDesc: "Challenge your understanding of the chapter 'Human Eye'",
@@ -273,19 +275,18 @@ export const dummyAssessment = {
         },
       ],
     },
-    
   ],
 };
 
 export default function Page() {
-  const { setAssessment } = useAssessmentStore()
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+  const { setAssessment } = useAssessmentStore();
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   useEffect(() => {
-    setAssessment(dummyAssessment)
-  }, [setAssessment])
+    setAssessment(dummyAssessment);
+  }, [setAssessment]);
 
-  const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen)
+  const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
 
   return (
     <div className="flex flex-col w-full bg-gray-50">
@@ -297,10 +298,7 @@ export default function Page() {
         </main>
       </div>
       <Footer onToggleSidebar={toggleSidebar} />
-      <Sidebar 
-        isOpen={isSidebarOpen}
-        onClose={() => setIsSidebarOpen(false)}
-      />
+      <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
     </div>
-  )
+  );
 }

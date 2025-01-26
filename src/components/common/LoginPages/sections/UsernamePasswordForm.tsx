@@ -20,6 +20,7 @@ import HeaderLogo from "../ui/header_logo";
 
 import { isNullOrEmptyOrUndefined } from "@/lib/utils";
 import {
+  getInstituteIdFromStorage,
   getTokenDecodedData,
   getTokenFromStorage,
   setInstituteIdInStorage,
@@ -39,26 +40,19 @@ export function UsernameLogin({ onSwitchToEmail }) {
     },
     mode: "onTouched",
   });
-  // useEffect(() => {
-  //   const redirect = async () => {
-  //     const token = await getTokenFromStorage(TokenKey.accessToken);
-  //     if (!isNullOrEmptyOrUndefined(token)) {
-  //       navigate({ to: "/dashboard" });
-  //     }
-  //   };
-  //   redirect();
-  // }, []);
+  
 
-  // useEffect(() => {
-  //   const redirect = async () => {
-  //     const token = await getTokenFromStorage(TokenKey.accessToken);
-  //     const instituteId = await getTokenFromStorage(TokenKey.instituteId); // Assuming a similar function for fetching instituteId
-  //     if (!isNullOrEmptyOrUndefined(token) && !isNullOrEmptyOrUndefined(instituteId)) {
-  //       navigate({ to: "/dashboard" });
-  //     }
-  //   };
-  //   redirect();
-  // }, []);
+  useEffect(() => {
+    const redirect = async () => {
+      const token = await getTokenFromStorage(TokenKey.accessToken);
+      const instituteId = await getTokenFromStorage(TokenKey.instituteId); 
+      if (!isNullOrEmptyOrUndefined(token) && isNullOrEmptyOrUndefined(instituteId)) {
+        // console.log(token,isNullOrEmptyOrUndefined(token)!isNullOrEmptyOrUndefined(instituteId),instituteId);
+        navigate({ to: "/dashboard" });
+      }
+    };
+    redirect();
+  }, []);
 
   const mutation = useMutation({
     mutationFn: (values: FormValues) =>
@@ -69,7 +63,6 @@ export function UsernameLogin({ onSwitchToEmail }) {
           // Store tokens in Capacitor Storage
           await setTokenInStorage(TokenKey.accessToken, response.accessToken);
           await setTokenInStorage(TokenKey.refreshToken, response.refreshToken);
-          console.log("Access Token:", response.accessToken);
 
           // Decode token to get user data
           const decodedData = await getTokenDecodedData(response.accessToken);
@@ -192,7 +185,7 @@ export function UsernameLogin({ onSwitchToEmail }) {
               </span>
             </div>
           </div>
-          <div className="mt-16 md:mt-16 lg:mt-18 flex flex-col items-center gap-2 md:gap-3 lg:gap-4">
+          <div className="mt-14 md:mt-16 lg:mt-18 flex flex-col items-center gap-2 md:gap-3 lg:gap-4">
             <MyButton
               type="submit"
               scale="large"
@@ -205,7 +198,7 @@ export function UsernameLogin({ onSwitchToEmail }) {
         </form>
       </Form>
 
-      <div className="mt-8 flex flex-col items-center ">
+      <div className="flex flex-col items-center ">
         <MyButton
           type="button"
           scale="medium"

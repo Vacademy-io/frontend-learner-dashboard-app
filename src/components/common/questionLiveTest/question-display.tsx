@@ -382,7 +382,7 @@ export function QuestionDisplay() {
         {currentQuestion.options.map((option) => (
           <div
             key={option.optionId}
-            className="flex items-center space-x-2 rounded-lg border p-4 hover:bg-accent w-full"
+            className="flex items-center space-x-2 rounded-lg border p-4  w-full"
           >
             <Checkbox
               id={option.optionId}
