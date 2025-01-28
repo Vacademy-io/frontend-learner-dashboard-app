@@ -192,6 +192,7 @@ import { HelpModal } from '@/components/modals/help-modals'
 import { useAssessmentStore } from "@/stores/assessment-store";
 import { SubmitModal } from "@/components/modals/submit-modal";
 import { useNavigate } from "@tanstack/react-router";
+import { AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogAction } from '@/components/ui/alert-dialog'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -201,6 +202,8 @@ import {
 import { HelpCircle } from 'lucide-react'
 import { TimesUpModal } from '@/components/modals/times-up-modal';
 import { dummyAssessment } from './page';
+import { App } from "@capacitor/app";
+
 
 export function Navbar() {
   const navigate = useNavigate();
@@ -209,14 +212,51 @@ export function Navbar() {
     assessment,
     submitAssessment,
   } = useAssessmentStore();
+    const [showWarningModal, setShowWarningModal] = useState(false)
+  const [warningCount, setWarningCount] = useState(0)
 
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault()
+      e.returnValue = ""
+    }
 
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        setWarningCount((prev) => prev + 1)
+        setShowWarningModal(true)
+      }
+    }
+
+    window.addEventListener("beforeunload", handleBeforeUnload)
+    document.addEventListener("visibilitychange", handleVisibilityChange)
+
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload)
+      document.removeEventListener("visibilitychange", handleVisibilityChange)
+    }
+  }, [])
 
   const [timeLeft, setTimeLeft] = useState(() => {
       const [minutes, seconds] =
         dummyAssessment.testDuration.entireTestDuration.split(":").map(Number);
       return minutes * 60 + seconds;
     });
+
+
+
+    //restrict back button
+    useEffect(() => {
+      const backButtonListener = App.addListener("backButton", () => {
+        // Simply show the submit dialog without preventing default behavior
+        setShowSubmitModal(true)
+      });
+    
+      // Cleanup the listener when the component unmounts
+      return () => {
+        backButtonListener.remove();
+      };
+    }, []);
 
   useEffect(() => {
       // if (timeLeft <= 0) {
@@ -249,6 +289,13 @@ export function Navbar() {
       to: "/assessment/examination",
     });
   };
+
+    const handleWarningClose = () => {
+    setShowWarningModal(false)
+    if (warningCount >= 3) {
+      handleSubmit()
+    }
+  }
 
   const formatTime = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
@@ -317,6 +364,18 @@ export function Navbar() {
         onOpenChange={setShowTimesUpModal}
         onFinish={handleSubmit}
       />
+
+       <AlertDialog open={showWarningModal} onOpenChange={setShowWarningModal}>
+         <AlertDialogContent>
+           <AlertDialogDescription>
+             Warning: You are attempting to leave the test environment. This is warning {warningCount} of 3. 
+             If you attempt to leave again, your test will be automatically submitted.
+           </AlertDialogDescription>
+           <AlertDialogAction onClick={handleWarningClose}>
+             Return to Test
+           </AlertDialogAction>
+         </AlertDialogContent>
+       </AlertDialog>
 
       <HelpModal
         open={helpType !== null}

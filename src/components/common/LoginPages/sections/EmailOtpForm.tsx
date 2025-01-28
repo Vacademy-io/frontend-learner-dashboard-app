@@ -366,6 +366,8 @@
 
 
 
+
+
 import React, { useState, useRef } from "react";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
@@ -396,28 +398,8 @@ const otpSchema = z.object({
   otp: z
     .array(z.string())
     .length(6)
-    .transform((val) => val.join("")),
+    .transform((val) => val.join(""))
 });
-
-// Email OTP Login Schema
-export const emailOtpLoginSchema = z.object({
-  email: z
-      .string({
-          required_error: "Email is required",
-          invalid_type_error: "Email must be a valid string",
-      })
-      .trim()
-      .email("Invalid email address")
-      .max(255, { message: "Email must be less than 255 characters" }),
-  otp: z
-      .string({
-          required_error: "OTP is required",
-          invalid_type_error: "OTP must be a valid string",
-      })
-      .length(6, { message: "OTP must be exactly 6 characters" })
-      .regex(/^\d+$/, { message: "OTP must contain only digits" }),
-});
-
 
 type EmailFormValues = z.infer<typeof emailSchema>;
 type OtpFormValues = { otp: string[] };
@@ -453,8 +435,8 @@ export function EmailLogin({
       toast.success("OTP sent successfully");
     },
     onError: () => {
-      toast.error("Failed to send OTP", {
-        description: "Please try again",
+      toast.error("this email is not registered", {
+        description: "Please try again with a registered email",
         duration: 3000,
       });
     },
@@ -469,26 +451,20 @@ export function EmailLogin({
         TokenKey.refreshToken,
         response.data.refreshToken
       );
-      // Decode token to get user data
       const decodedData = await getTokenDecodedData(response.data.accessToken);
 
-      // Check authorities in decoded data
       const authorities = decodedData.authorities;
       const userId = decodedData.user;
       const authorityKeys = authorities ? Object.keys(authorities) : [];
 
-      if (authorityKeys.length == 1) {
-        // Redirect to InstituteSelection if multiple authorities are found
+      if (authorityKeys.length > 1) {
         navigate({ to: "/institute-selection" });
       } else {
-        // Get the single institute ID
         const instituteId = Object.keys(authorities)[0];
-
         const details = await fetchAndStoreInstituteDetails(
           instituteId,
           userId
         );
-
         if (details) {
           navigate({ to: "/dashboard" });
         }
@@ -508,10 +484,17 @@ export function EmailLogin({
     sendOtpMutation.mutate(data.email);
   };
 
+
+
   const onOtpSubmit = (data: OtpFormValues) => {
-    const otpValue = data.otp.join("");
-    if (otpValue.length === 6) {
-      verifyOtpMutation.mutate({ email, otp: otpValue });
+    const otpArray = otpForm.getValues().otp;
+    if (otpArray.every((val) => val !== "")) {
+      verifyOtpMutation.mutate({
+        email,
+        otp: otpArray.join(""),
+      });
+    } else {
+      toast.error("Please fill all OTP fields");
     }
   };
 
@@ -520,23 +503,20 @@ export function EmailLogin({
     emailForm.reset();
   };
 
-  // Handle input changes for OTP blocks with improved navigation
   const handleOtpChange = (element: HTMLInputElement, index: number) => {
-    const value = element.value.replace(/[^0-9]/g, ""); // Only allow numbers
+    const value = element.value.replace(/[^0-9]/g, "");
 
     if (value) {
       const newOtp = [...otpForm.getValues().otp];
       newOtp[index] = value.substring(0, 1);
       otpForm.setValue("otp", newOtp);
 
-      // Auto-focus next input if current input is filled
       if (index < 5 && value.length === 1) {
         otpInputRefs.current[index + 1]?.focus();
       }
     }
   };
 
-  // Handle backspace for OTP blocks with improved navigation
   const handleOtpKeyDown = (
     e: React.KeyboardEvent<HTMLInputElement>,
     index: number
@@ -545,13 +525,11 @@ export function EmailLogin({
 
     if (e.key === "Backspace") {
       if (!currentValue && index > 0) {
-        // If current input is empty, move to previous input and clear it
         const newOtp = [...otpForm.getValues().otp];
         newOtp[index - 1] = "";
         otpForm.setValue("otp", newOtp);
         otpInputRefs.current[index - 1]?.focus();
       } else if (currentValue) {
-        // If current input has a value, clear it
         const newOtp = [...otpForm.getValues().otp];
         newOtp[index] = "";
         otpForm.setValue("otp", newOtp);
@@ -637,24 +615,15 @@ export function EmailLogin({
               )}
             </div>
             <div className="mt-16 flex flex-col items-center gap-3">
-              {/* <MyButton
+              <MyButton
                 type="submit"
                 scale="large"
                 buttonType="primary"
                 layoutVariant="default"
+                disabled={!otpForm.getValues().otp.every(value => value !== "")}
               >
                 Login
-              </MyButton> */}
-              <MyButton
-  type="submit"
-  scale="large"
-  buttonType="primary"
-  layoutVariant="default"
-  disabled={otpForm.getValues().otp.some(value => value === '')}
-  onClick={() => otpForm.handleSubmit(onOtpSubmit)()}
->
-  Login
-</MyButton>
+              </MyButton>
               <div className="flex">
                 <MyButton
                   type="button"
@@ -678,7 +647,7 @@ export function EmailLogin({
           </form>
         </Form>
       )}
-      <div className=" flex flex-col items-center">
+      <div className="flex flex-col items-center">
         <MyButton
           type="button"
           scale="medium"

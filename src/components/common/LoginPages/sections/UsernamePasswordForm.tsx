@@ -42,17 +42,22 @@ export function UsernameLogin({ onSwitchToEmail }) {
   });
   
 
-  useEffect(() => {
-    const redirect = async () => {
-      const token = await getTokenFromStorage(TokenKey.accessToken);
-      const instituteId = await getTokenFromStorage(TokenKey.instituteId); 
-      if (!isNullOrEmptyOrUndefined(token) && isNullOrEmptyOrUndefined(instituteId)) {
-        // console.log(token,isNullOrEmptyOrUndefined(token)!isNullOrEmptyOrUndefined(instituteId),instituteId);
-        navigate({ to: "/dashboard" });
-      }
-    };
-    redirect();
-  }, []);
+  // useEffect(() => {
+  //   const redirect = async () => {
+  //     const token = await getTokenFromStorage(TokenKey.accessToken);
+  //     const instituteId = await getTokenFromStorage(TokenKey.instituteId); 
+  //     // if (!isNullOrEmptyOrUndefined(token) && isNullOrEmptyOrUndefined(instituteId)) {
+  //       // console.log(token,isNullOrEmptyOrUndefined(token),!isNullOrEmptyOrUndefined(instituteId),instituteId);
+  //     if (!isNullOrEmptyOrUndefined(token)) {
+  //       navigate({ to: "/dashboard" });
+  //     }
+  //   };
+  //   redirect();
+  // }, []);
+
+
+  
+
 
   const mutation = useMutation({
     mutationFn: (values: FormValues) =>

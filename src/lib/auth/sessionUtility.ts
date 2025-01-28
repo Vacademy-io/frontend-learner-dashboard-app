@@ -129,17 +129,31 @@ const removeTokenFromStorage = async (key: string): Promise<void> => {
 };
 
 // function to store institute ID in Capacitor Storage
-const setInstituteIdInStorage = async (instituteId: string): Promise<void> => {
-    await Storage.set({
-        key: 'instituteId',
-        value: instituteId,
-    });
-};
+// const setInstituteIdInStorage = async (instituteId: string): Promise<void> => {
+//     await Storage.set({
+//         key: 'instituteId',
+//         value: instituteId,
+//     });
+// };
 
 // function to get institute ID from Capacitor Storage
-const getInstituteIdFromStorage = async (): Promise<string | null> => {
-    const { value } = await Storage.get({ key: 'instituteId' });
-    return value;
+// const getInstituteIdFromStorage = async (tokenKey: string): Promise<string | null> => {
+//     const { value } = await Storage.get({ key: 'instituteId' });
+//     return value;
+// };
+
+// Helper function to get a token from Capacitor Storage
+const getInstituteIdFromStorage = async (tokenKey: string): Promise<string | null> => {
+    const { value } = await Storage.get({ key: tokenKey });
+    return value; // Directly return the value without JSON parsing
+};
+
+// Helper function to set a token in Capacitor Storage
+const setInstituteIdInStorage = async (key: string, token: string): Promise<void> => {
+    await Storage.set({
+        key,
+        value: token, // Directly store the token without stringifying
+    });
 };
 
 // function to remove institute ID from Capacitor Storage

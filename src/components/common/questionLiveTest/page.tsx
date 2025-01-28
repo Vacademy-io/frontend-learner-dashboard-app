@@ -11,10 +11,11 @@ import { AssessmentPreview } from "./assessment-preview";
 // import { useSearchParams } from 'next/navigation'
 // import { initNetworkListeners } from '../utils/network'
 import { Toaster } from "@/components/ui/toaster";
+import NetworkStatus from "./network-status";
 // import { NetworkStatus } from '@/components/network-status'
 
 // import { TestCountdown } from './test-countdown'
-import { initNetworkListeners } from "@/routes/assessment/examination/-utils.ts/network";
+// import { initNetworkListeners } from "@/routes/assessment/examination/-utils.ts/network";
 // import { NetworkStatus } from './network-status'
 
 export const dummyAssessment = {
@@ -299,6 +300,8 @@ export default function Page() {
       </div>
       <Footer onToggleSidebar={toggleSidebar} />
       <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+      {/* <initNetworkListeners /> */}
+      <NetworkStatus />
     </div>
   );
 }

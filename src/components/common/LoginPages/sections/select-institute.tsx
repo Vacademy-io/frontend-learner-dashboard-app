@@ -15,6 +15,8 @@ import { Form, FormControl, FormField, FormItem } from "@/components/ui/form";
 import { useNavigate } from "@tanstack/react-router";
 import { MyDropdown } from "@/components/design-system/dropdown";
 import { fetchAndStoreInstituteDetails } from "@/services/fetchAndStoreInstituteDetails";
+import { getTokenDecodedData, setTokenInStorage } from "@/lib/auth/sessionUtility";
+import { TokenKey } from "@/constants/auth/tokens";
 
 type FormValues = z.infer<typeof forgotPasswordSchema>;
 
@@ -35,7 +37,7 @@ export function InstituteSelection() {
       await setTokenInStorage(TokenKey.accessToken, response.accessToken);
       await setTokenInStorage(TokenKey.refreshToken, response.refreshToken);
       console.log("Access Token:", response.accessToken);
-
+          
       // Decode token to get user data
       const decodedData = await getTokenDecodedData(response.accessToken);
 
@@ -110,6 +112,8 @@ export function InstituteSelection() {
                             "Institute D",
                           ]}
                           placeholder="Select an Institute"
+                          handleChange={onChange}
+                          currentValue={value}
                         />
                       </FormControl>
                     </FormItem>

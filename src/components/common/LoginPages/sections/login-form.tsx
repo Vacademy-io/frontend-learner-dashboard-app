@@ -1,3 +1,4 @@
+"use client";
 import { useEffect, useState } from "react";
 import { SplashScreen } from "@/components/common/LoginPages/layout/splash-container";
 import { useAnimationStore } from "@/stores/login/animationStore";
@@ -61,6 +62,19 @@ export function LoginForm() {
     }
   }, [hasSeenAnimation, setHasSeenAnimation]);
 
+
+  // useEffect(() => {
+  //   const redirect = async () => {
+  //     const token = await getTokenFromStorage(TokenKey.accessToken);
+  //     const instituteId = await getTokenFromStorage('InstituteId'); 
+  //     if (!isNullOrEmptyOrUndefined(token) && isNullOrEmptyOrUndefined(instituteId)) {
+  //       // console.log(token,isNullOrEmptyOrUndefined(token),!isNullOrEmptyOrUndefined(instituteId),instituteId);
+  //       navigate({ to: "/dashboard" });
+  //     }
+  //   };
+  //   redirect();
+  // }, []);
+
   // const mutation = useMutation({
   //   mutationFn: (values: FormValues) =>
   //     loginUser(values.username, values.password),
@@ -93,11 +107,24 @@ export function LoginForm() {
   //   mutation.mutate(values);
   // }
 
-  // Conditionally render the splash screen
-  if (showSplash) {
-    return <SplashScreen isAnimationEnabled />;
-  }
-
+  
+  useEffect(() => {
+    const redirect = async () => {
+      const token = await getTokenFromStorage(TokenKey.accessToken);
+      // const instituteId = await getTokenFromStorage(TokenKey.instituteId); 
+      // if (!isNullOrEmptyOrUndefined(token) && isNullOrEmptyOrUndefined(instituteId)) {
+        // console.log(token,isNullOrEmptyOrUndefined(token),!isNullOrEmptyOrUndefined(instituteId),instituteId);
+        if (!isNullOrEmptyOrUndefined(token)) {
+          navigate({ to: "/dashboard" });
+        }
+      };
+      redirect();
+    }, []);
+    
+    // Conditionally render the splash screen
+    if (showSplash) {
+      return <SplashScreen isAnimationEnabled />;
+    }
   // Login form content
   return (
     <div className="w-screen bg-white gap-4 md:gap-8 lg:gap-10">
