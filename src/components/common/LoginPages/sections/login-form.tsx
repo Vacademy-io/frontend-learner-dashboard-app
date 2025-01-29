@@ -34,24 +34,8 @@ export function LoginForm() {
   const navigate = useNavigate();
   const [isEmailLogin, setIsEmailLogin] = useState(false);
 
-  // const form = useForm<FormValues>({
-  //   resolver: zodResolver(loginSchema),
-  //   defaultValues: {
-  //     username: "",
-  //     password: "",
-  //   },
-  //   mode: "onTouched",
-  // });
-  // useEffect(() => {
-  //   const redirect = async () => {
-  //     const token = await getTokenFromStorage(TokenKey.accessToken);
-  //     if (!isNullOrEmptyOrUndefined(token)) {
-  //       navigate({ to: "/dashboard" });
-  //     }
-  //   };
-  //   redirect();
-  // }, []);
-  // // Handle splash screen timing
+  
+  // Handle splash screen timing
   useEffect(() => {
     if (!hasSeenAnimation) {
       const timer = setTimeout(() => {
@@ -63,57 +47,10 @@ export function LoginForm() {
   }, [hasSeenAnimation, setHasSeenAnimation]);
 
 
-  // useEffect(() => {
-  //   const redirect = async () => {
-  //     const token = await getTokenFromStorage(TokenKey.accessToken);
-  //     const instituteId = await getTokenFromStorage('InstituteId'); 
-  //     if (!isNullOrEmptyOrUndefined(token) && isNullOrEmptyOrUndefined(instituteId)) {
-  //       // console.log(token,isNullOrEmptyOrUndefined(token),!isNullOrEmptyOrUndefined(instituteId),instituteId);
-  //       navigate({ to: "/dashboard" });
-  //     }
-  //   };
-  //   redirect();
-  // }, []);
-
-  // const mutation = useMutation({
-  //   mutationFn: (values: FormValues) =>
-  //     loginUser(values.username, values.password),
-  //   onSuccess: async (response) => {
-  //     if (response) {
-  //       // Store tokens in Capacitor Storage
-  //       await setTokenInStorage(TokenKey.accessToken, response.accessToken);
-  //       await setTokenInStorage(TokenKey.refreshToken, response.refreshToken);
-  //       navigate({ to: "/dashboard" });
-  //     } else {
-  //       toast.error("Login Error", {
-  //         description: "Invalid credentials",
-  //         className: "error-toast",
-  //         duration: 3000,
-  //       });
-  //       form.reset();
-  //     }
-  //   },
-  //   onError: () => {
-  //     toast.error("Login Error", {
-  //       description: "Invalid username or password",
-  //       className: "error-toast",
-  //       duration: 3000,
-  //     });
-  //     form.reset();
-  //   },
-  // });
-
-  // function onSubmit(values: FormValues) {
-  //   mutation.mutate(values);
-  // }
-
   
   useEffect(() => {
     const redirect = async () => {
       const token = await getTokenFromStorage(TokenKey.accessToken);
-      // const instituteId = await getTokenFromStorage(TokenKey.instituteId); 
-      // if (!isNullOrEmptyOrUndefined(token) && isNullOrEmptyOrUndefined(instituteId)) {
-        // console.log(token,isNullOrEmptyOrUndefined(token),!isNullOrEmptyOrUndefined(instituteId),instituteId);
         if (!isNullOrEmptyOrUndefined(token)) {
           navigate({ to: "/dashboard" });
         }

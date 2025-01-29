@@ -41,24 +41,6 @@ export function UsernameLogin({ onSwitchToEmail }) {
     mode: "onTouched",
   });
   
-
-  // useEffect(() => {
-  //   const redirect = async () => {
-  //     const token = await getTokenFromStorage(TokenKey.accessToken);
-  //     const instituteId = await getTokenFromStorage(TokenKey.instituteId); 
-  //     // if (!isNullOrEmptyOrUndefined(token) && isNullOrEmptyOrUndefined(instituteId)) {
-  //       // console.log(token,isNullOrEmptyOrUndefined(token),!isNullOrEmptyOrUndefined(instituteId),instituteId);
-  //     if (!isNullOrEmptyOrUndefined(token)) {
-  //       navigate({ to: "/dashboard" });
-  //     }
-  //   };
-  //   redirect();
-  // }, []);
-
-
-  
-
-
   const mutation = useMutation({
     mutationFn: (values: FormValues) =>
       loginUser(values.username, values.password),
