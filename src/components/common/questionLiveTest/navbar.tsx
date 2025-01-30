@@ -36,9 +36,13 @@ export function Navbar() {
   const [showTimesUpModal, setShowTimesUpModal] = useState(false);
   const [showWarningModal, setShowWarningModal] = useState(false);
   const [warningCount, setWarningCount] = useState(0);
-  const [helpType, setHelpType] = useState<
-    "instructions" | "alerts" | "reattempt" | "time" | null
-  >(null);
+  interface HelpType {
+    type: "instructions" | "alerts" | "reattempt" | "time" | null;
+  }
+
+  const [helpType, setHelpType] = useState<HelpType["type"]>(null);
+
+  
   const [entireTimeLeft, setEntireTimeLeft] = useState<string | null>(null);
 
   useEffect(() => {
