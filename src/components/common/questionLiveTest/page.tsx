@@ -19,16 +19,10 @@ export const dummyAssessment = {
   testDuration: {
     entireTestDuration: "02:01",
     sectionWiseDuration: true,
-    questionWiseDuration: false,
+    questionWiseDuration: true,
   },
   subject: "Physics",
-  assessmentInstruction: `1. Attempt All Questions: Answer all questions. Ensure accuracy and completeness in each response.
-  2. Objective Format: All questions are multiple-choice. Select the best answer for each question.
-3. Single Attempt Only: This Assessment allows for one submission only. Once you submit, you cannot change your answers.
-4. Negative Marking: Incorrect answers may result in a deduction of points.
-5. Submission Guidelines: Double-check all answers before submitting. Click Submit only when you are ready.
-6. No External Help: This is an individual Assessment. Using textbooks, notes, or assistance from others is not permitted.
-7. Stay Focused: Avoid switching tabs or leaving the exam screen, as it may be flagged as suspicious behavior. Good luck! Answer carefully and review each question before proceeding.`,
+  assessmentInstruction: `1. Attempt All Questions: Answer all questions. Ensure accuracy and completeness in each response.`,
   assessmentPreview: {
     checked: true,
     Duration: "00:30",
@@ -78,100 +72,7 @@ export const dummyAssessment = {
             { optionId: "O003", optionName: "Lens" },
             { optionId: "O004", optionName: "Retina" },
           ],
-        },
-        {
-          questionType: "MCQ (Single Correct)",
-          questionId: "Q003",
-          questionName: "What is the function of the cornea?",
-          questionMark: "2",
-          questionDuration: "01:00",
-          imageDetails: [],
-          options: [
-            { optionId: "O001", optionName: "Focus light" },
-            { optionId: "O002", optionName: "Block dust particles" },
-            { optionId: "O003", optionName: "Protect the eye from UV light" },
-            { optionId: "O004", optionName: "Support the lens" },
-          ],
-        },
-        {
-          questionType: "MCQ (Single Correct)",
-          questionId: "Q004",
-          questionName:
-            "Which eye defect is caused by the elongation of the eyeball?",
-          questionMark: "2",
-          questionDuration: "01:00",
-          imageDetails: [],
-          options: [
-            { optionId: "O001", optionName: "Hypermetropia" },
-            { optionId: "O002", optionName: "Myopia" },
-            { optionId: "O003", optionName: "Astigmatism" },
-            { optionId: "O004", optionName: "Presbyopia" },
-          ],
-        },
-        {
-          questionType: "MCQ (Single Correct)",
-          questionId: "Q005",
-          questionName:
-            "Which structure in the eye focuses light onto the retina?",
-          questionMark: "2",
-          questionDuration: "01:00",
-          imageDetails: [],
-          options: [
-            { optionId: "O001", optionName: "Lens" },
-            { optionId: "O002", optionName: "Cornea" },
-            { optionId: "O003", optionName: "Retina" },
-            { optionId: "O004", optionName: "Pupil" },
-          ],
-        },
-        {
-          questionType: "MCQ (Single Correct)",
-          questionId: "Q006",
-          questionName: "Which of these is a common cause of cataracts?",
-          questionMark: "2",
-          questionDuration: "01:00",
-          imageDetails: [],
-          options: [
-            { optionId: "O001", optionName: "High blood pressure" },
-            { optionId: "O002", optionName: "Diabetes" },
-            { optionId: "O003", optionName: "Aging" },
-            { optionId: "O004", optionName: "Lack of sleep" },
-          ],
-        },
-        {
-          questionType: "MCQ (Single Correct)",
-          questionId: "Q007",
-          questionName:
-            "Which part of the eye is responsible for detecting color?",
-          questionMark: "2",
-          questionDuration: "01:00",
-          imageDetails: [],
-          options: [
-            { optionId: "O001", optionName: "Lens" },
-            { optionId: "O002", optionName: "Retina" },
-            { optionId: "O003", optionName: "Pupil" },
-            { optionId: "O004", optionName: "Iris" },
-          ],
-        },
-        {
-          questionType: "MCQ (Single Correct)",
-          questionId: "Q008",
-          questionName: "What is the effect of hypermetropia?",
-          questionMark: "2",
-          questionDuration: "01:00",
-          imageDetails: [],
-          options: [
-            { optionId: "O001", optionName: "Inability to see far objects" },
-            {
-              optionId: "O002",
-              optionName: "Inability to see nearby objects",
-            },
-            {
-              optionId: "O003",
-              optionName: "Blurred vision at all distances",
-            },
-            { optionId: "O004", optionName: "Complete blindness" },
-          ],
-        },
+        },        
         {
           questionType: "MCQ (Single Correct)",
           questionId: "Q009",
@@ -236,49 +137,39 @@ export const dummyAssessment = {
         },
       ],
     },
-    {
-      subject: "Physics",
-      sectionDesc: "Explore the fascinating topics of the colorful world",
-      sectionDuration: "10:00",
-      negativeMarking: {
-        checked: true,
-        value: "1",
-      },
-      partialMarking: true,
-      cutoffMarking: {
-        checked: true,
-        value: "08",
-      },
-      totalMark: "20",
-      questions: [
-        {
-          questionType: "MCQ (Multiple Correct)",
-          questionId: "Q012",
-          questionName: "What is the speed of light in a vacuum?",
-          questionMark: "2",
-          questionDuration: "01:00",
-          imageDetails: [],
-          options: [
-            { optionId: "O001", optionName: "300,000 km/s" },
-            { optionId: "O002", optionName: "150,000 km/s" },
-            { optionId: "O003", optionName: "450,000 km/s" },
-            { optionId: "O004", optionName: "500,000 km/s" },
-          ],
-        },
-      ],
-    },
   ],
 };
 
+
+
+
 export default function Page() {
-  const { setAssessment } = useAssessmentStore();
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const { setAssessment, loadState, saveState } = useAssessmentStore()
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false)
 
   useEffect(() => {
-    setAssessment(dummyAssessment);
-  }, [setAssessment]);
+    const initializeAssessment = async () => {
+      await loadState()
+      const currentState = useAssessmentStore.getState()
 
-  const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
+      if (!currentState.assessment) {
+        setAssessment(dummyAssessment)
+      }
+    }
+
+    initializeAssessment()
+
+    const saveInterval = setInterval(() => {
+      saveState()
+    }, 1000)
+
+    return () => {
+      clearInterval(saveInterval)
+      saveState() 
+    }
+  }, [])
+
+  const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen)
 
   return (
     <div className="flex flex-col w-full bg-gray-50">
@@ -291,7 +182,9 @@ export default function Page() {
       </div>
       <Footer onToggleSidebar={toggleSidebar} />
       <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
-      <NetworkStatus />
+      <NetworkStatus /> 
+
     </div>
-  );
+  )
 }
+

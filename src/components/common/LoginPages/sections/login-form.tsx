@@ -3,18 +3,9 @@ import { useEffect, useState } from "react";
 import { SplashScreen } from "@/components/common/LoginPages/layout/splash-container";
 import { useAnimationStore } from "@/stores/login/animationStore";
 import { Heading } from "@/components/common/LoginPages/ui/heading";
-import { MyInput } from "@/components/design-system/input";
 import { MyButton } from "@/components/design-system/button";
-import { Link } from "@tanstack/react-router";
 import { loginSchema } from "@/schemas/login/login";
 import { z } from "zod";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { Form, FormControl, FormField, FormItem } from "@/components/ui/form";
-import { useMutation } from "@tanstack/react-query";
-import { toast } from "sonner";
-import { loginUser } from "@/hooks/login/login-button";
-import { Storage } from "@capacitor/storage";
 import { TokenKey } from "@/constants/auth/tokens";
 import { useNavigate } from "@tanstack/react-router";
 import HeaderLogo from "../ui/header_logo";
@@ -22,7 +13,6 @@ import HeaderLogo from "../ui/header_logo";
 import { isNullOrEmptyOrUndefined } from "@/lib/utils";
 import {
   getTokenFromStorage,
-  setTokenInStorage,
 } from "@/lib/auth/sessionUtility";
 import { EmailLogin } from "./EmailOtpForm";
 import { UsernameLogin } from "./UsernamePasswordForm";

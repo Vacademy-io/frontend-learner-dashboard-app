@@ -1,9 +1,7 @@
-import axios from 'axios';
-import { Preferences } from '@capacitor/preferences';
-import { useNavigate } from '@tanstack/react-router';
-import { toast } from 'sonner'; // Assuming you're using sonner for toasts
-
-export const BASE_URL = "https://backend-stage.vacademy.io";
+import { Preferences } from "@capacitor/preferences";
+import { toast } from "sonner"; // Assuming you're using sonner for toasts
+import authenticatedAxiosInstance from "@/lib/auth/axiosInstance";
+import { INSTITUTE_DETAIL } from "@/constants/urls";
 
 interface InstituteDetails {
   institute_name: string;
@@ -28,49 +26,57 @@ interface InstituteDetails {
 }
 
 export const fetchAndStoreInstituteDetails = async (
-  instituteId: string, 
+  instituteId: string,
   userId: string
-) => {
+): Promise<InstituteDetails | null> => {
   try {
     // Store the institute ID in storage
     await Preferences.set({
-      key: 'InstituteId',
-      value: instituteId
+      key: "InstituteId",
+      value: instituteId,
     });
 
     // Call API to get institute details
-    const instituteDetailsResponse = await axios.get<InstituteDetails>(
-      `admin-core-service/learner/v1/details/${instituteId}`,
-    //   GET_INIT_DETAIL
-      {
-        params: {
-          instituteId,
-          userId,
-        },
-      }
-    );
+    const instituteDetailsResponse = await authenticatedAxiosInstance({
+      method: "GET",
+      url: `${INSTITUTE_DETAIL}/${instituteId}`,
+      params: {
+        instituteId,
+        userId,
+      },
+    });
 
-    // Extract the data
-    const instituteDetails = instituteDetailsResponse.data;
+    // Ensure response data is valid
+    if (!instituteDetailsResponse?.data) {
+      throw new Error("Invalid response data");
+    }
+
+    const instituteDetails: InstituteDetails = instituteDetailsResponse.data;
 
     // Store institute details in Capacitor Preferences
     await Preferences.set({
-      key: 'InstituteDetails',
-      value: instituteDetails
+      key: "InstituteDetails",
+      value: JSON.stringify(instituteDetails), // Convert object to string before storing
     });
 
-
     return instituteDetails;
-
   } catch (error) {
     console.error("Failed to fetch institute details:", error);
     toast.error("Failed to fetch institute details. Please try again.");
-    throw error;
+    return null;
   }
 };
 
 // Helper function to retrieve stored institute details
 export const getStoredInstituteDetails = async (): Promise<InstituteDetails | null> => {
-  const { value } = await Preferences.get({ key: 'InstituteDetails' });
-  return value ? JSON.parse(value) : null;
+  try {
+    const { value } = await Preferences.get({ key: "InstituteDetails" });
+
+    if (!value) return null;
+
+    return JSON.parse(value) as InstituteDetails;
+  } catch (error) {
+    console.error("Error parsing stored institute details:", error);
+    return null;
+  }
 };

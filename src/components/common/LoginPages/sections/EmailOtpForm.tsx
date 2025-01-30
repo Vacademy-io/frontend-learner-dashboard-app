@@ -5,7 +5,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useNavigate } from "@tanstack/react-router";
-
+import axios from "axios";
+import { Storage } from "@capacitor/storage";
 import { Form, FormControl, FormField, FormItem } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { MyInput } from "@/components/design-system/input";
@@ -13,12 +14,13 @@ import { MyButton } from "@/components/design-system/button";
 import { TokenKey } from "@/constants/auth/tokens";
 import {
   getTokenDecodedData,
-  setInstituteIdInStorage,
+  // setInstituteIdInStorage,
   setTokenInStorage,
 } from "@/lib/auth/sessionUtility";
 import { LOGIN_OTP, REQUEST_OTP } from "@/constants/urls";
-import axios from "axios";
 import { fetchAndStoreInstituteDetails } from "@/services/fetchAndStoreInstituteDetails";
+import authenticatedAxiosInstance from "@/lib/auth/axiosInstance";
+import { fetchAndStoreStudentDetails } from "@/services/studentDetails";
 
 const emailSchema = z.object({
   email: z.string().email({ message: "Invalid email address" }),
@@ -28,7 +30,7 @@ const otpSchema = z.object({
   otp: z
     .array(z.string())
     .length(6)
-    .transform((val) => val.join(""))
+    .transform((val) => val.join("")),
 });
 
 type EmailFormValues = z.infer<typeof emailSchema>;
@@ -72,6 +74,87 @@ export function EmailLogin({
     },
   });
 
+  // Function to fetch student details
+  const fetchStudentDetails = async ({
+    instituteId,
+    userId,
+  }: {
+    instituteId: string;
+    userId: string;
+  }) => {
+    const url = `https://backend-stage.vacademy.io/admin-core-service/learner/info/v1/details`;
+    const response = await authenticatedAxiosInstance({
+      method: "GET",
+      url: url,
+      params: { instituteId, userId },
+    });
+    return response.data;
+  };
+
+  // Function to store student details in Capacitor Storage
+  const storeStudentDetails = async (data: any) => {
+    await Storage.set({
+      key: "studentDetails",
+      value: JSON.stringify(data),
+    });
+  };
+
+  // Mutation for fetching student details
+  const useFetchStudentDetails = () =>
+    useMutation({
+      mutationFn: async ({
+        instituteId,
+        userId,
+      }: {
+        instituteId: string;
+        userId: string;
+      }) => fetchStudentDetails(instituteId, userId),
+      onSuccess: async (studentData) => {
+        await storeStudentDetails(studentData);
+        navigate({ to: "/dashboard" });
+      },
+      onError: () => {
+        toast.error("Failed to fetch student details");
+      },
+    });
+
+  // const verifyOtpMutation = useMutation({
+  //   mutationFn: (data: { email: string; otp: string }) =>
+  //     axios.post(LOGIN_OTP, data),
+  //   onSuccess: async (response) => {
+  //     await setTokenInStorage(TokenKey.accessToken, response.data.accessToken);
+  //     await setTokenInStorage(
+  //       TokenKey.refreshToken,
+  //       response.data.refreshToken
+  //     );
+  //     const decodedData = await getTokenDecodedData(response.data.accessToken);
+
+  //     const authorities = decodedData.authorities;
+  //     const userId = decodedData.user;
+  //     const authorityKeys = authorities ? Object.keys(authorities) : [];
+
+  //     if (authorityKeys.length > 1) {
+  //       navigate({ to: "/institute-selection" });
+  //     } else {
+  //       const instituteId = Object.keys(authorities)[0];
+  //       const details = await fetchAndStoreInstituteDetails(
+  //         instituteId,
+  //         userId
+  //       );
+  //       if (details) {
+  //         navigate({ to: "/dashboard" });
+  //       }
+  //     }
+  //   },
+  //   onError: () => {
+  //     toast.error("Invalid OTP", {
+  //       description: "Please try again",
+  //       duration: 3000,
+  //     });
+  //     otpForm.reset();
+  //   },
+  // });
+
   const verifyOtpMutation = useMutation({
     mutationFn: (data: { email: string; otp: string }) =>
       axios.post(LOGIN_OTP, data),
@@ -81,8 +164,8 @@ export function EmailLogin({
         TokenKey.refreshToken,
         response.data.refreshToken
       );
-      const decodedData = await getTokenDecodedData(response.data.accessToken);
 
+      const decodedData = await getTokenDecodedData(response.data.accessToken);
       const authorities = decodedData.authorities;
       const userId = decodedData.user;
       const authorityKeys = authorities ? Object.keys(authorities) : [];
@@ -90,14 +173,24 @@ export function EmailLogin({
       if (authorityKeys.length > 1) {
         navigate({ to: "/institute-selection" });
       } else {
-        const instituteId = Object.keys(authorities)[0];
+        const instituteId = authorityKeys[0];
+
         const details = await fetchAndStoreInstituteDetails(
           instituteId,
           userId
         );
-        if (details) {
-          navigate({ to: "/dashboard" });
+
+        try {
+          const studentDetails = await fetchAndStoreStudentDetails(
+            instituteId,
+            userId
+          );
+        } catch (error) {
+          toast.error("Failed to fetch student details");
         }
+
+
+        navigate({ to: "/dashboard" });
       }
     },
     onError: () => {
@@ -113,8 +206,6 @@ export function EmailLogin({
     setEmail(data.email);
     sendOtpMutation.mutate(data.email);
   };
-
-
 
   const onOtpSubmit = (data: OtpFormValues) => {
     const otpArray = otpForm.getValues().otp;
@@ -250,7 +341,9 @@ export function EmailLogin({
                 scale="large"
                 buttonType="primary"
                 layoutVariant="default"
-                disabled={!otpForm.getValues().otp.every(value => value !== "")}
+                disabled={
+                  !otpForm.getValues().otp.every((value) => value !== "")
+                }
               >
                 Login
               </MyButton>

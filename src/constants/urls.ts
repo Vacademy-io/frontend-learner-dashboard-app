@@ -1,3 +1,4 @@
+import { INSTITUTE_ID } from '@/constants/urls';
 import { Assessment } from './../types/previewInstructionAssessment';
 export const BASE_URL = "https://backend-stage.vacademy.io";
 
@@ -8,7 +9,9 @@ export const LOGIN_URL = `${BASE_URL}/auth-service/learner/v1/login`;
 export const REQUEST_OTP = `${BASE_URL}/auth-service/learner/v1/request-otp`;
 export const LOGIN_OTP = `${BASE_URL}/auth-service/learner/v1/login-otp`;
 export const REFRESH_TOKEN_URL = `${BASE_URL}/auth-service/learner/v1/refresh-token`;
-export const Assessment_List_Filter = `${BASE_URL}/assessment-service/assessment/learner/assessment-list-filter/`;
+export const INSTITUTE_DETAIL = `${BASE_URL}/admin-core-service/learner/v1/details`;
+export const STUDENT_DETAIL = `${BASE_URL}/admin-core-service/learner/info/v1/details`;
+export const Assessment_List_Filter = `${BASE_URL}/assessment-service/assessment/learner/assessment-list-filter`;
 // export const GET_INIT_DETAIL = `${BASE_URL}/admin-core-service/learner/v1/details/`;
 // export const SIGNUP_URL = `${BASE_URL}/auth-service/v1/signup-root`;
 // export const UPLOAD_DOCS_FILE_URL = `${BASE_URL}/assessment-service/question-paper/upload/docx/v1/convert-doc-to-html`;
