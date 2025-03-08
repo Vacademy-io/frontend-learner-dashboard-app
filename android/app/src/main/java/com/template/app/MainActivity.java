@@ -1,4 +1,4 @@
-package io.vacademy.student.app;
+package io.ssdc.student.app;
 
 import com.getcapacitor.BridgeActivity;
 

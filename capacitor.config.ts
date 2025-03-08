@@ -6,8 +6,8 @@ const config: CapacitorConfig = {
   //   cleartext: true,
   // },
 
-  appId: "io.vacademy.student.app",
-  appName: "Vacademy Learner",
+  appId: "io.ssdc.student.app",
+  appName: "SSDC Learner",
   webDir: "dist",
   plugins: {
     PrivacyScreen: {
