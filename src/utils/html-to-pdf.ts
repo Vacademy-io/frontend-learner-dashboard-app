@@ -5,36 +5,40 @@ export const convertHtmlToPdf = async (htmlString: string): Promise<Blob> => {
   // Create temporary div to hold the HTML content
   const tempDiv: HTMLElement = document.createElement('div');
   tempDiv.innerHTML = htmlString;
-  tempDiv.style.position = "fixed";
-  tempDiv.style.top = "0";
-  tempDiv.style.left = "0";
-  tempDiv.style.visibility = "visible";
-  tempDiv.style.width = "210mm";
-  tempDiv.style.height = "297mm";
-  tempDiv.style.backgroundColor = "white";
   
+  // Pre-process images
+  const imageElements = tempDiv.querySelectorAll('img');
+  for (const img of Array.from(imageElements)) {
+    // Fix zero width/height images 
+    if (img.width === 0 || img.height === 0) {
+      img.width = 400;
+      img.height = 300;
+      img.style.maxWidth = '100%';
+      img.style.height = 'auto';
+    }
+    
+    // Make sure image has proper loading attributes
+    img.crossOrigin = 'anonymous';
+    img.loading = 'eager';
+  }
+  
+  // Create an offscreen container that's outside the viewport
+  tempDiv.style.position = "absolute";
+  tempDiv.style.top = "-9999px";
+  tempDiv.style.left = "-9999px";
+  tempDiv.style.width = "210mm";  // A4 width
+  tempDiv.style.backgroundColor = "white";
+  tempDiv.style.padding = "10mm";
+  // Don't constrain height
+  
+  // Append to body temporarily
   document.body.appendChild(tempDiv);
   
-  // Wait for any potential reflows
-  await new Promise((resolve) => setTimeout(resolve, 100));
-  
   try {
-    // Capture the content
-    const canvas = await html2canvas(tempDiv, {
-      scale: 1.5,
-      useCORS: true,
-      logging: false,
-      backgroundColor: "#ffffff",
-      width: tempDiv.offsetWidth,
-      height: tempDiv.offsetHeight,
-      windowWidth: tempDiv.offsetWidth,
-      windowHeight: tempDiv.offsetHeight,
-    });
+    // Wait for any potential image loading and layout
+    await new Promise((resolve) => setTimeout(resolve, 500));
     
-    // Optimize the image like in ExportHandler
-    const optimizedImgData = optimizeImage(canvas);
-    
-    // Initialize PDF with compression
+    // Initialize PDF
     const pdf = new jsPDF({
       orientation: "portrait",
       unit: "mm",
@@ -45,37 +49,88 @@ export const convertHtmlToPdf = async (htmlString: string): Promise<Blob> => {
     const pdfWidth = pdf.internal.pageSize.getWidth();
     const pdfHeight = pdf.internal.pageSize.getHeight();
     
-    // Add image with compression
-    pdf.addImage({
-      imageData: optimizedImgData,
-      format: "JPEG",
-      x: 0,
-      y: 0,
-      width: pdfWidth,
-      height: pdfHeight,
-      compression: "FAST",
-      rotation: 0,
+    // Get content HTML element with content
+    const content = tempDiv.querySelector('body') || tempDiv;
+    const contentHeight = content.scrollHeight;
+    
+    // Capture the entire content in one go
+    const canvas = await html2canvas(content, {
+      scale: 1.5,
+      useCORS: true,
+      logging: false,
+      backgroundColor: "#ffffff",
+      width: content.scrollWidth,
+      height: contentHeight,
+      windowWidth: content.scrollWidth,
+      windowHeight: contentHeight,
+      allowTaint: true,
     });
     
-    // Generate the PDF blob
+    // How many pages do we need?
+    const pageHeightInPx = 277 * 3.78 * 1.5; // A4 height in px (with scale)
+    const totalPages = Math.ceil(canvas.height / pageHeightInPx);
+    
+    // Add each page to the PDF
+    for (let i = 0; i < totalPages; i++) {
+      // Add new page if not the first page
+      if (i > 0) {
+        pdf.addPage();
+      }
+      
+      // Create a temporary canvas for this page slice
+      const tempCanvas = document.createElement('canvas');
+      const tempCtx = tempCanvas.getContext('2d');
+      tempCanvas.width = canvas.width;
+      tempCanvas.height = pageHeightInPx;
+      
+      if (tempCtx) {
+        // Position for this slice
+        const sourceY = i * pageHeightInPx;
+        const sourceHeight = Math.min(pageHeightInPx, canvas.height - sourceY);
+        
+        // Draw portion of original canvas to this temp canvas
+        tempCtx.drawImage(
+          canvas, 
+          0, sourceY, canvas.width, sourceHeight, 
+          0, 0, canvas.width, sourceHeight
+        );
+        
+        // Get optimized image data for this page
+        const pageImgData = optimizeImage(tempCanvas);
+        
+        // Add to PDF
+        pdf.addImage({
+          imageData: pageImgData,
+          format: "JPEG",
+          x: 0,
+          y: 0,
+          width: pdfWidth,
+          height: pdfHeight,
+          compression: "FAST",
+          rotation: 0,
+        });
+      }
+    }
+    
+    // Generate the PDF blob 
     const pdfOutput = pdf.output("datauristring");
     const pdfBlob = await fetch(pdfOutput).then((res) => res.blob());
-    const optimizedPdfBlob = new Blob([pdfBlob], { type: "application/pdf" });
-    
-    return optimizedPdfBlob;
+    return new Blob([pdfBlob], { type: "application/pdf" });
   } finally {
     // Clean up
-    document.body.removeChild(tempDiv);
+    if (document.body.contains(tempDiv)) {
+      document.body.removeChild(tempDiv);
+    }
   }
 };
 
-// Helper function to optimize the canvas image (copied from ExportHandler)
+// Keep original optimizeImage function
 const optimizeImage = (canvas: HTMLCanvasElement): string => {
   // Create a new canvas with optimal dimensions
   const optimizedCanvas = document.createElement("canvas");
   const ctx = optimizedCanvas.getContext("2d");
 
-  // Set dimensions to A4 at 200 DPI
+  // Set dimensions to A4 at 200 DPI (same as ExportHandler)
   optimizedCanvas.width = 1654;
   optimizedCanvas.height = 2339;
 
@@ -98,6 +153,6 @@ const optimizeImage = (canvas: HTMLCanvasElement): string => {
     );
   }
 
-  // Convert to compressed JPEG instead of PNG
+  // Convert to compressed JPEG instead of PNG - same as ExportHandler
   return optimizedCanvas.toDataURL("image/jpeg", 0.8);
 };

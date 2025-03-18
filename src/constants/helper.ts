@@ -2,7 +2,7 @@ import {
   getTokenDecodedData,
   getTokenFromStorage,
 } from "@/lib/auth/sessionUtility";
-import { TokenKey } from "e:/Vidyayatan/frontend-admin-dashboard/src/constants/auth/tokens";
+import { TokenKey } from "./auth/tokens";
 // import { PrivacyScreen } from "@capacitor-community/privacy-screen";
 
 export function convertToLocalDateTime(utcDate: string): string {
@@ -55,4 +55,10 @@ interface Subject {
 export const getSubjectNameById = (subjects: Subject[], id: string | null): string => {
   const subject = subjects.find((item: Subject) => item.id === id);
   return subject?.subject_name || "N/A";
+};
+
+export const formatDuration = (durationInSeconds: number): string => {
+  const hours = Math.floor(durationInSeconds / 3600);
+  const minutes = Math.floor((durationInSeconds % 3600) / 60);
+  return `${hours > 0 ? `${hours} hr ` : ""}${minutes > 0 ? `${minutes} min` : ""}`;
 };

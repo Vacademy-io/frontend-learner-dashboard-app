@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { MyInput } from "@/components/design-system/input";
 import { MyButton } from "@/components/design-system/button";
 import { loginSchema } from "@/schemas/login/login";
@@ -9,7 +10,7 @@ import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { loginUser } from "@/hooks/login/login-button";
 import { TokenKey } from "@/constants/auth/tokens";
-import { useNavigate } from "@tanstack/react-router";
+import { useNavigate, useSearch } from "@tanstack/react-router";
 
 import {
   getTokenDecodedData,
@@ -22,10 +23,11 @@ type FormValues = z.infer<typeof loginSchema>;
 interface UsernameLoginProps {
   onSwitchToEmail: () => void;
 }
-
 export function UsernameLogin({ onSwitchToEmail }: UsernameLoginProps) {
   const navigate = useNavigate();
-
+  const [isLoading, setIsLoading] = useState(false);
+  const { redirect } = useSearch<any>({ from: "/login/" });
+  
   const form = useForm<FormValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
@@ -38,6 +40,9 @@ export function UsernameLogin({ onSwitchToEmail }: UsernameLoginProps) {
   const mutation = useMutation({
     mutationFn: (values: FormValues) =>
       loginUser(values.username, values.password),
+    onMutate: () => {
+      setIsLoading(true);
+    },
     onSuccess: async (response) => {
       if (response) {
         try {
@@ -55,7 +60,10 @@ export function UsernameLogin({ onSwitchToEmail }: UsernameLoginProps) {
 
           if (authorityKeys.length > 1) {
             // Redirect to InstituteSelection if multiple authorities are found
-            navigate({ to: "/institute-selection" });
+            navigate({
+              to: "/institute-selection",
+              search: { redirect: redirect || "/dashboard/" },
+            });
           } else {
             // Get the single institute ID
             const instituteId = authorities
@@ -75,33 +83,31 @@ export function UsernameLogin({ onSwitchToEmail }: UsernameLoginProps) {
             if (instituteId && userId) {
               try {
                 await fetchAndStoreStudentDetails(instituteId, userId);
-              } catch  {
-                // console.error("Error fetching details:");
+              } catch {
                 toast.error("Failed to fetch details");
-              //   toast.error("Login Error", {
-              //     description: "Failed to fetch details",
-              //     className: "error-toast",
-              //     duration: 3000,
-              // });
               }
             } else {
               console.error("Institute ID or User ID is undefined");
             }
 
-            navigate({ to: "/login/SessionSelectionPage" });
+            // Redirect to SessionSelectionPage
+            navigate({
+              to: "/SessionSelectionPage",
+              search: { redirect: redirect || "/dashboard" },
+            });
           }
         } catch (error) {
           console.error("Error processing decoded data:", error);
         }
       } else {
-        // toast.error("Login Error", {
-        //   description: "Invalid credentials",
-        //   className: "error-toast",
-        //   duration: 3000,
-        // });
-
         form.reset();
       }
+    },
+    onError: () => {
+      setIsLoading(false);
+      toast.error(
+        "Login failed. Please check your username and password and try again."
+      );
     },
   });
 
@@ -192,8 +198,9 @@ export function UsernameLogin({ onSwitchToEmail }: UsernameLoginProps) {
               scale="large"
               buttonType="primary"
               layoutVariant="default"
+              disabled={isLoading}
             >
-              Login
+              {isLoading ? "Loading..." : "Login"}
             </MyButton>
           </div>
         </form>
