@@ -34,8 +34,8 @@ import {
   DynamicSchemaData,
   ParticipantsDataInterface,
 } from "@/types/assessment-open-registration";
-import AssessmentRegistrationCompleted from "./AssessmentRegistrationCompleted";
 import AssessmentClosedExpiredComponent from "./AssessmentClosedExpiredComponent";
+import { useNavigate } from "@tanstack/react-router";
 
 // Define Zod Schema
 const formSchema = z.object({
@@ -54,14 +54,11 @@ interface TimeLeft {
 }
 
 const CheckEmailStatusAlertDialog = ({
-  timeLeft,
   registrationData,
   registrationForm,
   setParticipantsDto,
   userAlreadyRegistered,
   setUserAlreadyRegistered,
-  userHasAttemptCount,
-  setUserHasAttemptCount,
   case3Status,
   serverTime,
 }: {
@@ -78,6 +75,7 @@ const CheckEmailStatusAlertDialog = ({
   case3Status: boolean;
   serverTime: number;
 }) => {
+  const navigate = useNavigate();
   const [isOtpSent, setIsOTPSent] = useState(false);
   const [open, setOpen] = useState(false);
   const form = useForm<FormValues>({
@@ -205,7 +203,7 @@ const CheckEmailStatusAlertDialog = ({
         getTestDetailsOfParticipants.is_already_registered &&
         getTestDetailsOfParticipants.remaining_attempts > 0
       ) {
-        setUserHasAttemptCount(true);
+        navigate({ to: "/assessment/examination" });
       } else if (
         getTestDetailsOfParticipants.is_already_registered &&
         getTestDetailsOfParticipants.remaining_attempts === 0
@@ -300,14 +298,6 @@ const CheckEmailStatusAlertDialog = ({
       <AssessmentClosedExpiredComponent
         isExpired={true}
         assessmentName={registrationData.assessment_public_dto.assessment_name}
-      />
-    );
-
-  if (userHasAttemptCount)
-    return (
-      <AssessmentRegistrationCompleted
-        assessmentName={registrationData.assessment_public_dto.assessment_name}
-        timeLeft={timeLeft}
       />
     );
 

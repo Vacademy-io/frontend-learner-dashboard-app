@@ -23,7 +23,7 @@ const AssessmentRegistrationCompleted = ({
   const navigate = useNavigate();
   const handleNavigateAssessment = () => {
     navigate({
-      to: `/assessment/examination`,
+      to: `/login`,
     });
   };
   return (
@@ -63,7 +63,7 @@ const AssessmentRegistrationCompleted = ({
         }
         onClick={handleNavigateAssessment}
       >
-        Go To Assessment
+        Go To Login Page
       </MyButton>
     </div>
   );
