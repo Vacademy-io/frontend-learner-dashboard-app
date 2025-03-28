@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">SSDC Learner</string>
-    <string name="title_activity_main">SSDC Learner</string>
+    <string name="app_name">SSDC</string>
+    <string name="title_activity_main">SSDC</string>
     <string name="package_name">io.ssdc.student.app</string>
     <string name="custom_url_scheme">io.ssdc.student.app</string>
 </resources>
