@@ -7,7 +7,7 @@ const config: CapacitorConfig = {
   // },
 
   appId: "io.ssdc.student.app",
-  appName: "SSDC Learner",
+  appName: "SSDC",
   webDir: "dist",
   plugins: {
     PrivacyScreen: {
