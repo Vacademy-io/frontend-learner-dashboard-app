@@ -18,13 +18,14 @@ import { Route as LogoutIndexImport } from './routes/logout/index'
 import { Route as LoginIndexImport } from './routes/login/index'
 import { Route as LearnerInvitationResponseIndexImport } from './routes/learner-invitation-response/index'
 import { Route as InstituteSelectionIndexImport } from './routes/institute-selection/index'
-import { Route as EnrollIndexImport } from './routes/enroll/index'
 import { Route as DeleteUserIndexImport } from './routes/delete-user/index'
 import { Route as DashboardIndexImport } from './routes/dashboard/index'
 import { Route as SessionSelectionPageIndexImport } from './routes/SessionSelectionPage/index'
 import { Route as UserProfileEditIndexImport } from './routes/user-profile/edit/index'
 import { Route as StudyLibraryCoursesIndexImport } from './routes/study-library/courses/index'
 import { Route as LoginForgotPasswordIndexImport } from './routes/login/forgot-password/index'
+import { Route as HomeworkReportsIndexImport } from './routes/homework/reports/index'
+import { Route as HomeworkListIndexImport } from './routes/homework/list/index'
 import { Route as DashboardNotificationsIndexImport } from './routes/dashboard/notifications/index'
 import { Route as AssessmentReportsIndexImport } from './routes/assessment/reports/index'
 import { Route as AssessmentExaminationIndexImport } from './routes/assessment/examination/index'
@@ -83,12 +84,6 @@ const InstituteSelectionIndexRoute = InstituteSelectionIndexImport.update({
   getParentRoute: () => rootRoute,
 } as any)
 
-const EnrollIndexRoute = EnrollIndexImport.update({
-  id: '/enroll/',
-  path: '/enroll/',
-  getParentRoute: () => rootRoute,
-} as any)
-
 const DeleteUserIndexRoute = DeleteUserIndexImport.update({
   id: '/delete-user/',
   path: '/delete-user/',
@@ -122,6 +117,18 @@ const StudyLibraryCoursesIndexRoute = StudyLibraryCoursesIndexImport.update({
 const LoginForgotPasswordIndexRoute = LoginForgotPasswordIndexImport.update({
   id: '/login/forgot-password/',
   path: '/login/forgot-password/',
+  getParentRoute: () => rootRoute,
+} as any)
+
+const HomeworkReportsIndexRoute = HomeworkReportsIndexImport.update({
+  id: '/homework/reports/',
+  path: '/homework/reports/',
+  getParentRoute: () => rootRoute,
+} as any)
+
+const HomeworkListIndexRoute = HomeworkListIndexImport.update({
+  id: '/homework/list/',
+  path: '/homework/list/',
   getParentRoute: () => rootRoute,
 } as any)
 
@@ -234,13 +241,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DeleteUserIndexImport
       parentRoute: typeof rootRoute
     }
-    '/enroll/': {
-      id: '/enroll/'
-      path: '/enroll'
-      fullPath: '/enroll'
-      preLoaderRoute: typeof EnrollIndexImport
-      parentRoute: typeof rootRoute
-    }
     '/institute-selection/': {
       id: '/institute-selection/'
       path: '/institute-selection'
@@ -309,6 +309,20 @@ declare module '@tanstack/react-router' {
       path: '/dashboard/notifications'
       fullPath: '/dashboard/notifications'
       preLoaderRoute: typeof DashboardNotificationsIndexImport
+      parentRoute: typeof rootRoute
+    }
+    '/homework/list/': {
+      id: '/homework/list/'
+      path: '/homework/list'
+      fullPath: '/homework/list'
+      preLoaderRoute: typeof HomeworkListIndexImport
+      parentRoute: typeof rootRoute
+    }
+    '/homework/reports/': {
+      id: '/homework/reports/'
+      path: '/homework/reports'
+      fullPath: '/homework/reports'
+      preLoaderRoute: typeof HomeworkReportsIndexImport
       parentRoute: typeof rootRoute
     }
     '/login/forgot-password/': {
@@ -404,7 +418,6 @@ export interface FileRoutesByFullPath {
   '/SessionSelectionPage': typeof SessionSelectionPageIndexRoute
   '/dashboard': typeof DashboardIndexRoute
   '/delete-user': typeof DeleteUserIndexRoute
-  '/enroll': typeof EnrollIndexRoute
   '/institute-selection': typeof InstituteSelectionIndexRoute
   '/learner-invitation-response': typeof LearnerInvitationResponseIndexRoute
   '/login': typeof LoginIndexRoute
@@ -415,6 +428,8 @@ export interface FileRoutesByFullPath {
   '/assessment/examination': typeof AssessmentExaminationIndexRoute
   '/assessment/reports': typeof AssessmentReportsIndexRoute
   '/dashboard/notifications': typeof DashboardNotificationsIndexRoute
+  '/homework/list': typeof HomeworkListIndexRoute
+  '/homework/reports': typeof HomeworkReportsIndexRoute
   '/login/forgot-password': typeof LoginForgotPasswordIndexRoute
   '/study-library/courses': typeof StudyLibraryCoursesIndexRoute
   '/user-profile/edit': typeof UserProfileEditIndexRoute
@@ -433,7 +448,6 @@ export interface FileRoutesByTo {
   '/SessionSelectionPage': typeof SessionSelectionPageIndexRoute
   '/dashboard': typeof DashboardIndexRoute
   '/delete-user': typeof DeleteUserIndexRoute
-  '/enroll': typeof EnrollIndexRoute
   '/institute-selection': typeof InstituteSelectionIndexRoute
   '/learner-invitation-response': typeof LearnerInvitationResponseIndexRoute
   '/login': typeof LoginIndexRoute
@@ -444,6 +458,8 @@ export interface FileRoutesByTo {
   '/assessment/examination': typeof AssessmentExaminationIndexRoute
   '/assessment/reports': typeof AssessmentReportsIndexRoute
   '/dashboard/notifications': typeof DashboardNotificationsIndexRoute
+  '/homework/list': typeof HomeworkListIndexRoute
+  '/homework/reports': typeof HomeworkReportsIndexRoute
   '/login/forgot-password': typeof LoginForgotPasswordIndexRoute
   '/study-library/courses': typeof StudyLibraryCoursesIndexRoute
   '/user-profile/edit': typeof UserProfileEditIndexRoute
@@ -463,7 +479,6 @@ export interface FileRoutesById {
   '/SessionSelectionPage/': typeof SessionSelectionPageIndexRoute
   '/dashboard/': typeof DashboardIndexRoute
   '/delete-user/': typeof DeleteUserIndexRoute
-  '/enroll/': typeof EnrollIndexRoute
   '/institute-selection/': typeof InstituteSelectionIndexRoute
   '/learner-invitation-response/': typeof LearnerInvitationResponseIndexRoute
   '/login/': typeof LoginIndexRoute
@@ -474,6 +489,8 @@ export interface FileRoutesById {
   '/assessment/examination/': typeof AssessmentExaminationIndexRoute
   '/assessment/reports/': typeof AssessmentReportsIndexRoute
   '/dashboard/notifications/': typeof DashboardNotificationsIndexRoute
+  '/homework/list/': typeof HomeworkListIndexRoute
+  '/homework/reports/': typeof HomeworkReportsIndexRoute
   '/login/forgot-password/': typeof LoginForgotPasswordIndexRoute
   '/study-library/courses/': typeof StudyLibraryCoursesIndexRoute
   '/user-profile/edit/': typeof UserProfileEditIndexRoute
@@ -494,7 +511,6 @@ export interface FileRouteTypes {
     | '/SessionSelectionPage'
     | '/dashboard'
     | '/delete-user'
-    | '/enroll'
     | '/institute-selection'
     | '/learner-invitation-response'
     | '/login'
@@ -505,6 +521,8 @@ export interface FileRouteTypes {
     | '/assessment/examination'
     | '/assessment/reports'
     | '/dashboard/notifications'
+    | '/homework/list'
+    | '/homework/reports'
     | '/login/forgot-password'
     | '/study-library/courses'
     | '/user-profile/edit'
@@ -522,7 +540,6 @@ export interface FileRouteTypes {
     | '/SessionSelectionPage'
     | '/dashboard'
     | '/delete-user'
-    | '/enroll'
     | '/institute-selection'
     | '/learner-invitation-response'
     | '/login'
@@ -533,6 +550,8 @@ export interface FileRouteTypes {
     | '/assessment/examination'
     | '/assessment/reports'
     | '/dashboard/notifications'
+    | '/homework/list'
+    | '/homework/reports'
     | '/login/forgot-password'
     | '/study-library/courses'
     | '/user-profile/edit'
@@ -550,7 +569,6 @@ export interface FileRouteTypes {
     | '/SessionSelectionPage/'
     | '/dashboard/'
     | '/delete-user/'
-    | '/enroll/'
     | '/institute-selection/'
     | '/learner-invitation-response/'
     | '/login/'
@@ -561,6 +579,8 @@ export interface FileRouteTypes {
     | '/assessment/examination/'
     | '/assessment/reports/'
     | '/dashboard/notifications/'
+    | '/homework/list/'
+    | '/homework/reports/'
     | '/login/forgot-password/'
     | '/study-library/courses/'
     | '/user-profile/edit/'
@@ -580,7 +600,6 @@ export interface RootRouteChildren {
   SessionSelectionPageIndexRoute: typeof SessionSelectionPageIndexRoute
   DashboardIndexRoute: typeof DashboardIndexRoute
   DeleteUserIndexRoute: typeof DeleteUserIndexRoute
-  EnrollIndexRoute: typeof EnrollIndexRoute
   InstituteSelectionIndexRoute: typeof InstituteSelectionIndexRoute
   LearnerInvitationResponseIndexRoute: typeof LearnerInvitationResponseIndexRoute
   LoginIndexRoute: typeof LoginIndexRoute
@@ -591,6 +610,8 @@ export interface RootRouteChildren {
   AssessmentExaminationIndexRoute: typeof AssessmentExaminationIndexRoute
   AssessmentReportsIndexRoute: typeof AssessmentReportsIndexRoute
   DashboardNotificationsIndexRoute: typeof DashboardNotificationsIndexRoute
+  HomeworkListIndexRoute: typeof HomeworkListIndexRoute
+  HomeworkReportsIndexRoute: typeof HomeworkReportsIndexRoute
   LoginForgotPasswordIndexRoute: typeof LoginForgotPasswordIndexRoute
   StudyLibraryCoursesIndexRoute: typeof StudyLibraryCoursesIndexRoute
   UserProfileEditIndexRoute: typeof UserProfileEditIndexRoute
@@ -609,7 +630,6 @@ const rootRouteChildren: RootRouteChildren = {
   SessionSelectionPageIndexRoute: SessionSelectionPageIndexRoute,
   DashboardIndexRoute: DashboardIndexRoute,
   DeleteUserIndexRoute: DeleteUserIndexRoute,
-  EnrollIndexRoute: EnrollIndexRoute,
   InstituteSelectionIndexRoute: InstituteSelectionIndexRoute,
   LearnerInvitationResponseIndexRoute: LearnerInvitationResponseIndexRoute,
   LoginIndexRoute: LoginIndexRoute,
@@ -620,6 +640,8 @@ const rootRouteChildren: RootRouteChildren = {
   AssessmentExaminationIndexRoute: AssessmentExaminationIndexRoute,
   AssessmentReportsIndexRoute: AssessmentReportsIndexRoute,
   DashboardNotificationsIndexRoute: DashboardNotificationsIndexRoute,
+  HomeworkListIndexRoute: HomeworkListIndexRoute,
+  HomeworkReportsIndexRoute: HomeworkReportsIndexRoute,
   LoginForgotPasswordIndexRoute: LoginForgotPasswordIndexRoute,
   StudyLibraryCoursesIndexRoute: StudyLibraryCoursesIndexRoute,
   UserProfileEditIndexRoute: UserProfileEditIndexRoute,
@@ -655,7 +677,6 @@ export const routeTree = rootRoute
         "/SessionSelectionPage/",
         "/dashboard/",
         "/delete-user/",
-        "/enroll/",
         "/institute-selection/",
         "/learner-invitation-response/",
         "/login/",
@@ -666,6 +687,8 @@ export const routeTree = rootRoute
         "/assessment/examination/",
         "/assessment/reports/",
         "/dashboard/notifications/",
+        "/homework/list/",
+        "/homework/reports/",
         "/login/forgot-password/",
         "/study-library/courses/",
         "/user-profile/edit/",
@@ -688,9 +711,6 @@ export const routeTree = rootRoute
     },
     "/delete-user/": {
       "filePath": "delete-user/index.tsx"
-    },
-    "/enroll/": {
-      "filePath": "enroll/index.tsx"
     },
     "/institute-selection/": {
       "filePath": "institute-selection/index.tsx"
@@ -721,6 +741,12 @@ export const routeTree = rootRoute
     },
     "/dashboard/notifications/": {
       "filePath": "dashboard/notifications/index.tsx"
+    },
+    "/homework/list/": {
+      "filePath": "homework/list/index.tsx"
+    },
+    "/homework/reports/": {
+      "filePath": "homework/reports/index.tsx"
     },
     "/login/forgot-password/": {
       "filePath": "login/forgot-password/index.tsx"
