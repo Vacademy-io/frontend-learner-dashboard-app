@@ -147,7 +147,7 @@ export function DashboardComponent() {
             list={data?.slides}
           /> */}
         
-       <div className="p-4 w-full flex flex-col gap-4 rounded-lg border border-neutral-200 items-center">
+       <div className="p-4 w-full flex flex-col gap-4 rounded-lg border border-neutral-200 ">
           <p className="text-subtitle font-semibold">Continue where you left</p>
           {data?.slides.map((slide) => (
             <div key={slide.slide_id} className="flex gap-2 justify-between">
@@ -174,7 +174,7 @@ export function DashboardComponent() {
           />
 
         </div>
-          <PastLearningInsights />
+          {/* <PastLearningInsights /> */}
       </div>
     </div>
   );
