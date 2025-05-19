@@ -7,6 +7,9 @@ import { convertHtmlToPdf } from "@/utils/html-to-pdf";
 import { useFileUpload } from "@/hooks/use-file-upload";
 import { DashboardLoader } from "@/components/core/dashboard-loader";
 import { extractVideoId } from "@/utils/study-library/tracking/extractVideoId";
+import { SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
+import { ChatText } from "@phosphor-icons/react";
+import { DoubtResolutionSidebar } from "./doubt-resolution-sidebar/components/sidebar";
 
 export const SlideMaterial = () => {
     const { activeItem } = useContentStore();
@@ -17,6 +20,11 @@ export const SlideMaterial = () => {
     const [isUploading, setIsUploading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const { uploadFile, getPublicUrl } = useFileUpload();
+    const [doubtProgressMarkerPdf, setDoubtProgressMarkerPdf] = useState<number | null>(null);
+    const [doubtProgressMarkerVideo, setDoubtProgressMarkerVideo] = useState<number | null>(null);
+    const {toggleSidebar, open} = useSidebar();
+
+
 
     const handleConvertAndUpload = async (htmlString: string | null): Promise<string | null> => {
         if (htmlString == null) return null;
@@ -76,7 +84,7 @@ export const SlideMaterial = () => {
                 if (generationId !== loadGenerationRef.current) return;
                 setContent(
                     <div key={`video-${activeItem.id}`} className="h-full w-full">
-                        <YouTubePlayerComp videoId={extractVideoId(activeItem.video_slide?.published_url || "") || ""} ms={activeItem.progress_marker} />
+                        <YouTubePlayerComp videoId={extractVideoId(activeItem.video_slide?.published_url || "") || ""} ms={doubtProgressMarkerVideo || activeItem.progress_marker} />
                     </div>,
                 );
                 return;
@@ -88,7 +96,7 @@ export const SlideMaterial = () => {
                 if (!url) {
                     throw new Error("Failed to retrieve PDF URL");
                 }
-                setContent(<PDFViewer pdfUrl={url} />);
+                setContent(<PDFViewer pdfUrl={url} progressMarker={doubtProgressMarkerPdf} />);
                 return;
             }
 
@@ -98,7 +106,7 @@ export const SlideMaterial = () => {
                 if (url == null) {
                     throw new Error("Error generating PDF URL");
                 }
-                setContent(<PDFViewer pdfUrl={url} />);
+                setContent(<PDFViewer pdfUrl={url} progressMarker = {doubtProgressMarkerPdf} />);
                 return;
             }
         } catch (err) {
@@ -117,6 +125,14 @@ export const SlideMaterial = () => {
     useEffect(() => {
         loadGenerationRef.current += 1;
         const currentGeneration = loadGenerationRef.current;
+
+        setDoubtProgressMarkerPdf(null);
+        setDoubtProgressMarkerVideo(null);
+
+        if(open){
+            toggleSidebar();
+        }
+        
 
         if (activeItem) {
             setHeading(activeItem.title || "");
@@ -141,6 +157,9 @@ export const SlideMaterial = () => {
                 <h3 className="text-subtitle font-semibold text-neutral-600">
                     {heading || "No content"}
                 </h3>
+                <SidebarTrigger  className="[&_svg]:size-6">
+                    <ChatText className="text-neutral-500"/>
+                </SidebarTrigger>
             </div>
             <div
                 className={`mx-auto mt-8 ${
@@ -150,6 +169,7 @@ export const SlideMaterial = () => {
                 {content}
                 {isUploading && <DashboardLoader />}
             </div>
+            <DoubtResolutionSidebar setDoubtProgressMarkerPdf={setDoubtProgressMarkerPdf} setDoubtProgressMarkerVideo={setDoubtProgressMarkerVideo} />
         </div>
     );
 };

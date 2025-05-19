@@ -1,7 +1,7 @@
 import { LayoutContainer } from '@/components/common/layout-container/layout-container'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { ChevronRightIcon } from '@radix-ui/react-icons'
-import {  useSidebar } from '@/components/ui/sidebar'
+import {  SidebarProvider, useSidebar } from '@/components/ui/sidebar'
 import { useEffect, useState } from 'react'
 import { truncateString } from '@/lib/reusable/truncateString'
 import { useNavHeadingStore } from '@/stores/layout-container/useNavHeadingStore'
@@ -174,7 +174,9 @@ function Slides() {
     <LayoutContainer sidebarComponent={SidebarComponent}>
         <InitStudyLibraryProvider>
             <ModulesWithChaptersProvider subjectId={subjectId}>
-                <SlideMaterial />
+                <SidebarProvider defaultOpen={false}>
+                    <SlideMaterial />
+                </SidebarProvider>
             </ModulesWithChaptersProvider>
       </InitStudyLibraryProvider>
     </LayoutContainer>
