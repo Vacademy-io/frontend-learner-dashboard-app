@@ -4,7 +4,7 @@ import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, useSidebar } fro
 import { ArrowUp, X } from "@phosphor-icons/react"
 import { ChangeEvent, Dispatch, SetStateAction, useState } from "react";
 import { doubtListDummy } from "../dummy-data/doubt-list";
-import { Doubt } from "./Doubt";
+import { Doubt } from "./doubt";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 

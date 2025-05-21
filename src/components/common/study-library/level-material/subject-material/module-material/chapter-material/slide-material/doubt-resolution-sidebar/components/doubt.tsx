@@ -9,7 +9,6 @@ import { StatusChip } from "@/components/design-system/status-chips";
 import { Switch } from "@/components/ui/switch";
 import { useContentStore } from "@/stores/study-library/chapter-sidebar-store";
 import { useSidebar } from "@/components/ui/sidebar";
-import { useRouter } from "@tanstack/react-router";
 
 export const Doubt = ({doubt, setDoubtProgressMarkerPdf, setDoubtProgressMarkerVideo}:{doubt:DoubtType, setDoubtProgressMarkerPdf:Dispatch<SetStateAction<number | null>>, setDoubtProgressMarkerVideo:Dispatch<SetStateAction<number | null>>}) => {
     const [imageUrl, setImageUrl] = useState<string | null>(null);
@@ -17,7 +16,6 @@ export const Doubt = ({doubt, setDoubtProgressMarkerPdf, setDoubtProgressMarkerV
     const [showReplies, setShowReplies] = useState<boolean>(false);
     const {activeItem} = useContentStore();
     const {setOpen} = useSidebar();
-    const router = useRouter();
 
     const handleTimeStampClick = (timestamp: number) => {
         if(activeItem?.source_type == "VIDEO"){
