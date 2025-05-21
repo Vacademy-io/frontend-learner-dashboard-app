@@ -34,6 +34,7 @@ import {
 } from "@phosphor-icons/react";
 import { Preferences } from "@capacitor/preferences";
 import { useContentStore } from "@/stores/study-library/chapter-sidebar-store";
+import VideoQuestionOverlay from "./video-question-overlay";
 
 // Add the YouTube PlayerState enum to avoid window.YT references
 enum PlayerState {
@@ -51,6 +52,25 @@ interface YouTubePlayerProps {
   onTimeUpdate?: (currentTime: number) => void;
   ms?: number;
   doubtProgressMarkerVideo?: number | null;
+  questions?: Array<{
+    id: string;
+    question_time_in_millis: number;
+    text_data: {
+      content: string;
+    };
+    parent_rich_text?: {
+      content: string;
+    };
+    options: Array<{
+      id: string;
+      text: {
+        content: string;
+      };
+    }>;
+    can_skip?: boolean;
+    question_type?: string;
+    auto_evaluation_json?: string;
+  }>;
 }
 
 export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({
@@ -58,6 +78,7 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({
   onTimeUpdate,
   ms=0,
   doubtProgressMarkerVideo=null,
+  questions = [],
 }) => {
   const { activeItem } = useContentStore();
   const { addActivity } = useTrackingStore();
@@ -96,6 +117,14 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({
   const concentrationScoreId = useRef(uuidv4());
   const [showFullscreenControls, setShowFullscreenControls] = useState(false);
   const fullscreenControlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Question state
+  const [currentQuestion, setCurrentQuestion] = useState<any>(null);
+  const [showQuestion, setShowQuestion] = useState(false);
+  const [answeredQuestions, setAnsweredQuestions] = useState<
+    Record<string, boolean>
+  >({});
 
   // Verification state
   const [showVerification, setShowVerification] = useState(false);
@@ -104,7 +133,6 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({
   const [verificationInterval] = useState(180);
   const [lastVerificationTime, setLastVerificationTime] = useState(0);
   const verificationTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Concentration metrics
   const [tabSwitchCount, setTabSwitchCount] = useState(0);
@@ -115,6 +143,26 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({
     []
   );
   const [concentrationScore, setConcentrationScore] = useState(100); // Start with perfect score
+  // const [timeToQuestionMap, setTimeToQuestionMap] = useState<
+  //   Array<{ time: number; question: YouTubePlayerProps["questions"][number] }>
+  // >([]);
+  const [timeToQuestionMap, setTimeToQuestionMap] = useState<
+    Array<{
+      time: number;
+      question: NonNullable<YouTubePlayerProps["questions"]>[number];
+    }>
+  >([]);
+
+  useEffect(() => {
+    if (questions && questions.length > 0) {
+      const mapped = questions.map((q) => ({
+        time: q.question_time_in_millis,
+        question: q,
+      }));
+      setTimeToQuestionMap(mapped);
+      console.log("Mapped questions:", mapped);
+    }
+  }, [questions]);
 
   // Helper function to safely get a number from potentially a Promise<number>
   const safeGetNumber = async (value: any): Promise<number> => {
@@ -129,6 +177,55 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({
       }
     }
     return 0;
+  };
+
+  const checkForQuestions = useCallback(async () => {
+    if (!timeToQuestionMap || timeToQuestionMap.length === 0 || !player) return;
+
+    try {
+      const currentTime = await player.getCurrentTime();
+      if (typeof currentTime !== "number" || isNaN(currentTime)) return;
+      const currentTimeMs = currentTime * 1000;
+
+      const questionToShow = timeToQuestionMap.find(({ time, question }) => {
+        if (answeredQuestions && answeredQuestions[question.id]) return false;
+        console.log(setAnsweredQuestions);
+        return Math.abs(currentTimeMs - time) < 500;
+      });
+
+      if (questionToShow && !showQuestion) {
+        player.pauseVideo();
+        setIsPlayed(false);
+        setCurrentQuestion(questionToShow.question);
+        setShowQuestion(true);
+      }
+    } catch (error) {
+      console.error("Error checking for questions:", error);
+    }
+  }, [timeToQuestionMap, showQuestion, answeredQuestions, player]);
+
+  // Handle question submission
+  const handleQuestionSubmit = async () => {
+    if (!currentQuestion) return { success: false };
+
+    // Return mock response (in a real app, this would come from the server)
+    return {
+      success: true,
+      isCorrect: true,
+      explanation: "Great job! You've answered correctly.",
+    };
+  };
+
+  // Handle closing the question overlay
+  const handleQuestionClose = () => {
+    setShowQuestion(false);
+    setCurrentQuestion(null);
+
+    // Resume video playback
+    if (player) {
+      player.playVideo();
+      setIsPlayed(true);
+    }
   };
 
   // Load saved verification time from Capacitor preferences
@@ -361,6 +458,10 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({
         try {
           const time = await safeGetNumber(player.getCurrentTime());
           setCurrentTime(time);
+
+          // Check for questions at current timestamp
+          checkForQuestions();
+
           if (onTimeUpdate) {
             onTimeUpdate(time);
           }
@@ -369,7 +470,7 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({
         }
       }
     }, 250); // Update 4 times per second for smoother progress
-  }, [player, onTimeUpdate]);
+  }, [player, onTimeUpdate, checkForQuestions]);
 
   // Stop progress tracking interval
   const stopProgressTracking = useCallback(() => {
@@ -1155,6 +1256,22 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({
             onStateChange={onStateChange}
           />
         </div>
+
+        {/* Question Overlay */}
+        {/* {showQuestion && currentQuestion && (
+          <VideoQuestionOverlay
+            question={currentQuestion}
+            onSubmit={handleQuestionSubmit}
+            onClose={handleQuestionClose}
+          />
+        )} */}
+        {showQuestion && (
+          <VideoQuestionOverlay
+            question={currentQuestion}
+            onSubmit={handleQuestionSubmit}
+            onClose={handleQuestionClose}
+          />
+        )}
       </div>
 
       {/* Progress Bar and controls - only shown when not in fullscreen */}
@@ -1283,11 +1400,30 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({
 interface YouTubePlayerWrapperProps {
   videoId: string;
   onTimeUpdate?: (currentTime: number) => void;
+  questions?: Array<{
+    id: string;
+    question_time_in_millis: number;
+    text_data: {
+      content: string;
+    };
+    parent_rich_text?: {
+      content: string;
+    };
+    options: Array<{
+      id: string;
+      text: {
+        content: string;
+      };
+    }>;
+    can_skip?: boolean;
+    question_type?: string;
+    auto_evaluation_json?: string;
+  }>;
 }
 
 // This is a wrapper component that exposes the YouTube player methods
 const YouTubePlayerWrapper = forwardRef<any, YouTubePlayerWrapperProps>(
-  ({ videoId, onTimeUpdate }, ref) => {
+  ({ videoId, onTimeUpdate, questions }, ref) => {
     const playerRef = useRef<any>(null);
 
     // Expose methods to parent component
@@ -1329,7 +1465,11 @@ const YouTubePlayerWrapper = forwardRef<any, YouTubePlayerWrapperProps>(
     };
 
     return (
-      <YouTubePlayerComp videoId={videoId} onTimeUpdate={handleTimeUpdate} />
+      <YouTubePlayerComp
+        videoId={videoId}
+        onTimeUpdate={handleTimeUpdate}
+        questions={questions}
+      />
     );
   }
 );
