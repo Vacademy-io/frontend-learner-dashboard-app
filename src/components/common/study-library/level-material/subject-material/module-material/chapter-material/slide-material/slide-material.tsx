@@ -29,15 +29,18 @@ export const SlideMaterial = () => {
     const [doubtProgressMarkerVideo, setDoubtProgressMarkerVideo] = useState<number | null>(null);
     const {toggleSidebar, open} = useSidebar();
 
+    useEffect(()=>{
+        console.log("doubtProgressMarkerPdf: ",doubtProgressMarkerPdf)
+    },[doubtProgressMarkerPdf])
+
+    useEffect(()=>{
+        console.log("doubtProgressMarkerVideo: ",doubtProgressMarkerVideo)
+    },[doubtProgressMarkerVideo])
+
 
 const [currentVideoQuestion, setCurrentVideoQuestion] = useState<any>(null);
   const [showVideoQuestion, setShowVideoQuestion] = useState(false);
   const playerRef = useRef<any>(null);
-
-
-
-
-
 
 
 
@@ -207,6 +210,8 @@ const [currentVideoQuestion, setCurrentVideoQuestion] = useState<any>(null);
                                         activeItem.video_slide?.url ||
                                         ""
                                     )}
+                                    ms={activeItem.progress_marker}
+                                    doubtProgressMarkerVideo={doubtProgressMarkerVideo}
                                 />
                             </div>
                         );

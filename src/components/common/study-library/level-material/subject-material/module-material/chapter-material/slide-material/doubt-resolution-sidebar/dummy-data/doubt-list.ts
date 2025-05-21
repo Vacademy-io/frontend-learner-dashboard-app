@@ -35,7 +35,7 @@ export const doubtListDummy: DoubtType[] = [
         user_name: "John Doe",
         face_file_id: null,
         doubt_text: "What is the capital of India?",
-        slide_progress_marker: 1,
+        slide_progress_marker: 30000,
         status: "UNRESOLVED" as const,
         timestamp: "2021-01-01, 12:30pm",
         replies: [

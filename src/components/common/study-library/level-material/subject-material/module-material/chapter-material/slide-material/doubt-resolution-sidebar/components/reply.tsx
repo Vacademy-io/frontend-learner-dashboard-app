@@ -1,7 +1,7 @@
 import { getPublicUrl } from "@/services/upload_file";
 import { useEffect, useState } from "react";
 import { ReplyType } from "../types/doubt-list-type"
-import { StatusChip } from "@/components/design-system/status-chips";
+
 export const Reply = ({reply}:{reply: ReplyType}) => {
     const [imageUrl, setImageUrl] = useState<string | null>(null);
 
