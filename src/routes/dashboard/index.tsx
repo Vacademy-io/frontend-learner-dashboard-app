@@ -17,6 +17,7 @@ import { MyButton } from "@/components/design-system/button";
 import { DashbaordResponse, DashboardSlide } from "./-types/dashboard-data-types";
 import { getIcon } from "@/components/common/study-library/level-material/subject-material/module-material/chapter-material/slide-material/chapter-sidebar-slides";
 import { useContentStore } from "@/stores/study-library/chapter-sidebar-store";
+import { MainViewQuillEditor } from "@/components/quill/MainViewQuillEditor";
 // import { PastLearningInsights } from "./-components/PastLearningInsights";
 
 export const Route = createFileRoute("/dashboard/")({
@@ -92,8 +93,11 @@ export function DashboardComponent() {
     handleGetStudyLibraryData();
   }, []);
 
+  const [value, setValue] = useState('');
+
   return (
     <div>
+      <MainViewQuillEditor value={value} onChange={setValue}/>
       <Helmet>
         <title>Dashboard</title>
         <meta name="description" content="Dashboard page" />
