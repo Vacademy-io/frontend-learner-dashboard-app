@@ -1,5 +1,5 @@
 import { Card } from "@/components/ui/card";
-import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
+import { ChartConfig, ChartContainer, ChartTooltip } from "@/components/ui/chart";
 import { LineChart, CartesianGrid, XAxis, YAxis, Line } from "recharts";
 import dayjs from "dayjs";
 import { UserActivityArray } from "../-types/dashboard-data-types";
