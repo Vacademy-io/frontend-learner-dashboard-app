@@ -345,8 +345,6 @@ const [currentVideoQuestion, setCurrentVideoQuestion] = useState<any>(null);
             }}
           />
         )}
-
-
             </div>
             <DoubtResolutionSidebar setDoubtProgressMarkerPdf={setDoubtProgressMarkerPdf} setDoubtProgressMarkerVideo={setDoubtProgressMarkerVideo} />
         </div>

@@ -1,27 +1,23 @@
 import { MyButton } from "@/components/design-system/button";
-import { MyInput } from "@/components/design-system/input";
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, useSidebar } from "@/components/ui/sidebar"
 import { ArrowUp, X } from "@phosphor-icons/react"
-import { ChangeEvent, Dispatch, SetStateAction, useState } from "react";
+import {  Dispatch, SetStateAction, useState } from "react";
 import { doubtListDummy } from "../dummy-data/doubt-list";
 import { Doubt } from "./doubt";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-
+import { MainViewQuillEditor } from "@/components/quill/MainViewQuillEditor";
 
 export const DoubtResolutionSidebar = ({setDoubtProgressMarkerPdf, setDoubtProgressMarkerVideo}:{setDoubtProgressMarkerPdf:Dispatch<SetStateAction<number | null>>, setDoubtProgressMarkerVideo:Dispatch<SetStateAction<number | null>>}) => {
     const {open, setOpen} = useSidebar();
     const [showInput, setShowInput] = useState<boolean>(false)
     const [doubt, setDoubt] = useState<string>("")
 
-    const handleDoubtChange = (event: ChangeEvent<HTMLInputElement>) => {
-        setDoubt(event.target.value)
-    }
    return(
     // <SidebarProvider >
-      <Sidebar side="right" className={`${open? "w-[50vw]" : "w-0"} bg-white p-4 flex flex-col gap-6`} >
-        <SidebarHeader className="flex items-center justify-between w-full bg-white">
+      <Sidebar side="right" className={`${open? "w-[50vw]" : "w-0"} bg-white p-4 flex flex-col gap-6 overflow-y-hidden`} >
+        <SidebarHeader className="flex items-center justify-between w-full bg-white overflow-y-hidden">
             <div className="flex items-center justify-between bg-white w-full">
-                <h1 className="text-2xl font-semibold text-primary-500">Doubt Resolution</h1>
+                <h1 className="sm:text-2xl text-lg font-semibold text-primary-500">Doubt Resolution</h1>
                 <X className="hover:cursor-pointer" onClick={()=>setOpen(false)} />
             </div>
         </SidebarHeader>
@@ -39,16 +35,26 @@ export const DoubtResolutionSidebar = ({setDoubtProgressMarkerPdf, setDoubtProgr
             </TabsContent>
             </Tabs>
         </SidebarContent>
-        <SidebarFooter className="w-full flex items-center justify-center bg-white">
-            <MyButton scale="large" onClick={()=>setShowInput(true)}>Ask Doubt</MyButton>
-            {showInput && (
-                <div className="bg-neutral-100 rounded-md p-3 w-full flex gap-2">
-                    <MyInput inputType="text" inputPlaceholder="Ask your doubt here" input={doubt} onChangeFunction={handleDoubtChange} className="bg-white" />
-                    <MyButton layoutVariant="icon">
-                        <ArrowUp />
-                    </MyButton>
+        <SidebarFooter className="w-full flex items-center justify-center bg-white sm:py-0">
+            {showInput ? (
+                <div className=" items-center rounded-md p-3 w-full flex gap-2">
+                    <MainViewQuillEditor
+                        value={doubt}
+                        onChange={setDoubt}
+                        className="w-full sm:mb-10 mb-16 h-[80px] max-sm:h-[50px]"
+                    />
+                    <div className="flex flex-col items-center gap-3">
+                        <MyButton layoutVariant="icon">
+                            <ArrowUp />
+                        </MyButton>
+                        <MyButton layoutVariant="icon" buttonType="secondary" onClick={()=>setShowInput(false)}>
+                            <X />
+                        </MyButton>
+                    </div>
                 </div>
-            )}
+            ):
+            <MyButton scale="large" onClick={()=>setShowInput(true)}>Ask Doubt</MyButton>
+            }
         </SidebarFooter>
       </Sidebar>
     // </SidebarProvider>

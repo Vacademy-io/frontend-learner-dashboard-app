@@ -53,11 +53,11 @@ export const Doubt = ({doubt, setDoubtProgressMarkerPdf, setDoubtProgressMarkerV
     
     
     return (
-        <div className="p-3 flex flex-col gap-3 rounded-lg">
+        <div className="lg:px-3 md:px-1 py-3 px-3 flex flex-col gap-3 rounded-lg max-sm:text-caption">
             <div className="flex flex-col gap-2">
-                <div className="flex items-center justify-between">
+                <div className="flex sm:items-center justify-between sm:flex-row flex-col gap-2">
                     <div className="flex items-center gap-2">
-                        <div className="w-10 h-10 rounded-full bg-neutral-300">
+                        <div className="sm:w-10 sm:h-10 w-8 h-8 rounded-full bg-neutral-300">
                             {/* add image here */}
                             {imageUrl ? (
                                 <img
@@ -75,7 +75,7 @@ export const Doubt = ({doubt, setDoubtProgressMarkerPdf, setDoubtProgressMarkerV
                     </div>
                     <div className="flex gap-3 items-center">
                         <StatusChip text={doubt.status === "RESOLVED" ? "Resolved" : "Unresolved"} textSize="text-caption" status={doubt.status === "RESOLVED" ? "SUCCESS" : "INFO"} />
-                        <p className="text-neutral-500">{doubt.timestamp}</p>
+                        <p className="text-neutral-500 sm:text-regular text-caption">{doubt.timestamp}</p>
                     </div>
                 </div>
                 <div className="flex items-center justify-between">
@@ -89,7 +89,12 @@ export const Doubt = ({doubt, setDoubtProgressMarkerPdf, setDoubtProgressMarkerV
                         </div>
                     )}
                 </div>
-                <p>{doubt.doubt_text}</p>
+                <div
+                    dangerouslySetInnerHTML={{
+                        __html:doubt.doubt_text || '',
+                    }}
+                    className="custom-html-content"
+                />
                 {doubt.user_id==userId && doubt.replies.length==0 && 
                     <div className="flex gap-1 items-center cursor-pointer">
                         <TrashSimple className="text-danger-500" />
@@ -100,7 +105,7 @@ export const Doubt = ({doubt, setDoubtProgressMarkerPdf, setDoubtProgressMarkerV
             {doubt.replies.length>0 &&
                 <div className="flex flex-col gap-1">
                     <div className="flex gap-2 items-center">
-                        <p className="text-body font-semibold">Replies <span className="text-primary-500">{doubt.replies.length}</span></p>
+                        <p className="sm:text-body text-caption font-semibold">Replies <span className="text-primary-500">{doubt.replies.length}</span></p>
                         {showReplies==false && <CaretDown onClick={() => setShowReplies(true)} className="cursor-pointer"/>}
                         {showReplies==true && <CaretUp onClick={() => setShowReplies(false)} className="cursor-pointer"/>}
                     </div>
