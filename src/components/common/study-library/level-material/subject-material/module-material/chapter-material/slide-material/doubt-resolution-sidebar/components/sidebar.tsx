@@ -1,7 +1,7 @@
 import { MyButton } from "@/components/design-system/button";
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, useSidebar } from "@/components/ui/sidebar"
 import { ArrowUp, X } from "@phosphor-icons/react"
-import {  Dispatch, SetStateAction, useState, useEffect, useRef, useCallback } from "react";
+import {  Dispatch, SetStateAction, useState, useRef, useCallback } from "react";
 import { Doubt } from "./doubt";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MainViewQuillEditor } from "@/components/quill/MainViewQuillEditor";

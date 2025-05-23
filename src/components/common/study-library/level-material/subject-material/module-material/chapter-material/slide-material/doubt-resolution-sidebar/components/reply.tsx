@@ -5,7 +5,8 @@ import { CaretDown } from "@phosphor-icons/react";
 
 export const Reply = ({reply}:{reply: Doubt}) => {
 
-    const [imageUrl, setImageUrl] = useState<string | null>(null);
+    // const [imageUrl, setImageUrl] = useState<string | null>(null);
+    const imageUrl: string | null = null;
     const [showReplies, setShowReplies] = useState<boolean>(false);
 
 

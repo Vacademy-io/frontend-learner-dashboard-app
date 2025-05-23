@@ -11,7 +11,8 @@ import { Doubt as DoubtType } from "../types/get-doubts-type";
 
 export const Doubt = ({doubt, setDoubtProgressMarkerPdf, setDoubtProgressMarkerVideo}:{doubt:DoubtType, setDoubtProgressMarkerPdf:Dispatch<SetStateAction<number | null>>, setDoubtProgressMarkerVideo:Dispatch<SetStateAction<number | null>>}) => {
     
-    const [imageUrl, setImageUrl] = useState<string | null>(null);
+    // const [imageUrl, setImageUrl] = useState<string | null>(null);
+    const imageUrl: string | null = null;
     const [userId, setUserId] = useState<string | null>(null);
     const [showReplies, setShowReplies] = useState<boolean>(false);
     const {activeItem} = useContentStore();
