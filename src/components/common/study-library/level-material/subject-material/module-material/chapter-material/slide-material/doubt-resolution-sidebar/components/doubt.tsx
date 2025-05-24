@@ -20,7 +20,6 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { useGetDoubts } from "../services/GetDoubts";
 
 export const Doubt = ({doubt, setDoubtProgressMarkerPdf, setDoubtProgressMarkerVideo, filter, refetch}:{doubt:DoubtType, setDoubtProgressMarkerPdf:Dispatch<SetStateAction<number | null>>, setDoubtProgressMarkerVideo:Dispatch<SetStateAction<number | null>>, filter:DoubtFilter, refetch: () => void}) => {
     
