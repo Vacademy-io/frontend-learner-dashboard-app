@@ -21,7 +21,7 @@ import {
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
-export const Doubt = ({doubt, setDoubtProgressMarkerPdf, setDoubtProgressMarkerVideo, filter, refetch}:{doubt:DoubtType, setDoubtProgressMarkerPdf:Dispatch<SetStateAction<number | null>>, setDoubtProgressMarkerVideo:Dispatch<SetStateAction<number | null>>, filter:DoubtFilter, refetch: () => void}) => {
+export const Doubt = ({doubt, setDoubtProgressMarkerPdf, setDoubtProgressMarkerVideo, refetch}:{doubt:DoubtType, setDoubtProgressMarkerPdf:Dispatch<SetStateAction<number | null>>, setDoubtProgressMarkerVideo:Dispatch<SetStateAction<number | null>>, filter:DoubtFilter, refetch: () => void}) => {
     
     // const [imageUrl, setImageUrl] = useState<string | null>(null);
     const imageUrl: string | null = null;
