@@ -14,7 +14,7 @@ import { DashboardLoader } from "@/components/core/dashboard-loader";
 
 const TabsTriggerClass = "w-full data-[state=active]:shadow-none rounded-none rounded-tl-md rounded-tr-md border-white border-l-[1px] border-r-[1px] border-t-[1px] data-[state=active]:border-primary-200 data-[state=active]:text-primary-500 pt-2"
 
-export const DoubtResolutionSidebar = ({setDoubtProgressMarkerPdf, setDoubtProgressMarkerVideo}:{setDoubtProgressMarkerPdf:Dispatch<SetStateAction<number | null>>, setDoubtProgressMarkerVideo:Dispatch<SetStateAction<number | null>>}) => {
+export const DoubtResolutionSidebar = () => {
 
     const {open, setOpen} = useSidebar();
     const [showInput, setShowInput] = useState<boolean>(false)
@@ -32,7 +32,7 @@ export const DoubtResolutionSidebar = ({setDoubtProgressMarkerPdf, setDoubtProgr
         content_types: [activeItem?.source_type=="DOCUMENT" ? activeItem?.document_slide?.type || "": activeItem?.source_type || ""],
         sources: ["SLIDE"],
         source_ids: [activeItem?.id || ""],
-        status: ["ACTIVE"],
+        status: ["ACTIVE", "RESOLVED"],
         sort_columns: {
             "created_at" : "DESC"
         },
@@ -96,6 +96,7 @@ export const DoubtResolutionSidebar = ({setDoubtProgressMarkerPdf, setDoubtProgr
                     <TabsTrigger value="UNRESOLVED" className={TabsTriggerClass}>Unresolved</TabsTrigger>
                 </TabsList>
                 <TabsContent value="ALL" className="flex flex-col gap-4">
+                    {isLoading && <DashboardLoader />}
                     {allDoubts.map((doubt, index) => (
                         <div 
                             key={doubt.id || index}
@@ -103,8 +104,38 @@ export const DoubtResolutionSidebar = ({setDoubtProgressMarkerPdf, setDoubtProgr
                         >
                             <Doubt 
                                 doubt={doubt} 
-                                setDoubtProgressMarkerPdf={setDoubtProgressMarkerPdf} 
-                                setDoubtProgressMarkerVideo={setDoubtProgressMarkerVideo} 
+                                filter={filter}
+                                refetch={refetch}
+                            />
+                        </div>
+                    ))}
+                    {isFetchingNextPage && <DashboardLoader />}
+                </TabsContent>
+                <TabsContent value="RESOLVED" className="flex flex-col gap-4">
+                {isLoading && <DashboardLoader />}
+                    {allDoubts.map((doubt, index) => (
+                        <div 
+                            key={doubt.id || index}
+                            ref={index === allDoubts.length - 1 ? lastDoubtElementRef : undefined}
+                        >
+                            <Doubt 
+                                doubt={doubt}
+                                filter={filter}
+                                refetch={refetch}
+                            />
+                        </div>
+                    ))}
+                    {isFetchingNextPage && <DashboardLoader />}
+                </TabsContent>
+                <TabsContent value="UNRESOLVED" className="flex flex-col gap-4">
+                {isLoading && <DashboardLoader />}
+                    {allDoubts.map((doubt, index) => (
+                        <div 
+                            key={doubt.id || index}
+                            ref={index === allDoubts.length - 1 ? lastDoubtElementRef : undefined}
+                        >
+                            <Doubt 
+                                doubt={doubt} 
                                 filter={filter}
                                 refetch={refetch}
                             />

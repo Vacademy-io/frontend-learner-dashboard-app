@@ -25,18 +25,8 @@ export const SlideMaterial = () => {
     const [isUploading, setIsUploading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const { uploadFile, getPublicUrl } = useFileUpload();
-    const [doubtProgressMarkerPdf, setDoubtProgressMarkerPdf] = useState<number | null>(null);
-    const [doubtProgressMarkerVideo, setDoubtProgressMarkerVideo] = useState<number | null>(null);
     const {toggleSidebar, open} = useSidebar();
-
-    useEffect(()=>{
-        console.log("doubtProgressMarkerPdf: ",doubtProgressMarkerPdf)
-    },[doubtProgressMarkerPdf])
-
-    useEffect(()=>{
-        console.log("doubtProgressMarkerVideo: ",doubtProgressMarkerVideo)
-    },[doubtProgressMarkerVideo])
-
+    
 
 const [currentVideoQuestion, setCurrentVideoQuestion] = useState<any>(null);
   const [showVideoQuestion, setShowVideoQuestion] = useState(false);
@@ -211,7 +201,6 @@ const [currentVideoQuestion, setCurrentVideoQuestion] = useState<any>(null);
                                         ""
                                     )}
                                     ms={activeItem.progress_marker}
-                                    doubtProgressMarkerVideo={doubtProgressMarkerVideo}
                                 />
                             </div>
                         );
@@ -226,14 +215,14 @@ const [currentVideoQuestion, setCurrentVideoQuestion] = useState<any>(null);
                         const url = await getPublicUrl(activeItem?.document_slide?.published_data || "");
                         if (generationId !== loadGenerationRef.current) return;
                         if (!url) throw new Error("Failed to retrieve PDF URL");
-                        setContent(<PDFViewer pdfUrl={url} progressMarker={doubtProgressMarkerPdf} />);
+                        setContent(<PDFViewer pdfUrl={url} />);
                         break;
                     }
                     case "DOC": {
                         const url = await handleConvertAndUpload(activeItem.document_slide?.published_data);
                         if (generationId !== loadGenerationRef.current) return;
                         if (url == null) throw new Error("Error generating PDF URL");
-                        setContent(<PDFViewer pdfUrl={url} progressMarker={doubtProgressMarkerPdf} />);
+                        setContent(<PDFViewer pdfUrl={url} />);
                         break;
                     }
                     default:
@@ -290,17 +279,10 @@ const [currentVideoQuestion, setCurrentVideoQuestion] = useState<any>(null);
         loadGenerationRef.current += 1;
         const currentGeneration = loadGenerationRef.current;
 
-
-        setDoubtProgressMarkerPdf(null);
-        setDoubtProgressMarkerVideo(null);
-
-
         if(open){
             toggleSidebar();
         }
        
-
-
         if (activeItem) {
             setHeading(activeItem.title || "");
             loadContent( currentGeneration);
@@ -316,9 +298,6 @@ const [currentVideoQuestion, setCurrentVideoQuestion] = useState<any>(null);
             }
         }
     }, [activeItem]);
-
-
-
 
     return (
         <div className="flex w-full flex-col" ref={selectionRef}>
@@ -337,21 +316,21 @@ const [currentVideoQuestion, setCurrentVideoQuestion] = useState<any>(null);
             >
                 {content}
                 {isUploading && <DashboardLoader />}
-{showVideoQuestion && currentVideoQuestion && (
-          <VideoQuestionOverlay
-            question={currentVideoQuestion}
-            onSubmit={(optionId) =>
-              handleQuestionSubmit(currentVideoQuestion.id, optionId)
-            }
-            onClose={() => {
-              setShowVideoQuestion(false);
-              setCurrentVideoQuestion(null);
-              if (playerRef.current) playerRef.current.playVideo();
-            }}
-          />
-        )}
+                {showVideoQuestion && currentVideoQuestion && (
+                    <VideoQuestionOverlay
+                        question={currentVideoQuestion}
+                        onSubmit={(optionId) =>
+                        handleQuestionSubmit(currentVideoQuestion.id, optionId)
+                        }
+                        onClose={() => {
+                        setShowVideoQuestion(false);
+                        setCurrentVideoQuestion(null);
+                        if (playerRef.current) playerRef.current.playVideo();
+                        }}
+                    />
+                )}
             </div>
-            <DoubtResolutionSidebar setDoubtProgressMarkerPdf={setDoubtProgressMarkerPdf} setDoubtProgressMarkerVideo={setDoubtProgressMarkerVideo} />
+            <DoubtResolutionSidebar />
         </div>
     );
 };
