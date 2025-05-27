@@ -5,7 +5,6 @@ import {  useState, useRef, useCallback, useEffect } from "react";
 import { Doubt } from "./doubt";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MainViewQuillEditor } from "@/components/quill/MainViewQuillEditor";
-import { useAddDoubt } from "../services/AddDoubt";
 import { useContentStore } from "@/stores/study-library/chapter-sidebar-store";
 import { DoubtFilter, Doubt as DoubtType } from "../types/get-doubts-type";
 import { useGetDoubts } from "../services/GetDoubts";
@@ -18,7 +17,6 @@ export const DoubtResolutionSidebar = () => {
     const {open, setOpen} = useSidebar();
     const [showInput, setShowInput] = useState<boolean>(false)
     const [doubt, setDoubt] = useState<string>("")
-    const addDoubt = useAddDoubt();
     const {activeItem} = useContentStore();
     const observer = useRef<IntersectionObserver | null>(null);
     
