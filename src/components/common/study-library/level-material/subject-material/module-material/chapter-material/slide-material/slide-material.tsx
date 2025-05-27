@@ -14,6 +14,7 @@ import CustomVideoPlayer from "./custom-video-player";
 import QuestionSlide from "./question-slide";
 import AssignmentSlide from "./assignment-slide";
 import VideoQuestionOverlay from "./video-question-overlay";
+// import { useMediaRefsStore } from "@/stores/mediaRefsStore";
 
 
 export const SlideMaterial = () => {
@@ -26,13 +27,15 @@ export const SlideMaterial = () => {
     const [error, setError] = useState<string | null>(null);
     const { uploadFile, getPublicUrl } = useFileUpload();
     const {toggleSidebar, open} = useSidebar();
-    
+    // const { currentPdfPage } = useMediaRefsStore();
 
-const [currentVideoQuestion, setCurrentVideoQuestion] = useState<any>(null);
+    const [currentVideoQuestion, setCurrentVideoQuestion] = useState<any>(null);
   const [showVideoQuestion, setShowVideoQuestion] = useState(false);
   const playerRef = useRef<any>(null);
 
-
+//   useEffect(() => {
+//     console.log("currentPdfPage: ", currentPdfPage);
+//   }, [currentPdfPage]);
 
     const handleConvertAndUpload = async (htmlString: string | null): Promise<string | null> => {
         if (htmlString == null) return null;

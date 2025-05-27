@@ -12,6 +12,8 @@ export const AddDoubt = ({doubtText, refetch, setDoubt, setShowInput}: {doubtTex
     const addDoubt = useAddDoubt()
 
     
+
+    
     const handleAddDoubt = async () => {
         const studentDetails = await getFromStorage("StudentDetails");
         const studentDetailsData: StudentDetailsType = JSON.parse(studentDetails || "{}");
