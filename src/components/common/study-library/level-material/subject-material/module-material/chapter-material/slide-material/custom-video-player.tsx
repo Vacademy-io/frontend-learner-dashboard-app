@@ -31,6 +31,7 @@ import { Preferences } from "@capacitor/preferences";
 import { useContentStore } from "@/stores/study-library/chapter-sidebar-store";
 import VideoQuestionOverlay from "./video-question-overlay";
 import { getPublicUrl } from "@/services/upload_file";
+import { useMediaRefsStore } from "@/stores/mediaRefsStore";
 // import { getPublicUrl } from "@/utils/study-library/storage/get-public-url";
 
 interface CustomVideoPlayerProps {
@@ -112,7 +113,6 @@ const CustomVideoPlayer = forwardRef<any, CustomVideoPlayerProps>(
     const [verificationInterval] = useState(180);
     const [lastVerificationTime, setLastVerificationTime] = useState(0);
     const verificationTimerRef = useRef<NodeJS.Timeout | null>(null);
-    console.log("verification numbers", lastVerificationTime);
     // Concentration metrics
     const [tabSwitchCount, setTabSwitchCount] = useState(0);
     const [pauseCount, setPauseCount] = useState(0);
@@ -123,6 +123,12 @@ const CustomVideoPlayer = forwardRef<any, CustomVideoPlayerProps>(
     );
     const [concentrationScore, setConcentrationScore] = useState(100); // Start with perfect score
     const [actualVideoUrl, setActualVideoUrl] = useState<string | null>(null);
+
+    const {setCurrentUploadedVideoTime} = useMediaRefsStore();
+
+    useEffect(()=>{
+      setCurrentUploadedVideoTime(currentTime);
+    }, [currentTime])
 
     // Expose methods to parent component via ref
     useImperativeHandle(ref, () => ({
