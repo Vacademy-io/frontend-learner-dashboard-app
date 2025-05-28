@@ -49,6 +49,13 @@ export const DoubtResolutionSidebar = () => {
                 if (triggerElement && triggerElement.contains(event.target as Node)) {
                     return; // Don't close if clicking on the trigger
                 }
+                
+                // Check if the click is inside an AlertDialog
+                const alertDialogElement = (event.target as Element).closest('[role="alertdialog"]');
+                if (alertDialogElement) {
+                    return; // Don't close if clicking inside a dialog
+                }
+                
                 setOpen(false);
             }
         };
