@@ -40,7 +40,7 @@ export const DeleteDoubt = ({doubt, refetch}: {doubt: DoubtType, refetch: () => 
 
     return(
         <>
-             <div className="flex gap-1 items-center cursor-pointer" onClick={()=>setShowDeleteDialog(true)}>
+            <div className="flex gap-1 items-center cursor-pointer" onClick={()=>setShowDeleteDialog(true)}>
                 <TrashSimple className="text-danger-500" />
                 <p className="text-body">Delete</p>
             </div>
