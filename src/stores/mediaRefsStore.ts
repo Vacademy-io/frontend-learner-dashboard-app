@@ -9,7 +9,6 @@ interface MediaRefsStore {
   setCurrentUploadedVideoTime: (time: number) => void;
 }
 
-// Create a custom hook to manage media refs
 export const useMediaRefsStore = create<MediaRefsStore>((set) => ({
   // State values
   currentPdfPage: 0,

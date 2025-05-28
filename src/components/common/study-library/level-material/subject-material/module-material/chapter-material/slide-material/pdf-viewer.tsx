@@ -475,6 +475,8 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ documentId, pdfUrl }) => {
         end_time_in_millis: now,
       });
     }
+    // console.log("e.currentPage: ", e.currentPage);
+    // pdfRef.current = e.currentPage;
     setCurrentPage(e.currentPage);
     setCurrentPdfPage(e.currentPage);
     pageStartTime.current = new Date();

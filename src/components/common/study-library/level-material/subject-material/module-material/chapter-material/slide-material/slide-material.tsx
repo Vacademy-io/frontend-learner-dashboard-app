@@ -14,6 +14,7 @@ import CustomVideoPlayer from "./custom-video-player";
 import QuestionSlide from "./question-slide";
 import AssignmentSlide from "./assignment-slide";
 import VideoQuestionOverlay from "./video-question-overlay";
+// import { useMediaRefsStore } from "@/stores/mediaRefsStore";
 
 
 export const SlideMaterial = () => {

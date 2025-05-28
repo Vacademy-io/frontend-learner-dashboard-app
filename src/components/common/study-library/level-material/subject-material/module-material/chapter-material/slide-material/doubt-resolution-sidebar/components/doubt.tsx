@@ -13,7 +13,7 @@ import { MarkAsResolved } from "./MarkAsResolved";
 import { useGetUserBasicDetails } from "@/services/getBasicUserDetails";
 import { getPublicUrl } from "@/services/upload_file";
 import { formatTime } from "../../youtube-player";
-import { EnrollFormUploadImage, SmallDummyProfile } from "@/assets/svgs";
+import { SmallDummyProfile } from "@/assets/svgs";
 
 export const Doubt = ({doubt, refetch}:{doubt:DoubtType, filter:DoubtFilter, refetch: () => void}) => {
     
