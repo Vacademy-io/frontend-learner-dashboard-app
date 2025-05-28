@@ -14,6 +14,7 @@ import { useGetUserBasicDetails } from "@/services/getBasicUserDetails";
 import { getPublicUrl } from "@/services/upload_file";
 import { formatTime } from "../../youtube-player";
 import { SmallDummyProfile } from "@/assets/svgs";
+import { useMediaRefsStore } from "@/stores/mediaRefsStore";
 
 export const Doubt = ({doubt, refetch}:{doubt:DoubtType, filter:DoubtFilter, refetch: () => void}) => {
     
@@ -23,26 +24,33 @@ export const Doubt = ({doubt, refetch}:{doubt:DoubtType, filter:DoubtFilter, ref
     const [showReplies, setShowReplies] = useState<boolean>(false);
     const {activeItem, setActiveItem} = useContentStore();
     const {setOpen} = useSidebar();
+    const { navigateToPdfPage } = useMediaRefsStore();
 
     const handleTimeStampClick = (timestamp: number) => {
-        setActiveItem({
-            id: activeItem?.id || "",
-            source_id: activeItem?.source_id || "",
-            source_type: activeItem?.source_type || "",
-            title: activeItem?.title || "",
-            image_file_id: activeItem?.image_file_id || "",
-            description: activeItem?.description || "",
-            status: activeItem?.status || "",
-            slide_order: activeItem?.slide_order || 0,
-            video_slide: activeItem?.video_slide || undefined,
-            document_slide: activeItem?.document_slide || undefined,
-            question_slide: activeItem?.question_slide || undefined,
-            assignment_slide: activeItem?.assignment_slide || undefined,
-            is_loaded: activeItem?.is_loaded || false,
-            new_slide: false,
-            percentage_completed: 0,
-            progress_marker: timestamp
-          });
+        if (activeItem?.source_type === "DOCUMENT") {
+            // For documents, use the PDF navigation function
+            navigateToPdfPage(timestamp);
+        } else {
+            // For videos, update the progress marker as before
+            setActiveItem({
+                id: activeItem?.id || "",
+                source_id: activeItem?.source_id || "",
+                source_type: activeItem?.source_type || "",
+                title: activeItem?.title || "",
+                image_file_id: activeItem?.image_file_id || "",
+                description: activeItem?.description || "",
+                status: activeItem?.status || "",
+                slide_order: activeItem?.slide_order || 0,
+                video_slide: activeItem?.video_slide || undefined,
+                document_slide: activeItem?.document_slide || undefined,
+                question_slide: activeItem?.question_slide || undefined,
+                assignment_slide: activeItem?.assignment_slide || undefined,
+                is_loaded: activeItem?.is_loaded || false,
+                new_slide: false,
+                percentage_completed: 0,
+                progress_marker: timestamp
+            });
+        }
         setOpen(false);
     }
 
