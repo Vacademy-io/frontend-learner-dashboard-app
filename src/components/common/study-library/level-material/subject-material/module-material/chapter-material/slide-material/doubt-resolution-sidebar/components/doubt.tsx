@@ -13,6 +13,7 @@ import { MarkAsResolved } from "./MarkAsResolved";
 import { useGetUserBasicDetails } from "@/services/getBasicUserDetails";
 import { getPublicUrl } from "@/services/upload_file";
 import { formatTime } from "../../youtube-player";
+import { EnrollFormUploadImage, SmallDummyProfile } from "@/assets/svgs";
 
 export const Doubt = ({doubt, refetch}:{doubt:DoubtType, filter:DoubtFilter, refetch: () => void}) => {
     
@@ -79,20 +80,20 @@ export const Doubt = ({doubt, refetch}:{doubt:DoubtType, filter:DoubtFilter, ref
                 <div className="flex flex-col gap-2">
                     <div className="flex sm:items-center justify-between sm:flex-row flex-col gap-2">
                         <div className="flex items-center gap-2">
-                            <div className="sm:w-10 sm:h-10 w-8 h-8 rounded-full bg-neutral-300">
-                                {/* add image here */}
-                                {imageUrl ? (
-                                    <img
+                        <div className="size-8 rounded-full bg-neutral-300 sm:size-10">
+                            {/* add image here */}
+                            {imageUrl ? (
+                                <img
                                     src={imageUrl}
                                     alt={doubt.name}
                                     className="size-full rounded-lg object-cover "
-                                    />
-                                ) : (
-                                    <></>
-                                )}
-                            </div>
+                                />
+                            ) : (
+                                <SmallDummyProfile />
+                            )}
+                        </div>
                             <div className="text-subtitle text-neutral-700 font-semibold">
-                                {doubt.name}
+                            {userBasicDetails?.[0].name}
                             </div>
                         </div>
                         <div className="flex gap-3 items-center">
