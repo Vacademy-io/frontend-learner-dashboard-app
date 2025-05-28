@@ -111,7 +111,6 @@ const CustomVideoPlayer = forwardRef<any, CustomVideoPlayerProps>(
       []
     );
     const [verificationInterval] = useState(180);
-    const [lastVerificationTime, setLastVerificationTime] = useState(0);
     const verificationTimerRef = useRef<NodeJS.Timeout | null>(null);
     // Concentration metrics
     const [tabSwitchCount, setTabSwitchCount] = useState(0);
@@ -286,14 +285,7 @@ const CustomVideoPlayer = forwardRef<any, CustomVideoPlayerProps>(
             setConcentrationScore(savedMetrics.concentrationScore || 100);
           }
 
-          // Load last verification time
-          const { value: verificationTimeValue } = await Preferences.get({
-            key: "verification_time",
-          });
-          if (verificationTimeValue) {
-            const savedTime = Number.parseInt(verificationTimeValue, 10);
-            setLastVerificationTime(savedTime);
-          }
+          
         } catch (error) {
           console.error("Error loading saved concentration metrics:", error);
         }
@@ -424,7 +416,6 @@ const CustomVideoPlayer = forwardRef<any, CustomVideoPlayerProps>(
       if (index === 1) {
         // Record verification time
         const currentTimeInSeconds = Math.floor(Date.now() / 1000);
-        setLastVerificationTime(currentTimeInSeconds);
         saveVerificationTime(currentTimeInSeconds);
 
         // Hide verification
