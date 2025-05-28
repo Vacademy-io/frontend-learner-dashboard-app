@@ -19,6 +19,7 @@ export const DoubtResolutionSidebar = () => {
     const [doubt, setDoubt] = useState<string>("")
     const {activeItem} = useContentStore();
     const observer = useRef<IntersectionObserver | null>(null);
+    const sidebarRef = useRef<HTMLDivElement>(null);
     
     const [filter, setFilter] = useState<DoubtFilter>({
         name: "",
@@ -38,6 +39,28 @@ export const DoubtResolutionSidebar = () => {
     const {data, isLoading, isError, fetchNextPage, hasNextPage, isFetchingNextPage, refetch} = useGetDoubts(filter);
 
     const [allDoubts, setAllDoubts] = useState<DoubtType[]>(data?.pages.flatMap(page => page.content) || []);
+    
+    // Handle click outside sidebar to close it
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (open && sidebarRef.current && !sidebarRef.current.contains(event.target as Node)) {
+                // Check if the click is on the sidebar trigger button
+                const triggerElement = document.querySelector('[data-sidebar="trigger"]');
+                if (triggerElement && triggerElement.contains(event.target as Node)) {
+                    return; // Don't close if clicking on the trigger
+                }
+                setOpen(false);
+            }
+        };
+
+        if (open) {
+            document.addEventListener('mousedown', handleClickOutside);
+        }
+
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, [open, setOpen]);
     
     useEffect(()=>{
         setAllDoubts(data?.pages.flatMap(page => page.content) || []);
@@ -77,7 +100,7 @@ export const DoubtResolutionSidebar = () => {
 
 
    return(
-      <Sidebar side="right" className={`${open? "w-[50vw]" : "w-0"} bg-white p-4 flex flex-col gap-6 overflow-y-hidden`} >
+      <Sidebar ref={sidebarRef} side="right" className={`${open? "w-[30vw]" : "w-0"} bg-white p-4 flex flex-col gap-6 overflow-y-hidden`} >
         <SidebarHeader className="flex items-center justify-between w-full bg-white overflow-y-hidden">
             <div className="flex items-center justify-between bg-white w-full">
                 <h1 className="sm:text-2xl text-lg font-semibold text-primary-500">Doubt Resolution</h1>
