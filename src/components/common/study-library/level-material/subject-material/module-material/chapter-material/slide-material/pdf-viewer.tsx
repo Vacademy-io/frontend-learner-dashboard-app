@@ -442,6 +442,10 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ documentId, pdfUrl }) => {
     pageStartTime.current = new Date();
     startTimeInMillis.current = now;
 
+    // Set the PDF length in the store
+    const { setCurrentPdfLength } = useMediaRefsStore.getState();
+    setCurrentPdfLength(e.doc.numPages);
+
     if (isFirstView) {
       console.log("integrate add document activity api now");
       syncPDFTrackingData();
