@@ -7,6 +7,8 @@ export const DoubtList = ({allDoubts, isLoading, lastDoubtElementRef, filter, re
     
     // Only show empty state if we're not loading and we truly have no doubts
     const shouldShowEmptyState = !isLoading && !isFetchingNextPage && allDoubts.length === 0;
+
+    console.log("allDoubts from DoubtList: ", allDoubts)
     
     return(
         <div>
@@ -27,7 +29,7 @@ export const DoubtList = ({allDoubts, isLoading, lastDoubtElementRef, filter, re
         :
         shouldShowEmptyState && (
         <div className="flex flex-col h-full items-center justify-center min-h-[70vh] "> 
-            <p className="text-center text-xl text-neutral-600 font-semibold">No doubts {status === "ALL" ? "added" : status=="RESOLVED" ? "resolved" : "unresolved" }</p>
+            <p className="text-center text-xl text-neutral-600">No doubts {status === "ALL" ? "added" : status=="RESOLVED" ? "resolved" : "unresolved" }</p>
             { status === "ALL" && <p className="text-sm text-neutral-500">Add your first doubt</p>}
         </div>
         )
