@@ -8,7 +8,7 @@ interface TimestampChipProps {
     onEdit: () => void;
 }
 
-export const TimestampChip = ({ timestamp, formattedTime, onEdit }: TimestampChipProps) => {
+export const TimestampChip = ({ formattedTime, onEdit }: TimestampChipProps) => {
     const { activeItem } = useContentStore();
     const isDocument = activeItem?.source_type === "DOCUMENT";
 

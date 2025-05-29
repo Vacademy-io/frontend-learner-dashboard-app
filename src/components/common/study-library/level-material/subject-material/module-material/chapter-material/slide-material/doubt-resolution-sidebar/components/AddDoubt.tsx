@@ -22,7 +22,6 @@ export const AddDoubt = ({
     setDoubt, 
     setShowInput, 
     timestamp, 
-    formattedTime
 }: AddDoubtProps) => {
 
     const {activeItem} = useContentStore();

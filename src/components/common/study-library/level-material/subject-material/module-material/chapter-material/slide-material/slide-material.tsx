@@ -94,7 +94,6 @@ export const SlideMaterial = () => {
   };
 
   const handleQuestionSubmit = async (
-    questionId: string,
     selectedOption: string | string[]
   ) => {
     // If selectedOption is an array, pick the first option or handle as needed
@@ -363,8 +362,8 @@ export const SlideMaterial = () => {
         {showVideoQuestion && currentVideoQuestion && (
           <VideoQuestionOverlay
             question={currentVideoQuestion}
-            onSubmit={(optionId) =>
-              handleQuestionSubmit(currentVideoQuestion.id, optionId)
+            onSubmit={() =>
+              handleQuestionSubmit(currentVideoQuestion.id)
             }
             onClose={() => {
               setShowVideoQuestion(false);
