@@ -14,7 +14,6 @@ import CustomVideoPlayer from "./custom-video-player";
 import QuestionSlide from "./question-slide";
 import AssignmentSlide from "./assignment-slide";
 import VideoQuestionOverlay from "./video-question-overlay";
-import { MyButton } from "@/components/design-system/button";
 // import { useMediaRefsStore } from "@/stores/mediaRefsStore";
 
 
@@ -104,6 +103,7 @@ export const SlideMaterial = () => {
       : selectedOption;
 
 
+    console.log(`Answer for ${questionId}: ${optionToSubmit}`);
 
 
     if (showVideoQuestion && playerRef.current) {
@@ -304,12 +304,12 @@ export const SlideMaterial = () => {
 
     return (
         <div className="flex w-full flex-col" ref={selectionRef}>
-            <div className=" flex items-center justify-between gap-6 border-b border-neutral-300 px-8 py-4">
+            <div className="-mx-8 -my-3 flex items-center justify-between gap-6 border-b border-neutral-300 px-8 py-2">
                 <h3 className="text-subtitle font-semibold text-neutral-600">
                     {heading || "No content"}
                 </h3>
-                <SidebarTrigger className="mr-6">
-                    <MyButton scale="medium" className=" flex items-center gap-2" buttonType="secondary" ><p className="leading-[1rem]">Doubts</p> <ChatText /></MyButton>
+                <SidebarTrigger  className="[&_svg]:size-6">
+                    <ChatText className="text-neutral-500"/>
                 </SidebarTrigger>
             </div>
             <div

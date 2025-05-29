@@ -157,7 +157,7 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({
   }>
   >([]);
   
-  const {setCurrentYoutubeTime, setCurrentYoutubeVideoLength} = useMediaRefsStore();
+  const {setCurrentYoutubeTime} = useMediaRefsStore();
   
   useEffect(()=>{
       setCurrentYoutubeTime(currentTime);
@@ -529,15 +529,13 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({
       try {
         const dur = await safeGetNumber(player.getDuration());
         setDuration(dur);
-        // Set the YouTube video length in the store
-        setCurrentYoutubeVideoLength(dur);
       } catch (error) {
         console.error("Error getting duration:", error);
       }
     };
 
     getDuration();
-  }, [player, setCurrentYoutubeVideoLength]);
+  }, [player]);
 
   // Update current time periodically
   useEffect(() => {

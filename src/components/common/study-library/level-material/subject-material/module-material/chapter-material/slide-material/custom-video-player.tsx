@@ -834,9 +834,6 @@ const CustomVideoPlayer = forwardRef<any, CustomVideoPlayerProps>(
       if (videoRef.current) {
         setDuration(videoRef.current.duration);
         setIsLoading(false);
-        // Set the custom video length in the store
-        const { setCurrentCustomVideoLength } = useMediaRefsStore.getState();
-        setCurrentCustomVideoLength(videoRef.current.duration);
       }
     };
 
