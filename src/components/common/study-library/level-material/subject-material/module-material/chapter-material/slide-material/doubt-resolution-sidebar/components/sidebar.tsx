@@ -2,7 +2,6 @@ import { MyButton } from "@/components/design-system/button";
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, useSidebar } from "@/components/ui/sidebar"
 import { X } from "@phosphor-icons/react"
 import {  useState, useRef, useCallback, useEffect } from "react";
-import { Doubt } from "./doubt";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MainViewQuillEditor } from "@/components/quill/MainViewQuillEditor";
 import { useContentStore } from "@/stores/study-library/chapter-sidebar-store";
@@ -10,6 +9,8 @@ import { DoubtFilter, Doubt as DoubtType } from "../types/get-doubts-type";
 import { useGetDoubts } from "../services/GetDoubts";
 import { DashboardLoader } from "@/components/core/dashboard-loader";
 import { AddDoubt } from "./AddDoubt";
+import { DoubtList } from "./doubt-list";
+
 const TabsTriggerClass = "w-full data-[state=active]:shadow-none rounded-none rounded-tl-md rounded-tr-md border-white border-l-[1px] border-r-[1px] border-t-[1px] data-[state=active]:border-primary-200 data-[state=active]:text-primary-500 pt-2"
 
 export const DoubtResolutionSidebar = () => {
@@ -36,7 +37,7 @@ export const DoubtResolutionSidebar = () => {
         },
     })
     
-    const {data, isLoading, isError, fetchNextPage, hasNextPage, isFetchingNextPage, refetch} = useGetDoubts(filter);
+    const {data, isLoading, isError, fetchNextPage, hasNextPage, isFetchingNextPage, refetch, isPending} = useGetDoubts(filter);
 
     const [allDoubts, setAllDoubts] = useState<DoubtType[]>(data?.pages.flatMap(page => page.content) || []);
     
@@ -102,7 +103,7 @@ export const DoubtResolutionSidebar = () => {
         if (node) observer.current.observe(node);
     }, [isLoading, hasNextPage, isFetchingNextPage, fetchNextPage]);
 
-   if (isLoading) return <DashboardLoader />
+   if (isPending) return <DashboardLoader />
    if(isError) return <p>Error fetching doubts</p>
 
 
@@ -121,59 +122,20 @@ export const DoubtResolutionSidebar = () => {
                     <TabsTrigger value="RESOLVED" className={TabsTriggerClass}>Resolved</TabsTrigger>
                     <TabsTrigger value="UNRESOLVED" className={TabsTriggerClass}>Unresolved</TabsTrigger>
                 </TabsList>
-                <TabsContent value="ALL" className="flex flex-col gap-4">
-                    {isLoading && <DashboardLoader />}
-                    {allDoubts.map((doubt, index) => (
-                        <div 
-                            key={doubt.id || index}
-                            ref={index === allDoubts.length - 1 ? lastDoubtElementRef : undefined}
-                        >
-                            <Doubt 
-                                doubt={doubt} 
-                                filter={filter}
-                                refetch={refetch}
-                            />
-                        </div>
-                    ))}
-                    {isFetchingNextPage && <DashboardLoader />}
+                <TabsContent value="ALL" className="flex flex-col gap-4 items-center justify-center">
+                    <DoubtList allDoubts={allDoubts} isLoading={isPending || isLoading} lastDoubtElementRef={lastDoubtElementRef} filter={filter} refetch={refetch} isFetchingNextPage={isFetchingNextPage} status="ALL" />
                 </TabsContent>
                 <TabsContent value="RESOLVED" className="flex flex-col gap-4">
-                {isLoading && <DashboardLoader />}
-                    {allDoubts.map((doubt, index) => (
-                        <div 
-                            key={doubt.id || index}
-                            ref={index === allDoubts.length - 1 ? lastDoubtElementRef : undefined}
-                        >
-                            <Doubt 
-                                doubt={doubt}
-                                filter={filter}
-                                refetch={refetch}
-                            />
-                        </div>
-                    ))}
-                    {isFetchingNextPage && <DashboardLoader />}
+                    <DoubtList allDoubts={allDoubts} isLoading={isPending || isLoading} lastDoubtElementRef={lastDoubtElementRef} filter={filter} refetch={refetch} isFetchingNextPage={isFetchingNextPage} status="RESOLVED" />
                 </TabsContent>
                 <TabsContent value="UNRESOLVED" className="flex flex-col gap-4">
-                {isLoading && <DashboardLoader />}
-                    {allDoubts.map((doubt, index) => (
-                        <div 
-                            key={doubt.id || index}
-                            ref={index === allDoubts.length - 1 ? lastDoubtElementRef : undefined}
-                        >
-                            <Doubt 
-                                doubt={doubt} 
-                                filter={filter}
-                                refetch={refetch}
-                            />
-                        </div>
-                    ))}
-                    {isFetchingNextPage && <DashboardLoader />}
+                    <DoubtList allDoubts={allDoubts} isLoading={isPending || isLoading} lastDoubtElementRef={lastDoubtElementRef} filter={filter} refetch={refetch} isFetchingNextPage={isFetchingNextPage} status="ACTIVE" />
                 </TabsContent>
             </Tabs>
         </SidebarContent>
         <SidebarFooter className="w-full flex items-center justify-center bg-white sm:py-0">
             {showInput ? (
-                <div className=" items-center rounded-md p-3 w-full flex gap-2">
+                <div className=" items-center rounded-md py-3 w-full flex gap-2">
                     <MainViewQuillEditor
                         value={doubt}
                         onChange={setDoubt}
