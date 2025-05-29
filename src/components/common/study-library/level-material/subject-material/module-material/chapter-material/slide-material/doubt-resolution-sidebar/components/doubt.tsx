@@ -14,7 +14,7 @@ import { useGetUserBasicDetails } from "@/services/getBasicUserDetails";
 import { getPublicUrl } from "@/services/upload_file";
 import { formatTime } from "../../youtube-player";
 import { SmallDummyProfile } from "@/assets/svgs";
-import { useMediaRefsStore } from "@/stores/mediaRefsStore";
+    import { useMediaRefsStore } from "@/stores/mediaRefsStore";
 
 export const Doubt = ({doubt, refetch}:{doubt:DoubtType, filter:DoubtFilter, refetch: () => void}) => {
     
@@ -100,7 +100,7 @@ export const Doubt = ({doubt, refetch}:{doubt:DoubtType, filter:DoubtFilter, ref
                                 <SmallDummyProfile />
                             )}
                         </div>
-                            <div className="text-subtitle text-neutral-700 font-semibold">
+                            <div className="text-subtitle text-lg text-neutral-700 font-semibold">
                             {userBasicDetails?.[0].name}
                             </div>
                         </div>
@@ -109,26 +109,28 @@ export const Doubt = ({doubt, refetch}:{doubt:DoubtType, filter:DoubtFilter, ref
                             <p className="text-neutral-500 sm:text-body text-caption">{formatISODateTimeReadable(doubt.raised_time)}</p>
                         </div>
                     </div>
-                        {(activeItem?.source_type=="VIDEO" || activeItem?.source_type=="DOCUMENT") &&
-                            <div className="flex items-center justify-between">
-                                <div className="flex gap-2">
-                                    <p><span className="font-semibold">Timestamp: </span>{activeItem?.source_type=="VIDEO" ? formatTime(parseInt(doubt.content_position || "0")/1000) : parseInt(doubt.content_position || "0") + 1 }</p>
-                                    <ArrowSquareOut className="cursor-pointer mt-[3px]" onClick={()=>handleTimeStampClick(parseInt(doubt.content_position || "0"))}/>   
-                                </div>
-                                {userId && doubt.user_id === userId && doubt.replies.length>0 && ( 
-                                <MarkAsResolved doubt={doubt} refetch={refetch}/>
-                                )}
+                    <div className="flex flex-col gap-3">
+                    {(activeItem?.source_type=="VIDEO" || activeItem?.source_type=="DOCUMENT") &&
+                        <div className="flex items-center justify-between">
+                            <div className="flex gap-3 items-center justify-center">
+                                <p className="text-body font-semibold text-neutral-500"><span className="font-semibold text-neutral-600">Timestamp: </span>{activeItem?.source_type=="VIDEO" ? formatTime(parseInt(doubt.content_position || "0")/1000) : parseInt(doubt.content_position || "0") + 1 }</p>
+                                <ArrowSquareOut className="cursor-pointer" onClick={()=>handleTimeStampClick(parseInt(doubt.content_position || "0"))}/>   
                             </div>
-                        }
+                            {userId && doubt.user_id === userId && doubt.replies.length>0 && ( 
+                            <MarkAsResolved doubt={doubt} refetch={refetch}/>
+                            )}
+                        </div>
+                    }
                     <div
                         dangerouslySetInnerHTML={{
                             __html:doubt.html_text || '',
                         }}
-                        className="custom-html-content"
+                        className="custom-html-content text-neutral-500"
                     />
                     {doubt.user_id==userId && doubt.replies.length==0 && 
                        <DeleteDoubt doubt={doubt} refetch={refetch} />
                     }
+                    </div>
                 </div>
                 {doubt.replies.length>0 &&
                     <div className="flex flex-col gap-1">

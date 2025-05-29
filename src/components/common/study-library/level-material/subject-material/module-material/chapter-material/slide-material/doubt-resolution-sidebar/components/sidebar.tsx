@@ -137,7 +137,7 @@ export const DoubtResolutionSidebar = () => {
 
    return(
       <>
-        <Sidebar ref={sidebarRef} side="right" className={`${open? "w-[30vw]" : "w-0"} bg-white p-4 flex flex-col gap-6 overflow-y-hidden`} >
+        <Sidebar ref={sidebarRef} side="right" className={`${open? "w-[35vw]" : "w-0"} bg-white p-4 flex flex-col gap-6 overflow-y-hidden`} >
           <SidebarHeader className="flex items-center justify-between w-full bg-white overflow-y-hidden">
               <div className="flex items-center justify-between bg-white w-full">
                   <h1 className="sm:text-2xl text-lg font-semibold text-primary-500">Doubt Resolution</h1>
@@ -145,13 +145,13 @@ export const DoubtResolutionSidebar = () => {
               </div>
           </SidebarHeader>
           <SidebarContent className="flex flex-col gap-4 overflow-y-scroll no-scrollbar bg-white pt-6">
-              <Tabs defaultValue="ALL" onValueChange={(value) => { handleTabChange(value) }}>
+              <Tabs defaultValue="ALL" onValueChange={(value) => { handleTabChange(value) }} className="flex flex-col gap-4">
                   <TabsList className="w-full flex border-b border-neutral-300 p-0 bg-white rounded-none">
                       <TabsTrigger value="ALL" className={TabsTriggerClass}>All</TabsTrigger>
                       <TabsTrigger value="RESOLVED" className={TabsTriggerClass}>Resolved</TabsTrigger>
                       <TabsTrigger value="UNRESOLVED" className={TabsTriggerClass}>Unresolved</TabsTrigger>
                   </TabsList>
-                  <TabsContent value="ALL" className="flex flex-col gap-4 items-center justify-center">
+                  <TabsContent value="ALL" className="flex flex-col gap-4 ">
                       <DoubtList allDoubts={allDoubts} isLoading={isPending || isLoading} lastDoubtElementRef={lastDoubtElementRef} filter={filter} refetch={refetch} isFetchingNextPage={isFetchingNextPage} status="ALL" />
                   </TabsContent>
                   <TabsContent value="RESOLVED" className="flex flex-col gap-4">
