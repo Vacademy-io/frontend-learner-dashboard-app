@@ -3,18 +3,41 @@ import { DoubtType, StudentDetailsType } from "../types/add-doubt-type"
 import { getFromStorage } from "@/components/common/LoginPages/sections/login-form";
 import { useContentStore } from "@/stores/study-library/chapter-sidebar-store";
 import { useAddDoubt } from "../services/AddDoubt";
-import { ArrowUp } from "@phosphor-icons/react";
+import { ArrowUp, Clock } from "@phosphor-icons/react";
 import { toast } from "sonner";
 import { useMediaRefsStore } from "@/stores/mediaRefsStore";
 
+interface AddDoubtProps {
+    doubtText: string;
+    refetch: () => void;
+    setDoubt: (doubt: string) => void;
+    setShowInput: (showInput: boolean) => void;
+    timestamp?: number;
+    formattedTime?: string;
+    onTimestampClick: () => void;
+}
 
-export const AddDoubt = ({doubtText, refetch, setDoubt, setShowInput}: {doubtText: string, refetch: () => void, setDoubt: (doubt: string) => void, setShowInput: (showInput: boolean) => void}) => {
+export const AddDoubt = ({
+    doubtText, 
+    refetch, 
+    setDoubt, 
+    setShowInput, 
+    timestamp, 
+    formattedTime,
+    onTimestampClick
+}: AddDoubtProps) => {
 
     const {activeItem} = useContentStore();
     const addDoubt = useAddDoubt()
     const { currentPdfPage, currentYoutubeTime, currentUploadedVideoTime } = useMediaRefsStore();
     
     const progressMarker = (() => {
+        // If timestamp is provided, use it
+        if (timestamp !== undefined) {
+            return timestamp;
+        }
+        
+        // Otherwise use current position
         switch(activeItem?.source_type){
             case "DOCUMENT":
                 return currentPdfPage;
@@ -29,9 +52,6 @@ export const AddDoubt = ({doubtText, refetch, setDoubt, setShowInput}: {doubtTex
                 return null;
         }
     })();
-
-    
-
     
     const handleAddDoubt = async () => {
         const studentDetails = await getFromStorage("StudentDetails");
@@ -67,8 +87,22 @@ export const AddDoubt = ({doubtText, refetch, setDoubt, setShowInput}: {doubtTex
     }
 
     return (
-        <MyButton layoutVariant="icon" disable={doubtText.length === 0} onClick={()=>handleAddDoubt()}>
-            <ArrowUp />
-        </MyButton>
+        <div className="flex flex-col items-center gap-2">
+            <MyButton 
+                layoutVariant="icon" 
+                buttonType="secondary" 
+                onClick={onTimestampClick}
+                className="mb-1"
+            >
+                <Clock />
+            </MyButton>
+            <MyButton 
+                layoutVariant="icon" 
+                disable={doubtText.length === 0} 
+                onClick={handleAddDoubt}
+            >
+                <ArrowUp />
+            </MyButton>
+        </div>
     )
 }

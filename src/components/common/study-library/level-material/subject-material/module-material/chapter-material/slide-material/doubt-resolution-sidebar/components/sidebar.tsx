@@ -10,6 +10,8 @@ import { useGetDoubts } from "../services/GetDoubts";
 import { DashboardLoader } from "@/components/core/dashboard-loader";
 import { AddDoubt } from "./AddDoubt";
 import { DoubtList } from "./doubt-list";
+import { TimestampDialog } from "./TimestampDialog";
+import { TimestampChip } from "./TimestampChip";
 
 const TabsTriggerClass = "w-full data-[state=active]:shadow-none rounded-none rounded-tl-md rounded-tr-md border-white border-l-[1px] border-r-[1px] border-t-[1px] data-[state=active]:border-primary-200 data-[state=active]:text-primary-500 pt-2"
 
@@ -18,6 +20,9 @@ export const DoubtResolutionSidebar = () => {
     const {open, setOpen} = useSidebar();
     const [showInput, setShowInput] = useState<boolean>(false)
     const [doubt, setDoubt] = useState<string>("")
+    const [showTimestampDialog, setShowTimestampDialog] = useState<boolean>(false)
+    const [timestamp, setTimestamp] = useState<number | undefined>(undefined)
+    const [formattedTime, setFormattedTime] = useState<string | undefined>(undefined)
     const {activeItem} = useContentStore();
     const observer = useRef<IntersectionObserver | null>(null);
     const sidebarRef = useRef<HTMLDivElement>(null);
@@ -54,6 +59,12 @@ export const DoubtResolutionSidebar = () => {
                 // Check if the click is inside an AlertDialog
                 const alertDialogElement = (event.target as Element).closest('[role="alertdialog"]');
                 if (alertDialogElement) {
+                    return; // Don't close if clicking inside a dialog
+                }
+                
+                // Check if the click is inside a Dialog (for timestamp dialog)
+                const dialogElement = (event.target as Element).closest('[role="dialog"]');
+                if (dialogElement) {
                     return; // Don't close if clicking inside a dialog
                 }
                 
@@ -103,55 +114,102 @@ export const DoubtResolutionSidebar = () => {
         if (node) observer.current.observe(node);
     }, [isLoading, hasNextPage, isFetchingNextPage, fetchNextPage]);
 
+    const handleTimestampSet = (newTimestamp: number, newFormattedTime: string) => {
+        setTimestamp(newTimestamp);
+        setFormattedTime(newFormattedTime);
+    };
+
+    const handleTimestampEdit = () => {
+        setShowTimestampDialog(true);
+    };
+
+    const handleTimestampRemove = () => {
+        setTimestamp(undefined);
+        setFormattedTime(undefined);
+    };
+
+    const handleTimestampClick = () => {
+        setShowTimestampDialog(true);
+    };
+
    if (isPending) return <DashboardLoader />
    if(isError) return <p>Error fetching doubts</p>
 
 
    return(
-      <Sidebar ref={sidebarRef} side="right" className={`${open? "w-[30vw]" : "w-0"} bg-white p-4 flex flex-col gap-6 overflow-y-hidden`} >
-        <SidebarHeader className="flex items-center justify-between w-full bg-white overflow-y-hidden">
-            <div className="flex items-center justify-between bg-white w-full">
-                <h1 className="sm:text-2xl text-lg font-semibold text-primary-500">Doubt Resolution</h1>
-                <X className="hover:cursor-pointer" onClick={()=>setOpen(false)} />
-            </div>
-        </SidebarHeader>
-        <SidebarContent className="flex flex-col gap-4 overflow-y-scroll no-scrollbar bg-white pt-6">
-            <Tabs defaultValue="ALL" onValueChange={(value) => { handleTabChange(value) }}>
-                <TabsList className="w-full flex border-b border-neutral-300 p-0 bg-white rounded-none">
-                    <TabsTrigger value="ALL" className={TabsTriggerClass}>All</TabsTrigger>
-                    <TabsTrigger value="RESOLVED" className={TabsTriggerClass}>Resolved</TabsTrigger>
-                    <TabsTrigger value="UNRESOLVED" className={TabsTriggerClass}>Unresolved</TabsTrigger>
-                </TabsList>
-                <TabsContent value="ALL" className="flex flex-col gap-4 items-center justify-center">
-                    <DoubtList allDoubts={allDoubts} isLoading={isPending || isLoading} lastDoubtElementRef={lastDoubtElementRef} filter={filter} refetch={refetch} isFetchingNextPage={isFetchingNextPage} status="ALL" />
-                </TabsContent>
-                <TabsContent value="RESOLVED" className="flex flex-col gap-4">
-                    <DoubtList allDoubts={allDoubts} isLoading={isPending || isLoading} lastDoubtElementRef={lastDoubtElementRef} filter={filter} refetch={refetch} isFetchingNextPage={isFetchingNextPage} status="RESOLVED" />
-                </TabsContent>
-                <TabsContent value="UNRESOLVED" className="flex flex-col gap-4">
-                    <DoubtList allDoubts={allDoubts} isLoading={isPending || isLoading} lastDoubtElementRef={lastDoubtElementRef} filter={filter} refetch={refetch} isFetchingNextPage={isFetchingNextPage} status="ACTIVE" />
-                </TabsContent>
-            </Tabs>
-        </SidebarContent>
-        <SidebarFooter className="w-full flex items-center justify-center bg-white sm:py-0">
-            {showInput ? (
-                <div className=" items-center rounded-md py-3 w-full flex gap-2">
-                    <MainViewQuillEditor
-                        value={doubt}
-                        onChange={setDoubt}
-                        className="w-full sm:mb-10 mb-16 h-[80px] max-sm:h-[50px]"
-                    />
-                    <div className="flex flex-col items-center gap-3">
-                        <AddDoubt doubtText={doubt} refetch={refetch} setDoubt={setDoubt} setShowInput={setShowInput} />
-                        <MyButton layoutVariant="icon" buttonType="secondary" onClick={()=>setShowInput(false)}>
-                            <X />
-                        </MyButton>
-                    </div>
-                </div>
-            ):
-            <MyButton scale="large" onClick={()=>setShowInput(true)}>Ask Doubt</MyButton>
-            }
-        </SidebarFooter>
-      </Sidebar>
+      <>
+        <Sidebar ref={sidebarRef} side="right" className={`${open? "w-[30vw]" : "w-0"} bg-white p-4 flex flex-col gap-6 overflow-y-hidden`} >
+          <SidebarHeader className="flex items-center justify-between w-full bg-white overflow-y-hidden">
+              <div className="flex items-center justify-between bg-white w-full">
+                  <h1 className="sm:text-2xl text-lg font-semibold text-primary-500">Doubt Resolution</h1>
+                  <X className="hover:cursor-pointer" onClick={()=>setOpen(false)} />
+              </div>
+          </SidebarHeader>
+          <SidebarContent className="flex flex-col gap-4 overflow-y-scroll no-scrollbar bg-white pt-6">
+              <Tabs defaultValue="ALL" onValueChange={(value) => { handleTabChange(value) }}>
+                  <TabsList className="w-full flex border-b border-neutral-300 p-0 bg-white rounded-none">
+                      <TabsTrigger value="ALL" className={TabsTriggerClass}>All</TabsTrigger>
+                      <TabsTrigger value="RESOLVED" className={TabsTriggerClass}>Resolved</TabsTrigger>
+                      <TabsTrigger value="UNRESOLVED" className={TabsTriggerClass}>Unresolved</TabsTrigger>
+                  </TabsList>
+                  <TabsContent value="ALL" className="flex flex-col gap-4 items-center justify-center">
+                      <DoubtList allDoubts={allDoubts} isLoading={isPending || isLoading} lastDoubtElementRef={lastDoubtElementRef} filter={filter} refetch={refetch} isFetchingNextPage={isFetchingNextPage} status="ALL" />
+                  </TabsContent>
+                  <TabsContent value="RESOLVED" className="flex flex-col gap-4">
+                      <DoubtList allDoubts={allDoubts} isLoading={isPending || isLoading} lastDoubtElementRef={lastDoubtElementRef} filter={filter} refetch={refetch} isFetchingNextPage={isFetchingNextPage} status="RESOLVED" />
+                  </TabsContent>
+                  <TabsContent value="UNRESOLVED" className="flex flex-col gap-4">
+                      <DoubtList allDoubts={allDoubts} isLoading={isPending || isLoading} lastDoubtElementRef={lastDoubtElementRef} filter={filter} refetch={refetch} isFetchingNextPage={isFetchingNextPage} status="ACTIVE" />
+                  </TabsContent>
+              </Tabs>
+          </SidebarContent>
+          <SidebarFooter className="w-full flex items-center justify-center bg-white sm:py-0">
+              {showInput ? (
+                  <div className="items-center rounded-md py-3 w-full flex gap-2">
+                      <div className="flex flex-col gap-2 w-full">
+                          {timestamp !== undefined && formattedTime && (
+                              <div className="flex items-center gap-2">
+                                  <TimestampChip
+                                      timestamp={timestamp}
+                                      formattedTime={formattedTime}
+                                      onEdit={handleTimestampEdit}
+                                      onRemove={handleTimestampRemove}
+                                  />
+                              </div>
+                          )}
+                          <MainViewQuillEditor
+                              value={doubt}
+                              onChange={setDoubt}
+                              className="w-full sm:mb-10 mb-16 h-[80px] max-sm:h-[50px]"
+                          />
+                      </div>
+                      <div className="flex flex-col items-center gap-3">
+                          <AddDoubt 
+                              doubtText={doubt} 
+                              refetch={refetch} 
+                              setDoubt={setDoubt} 
+                              setShowInput={setShowInput}
+                              timestamp={timestamp}
+                              formattedTime={formattedTime}
+                              onTimestampClick={handleTimestampClick}
+                          />
+                          <MyButton layoutVariant="icon" buttonType="secondary" onClick={()=>setShowInput(false)}>
+                              <X />
+                          </MyButton>
+                      </div>
+                  </div>
+              ):
+              <MyButton scale="large" onClick={()=>setShowInput(true)}>Ask Doubt</MyButton>
+              }
+          </SidebarFooter>
+        </Sidebar>
+        
+        <TimestampDialog
+            open={showTimestampDialog}
+            onOpenChange={setShowTimestampDialog}
+            onTimestampSet={handleTimestampSet}
+            initialTimestamp={timestamp}
+        />
+      </>
    )
 }
