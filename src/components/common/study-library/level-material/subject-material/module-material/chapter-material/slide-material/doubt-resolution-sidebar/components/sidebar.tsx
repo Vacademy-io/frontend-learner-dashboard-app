@@ -117,18 +117,19 @@ export const DoubtResolutionSidebar = () => {
     const handleTimestampSet = (newTimestamp: number, newFormattedTime: string) => {
         setTimestamp(newTimestamp);
         setFormattedTime(newFormattedTime);
+        setShowTimestampDialog(false);
+        setShowInput(true);
     };
 
     const handleTimestampEdit = () => {
         setShowTimestampDialog(true);
     };
 
-    const handleTimestampRemove = () => {
-        setTimestamp(undefined);
-        setFormattedTime(undefined);
+    const handleTimestampClick = () => {
+        setShowTimestampDialog(true);
     };
 
-    const handleTimestampClick = () => {
+    const handleAskDoubtClick = () => {
         setShowTimestampDialog(true);
     };
 
@@ -173,7 +174,6 @@ export const DoubtResolutionSidebar = () => {
                                       timestamp={timestamp}
                                       formattedTime={formattedTime}
                                       onEdit={handleTimestampEdit}
-                                      onRemove={handleTimestampRemove}
                                   />
                               </div>
                           )}
@@ -191,7 +191,6 @@ export const DoubtResolutionSidebar = () => {
                               setShowInput={setShowInput}
                               timestamp={timestamp}
                               formattedTime={formattedTime}
-                              onTimestampClick={handleTimestampClick}
                           />
                           <MyButton layoutVariant="icon" buttonType="secondary" onClick={()=>setShowInput(false)}>
                               <X />
@@ -199,7 +198,7 @@ export const DoubtResolutionSidebar = () => {
                       </div>
                   </div>
               ):
-              <MyButton scale="large" onClick={()=>setShowInput(true)}>Ask Doubt</MyButton>
+              <MyButton scale="large" onClick={handleAskDoubtClick}>Ask Doubt</MyButton>
               }
           </SidebarFooter>
         </Sidebar>

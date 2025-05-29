@@ -1,15 +1,14 @@
 import { Badge } from "@/components/ui/badge";
-import { Clock, FileText, X } from "@phosphor-icons/react";
+import { Clock, FileText } from "@phosphor-icons/react";
 import { useContentStore } from "@/stores/study-library/chapter-sidebar-store";
 
 interface TimestampChipProps {
     timestamp: number;
     formattedTime: string;
     onEdit: () => void;
-    onRemove: () => void;
 }
 
-export const TimestampChip = ({ timestamp, formattedTime, onEdit, onRemove }: TimestampChipProps) => {
+export const TimestampChip = ({ timestamp, formattedTime, onEdit }: TimestampChipProps) => {
     const { activeItem } = useContentStore();
     const isDocument = activeItem?.source_type === "DOCUMENT";
 
@@ -25,13 +24,6 @@ export const TimestampChip = ({ timestamp, formattedTime, onEdit, onRemove }: Ti
                 <Clock className="w-3 h-3" />
             )}
             <span className="text-xs font-medium">{formattedTime}</span>
-            <X 
-                className="w-3 h-3 ml-1 hover:text-primary-900 cursor-pointer" 
-                onClick={(e) => {
-                    e.stopPropagation();
-                    onRemove();
-                }}
-            />
         </Badge>
     );
 }; 
