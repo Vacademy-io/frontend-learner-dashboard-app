@@ -112,7 +112,7 @@ export const Doubt = ({doubt, refetch}:{doubt:DoubtType, filter:DoubtFilter, ref
                     <div className="flex flex-col gap-3">
                     {(activeItem?.source_type=="VIDEO" || activeItem?.source_type=="DOCUMENT") &&
                         <div className="flex items-center justify-between">
-                            <div className="flex gap-3 items-center justify-center">
+                            <div className="flex gap-1 items-center justify-center line-clamp-[1rem]">
                                 <p className="text-body font-semibold text-neutral-500"><span className="font-semibold text-neutral-600">Timestamp: </span>{activeItem?.source_type=="VIDEO" ? formatTime(parseInt(doubt.content_position || "0")/1000) : parseInt(doubt.content_position || "0") + 1 }</p>
                                 <ArrowSquareOut className="cursor-pointer" onClick={()=>handleTimeStampClick(parseInt(doubt.content_position || "0"))}/>   
                             </div>
