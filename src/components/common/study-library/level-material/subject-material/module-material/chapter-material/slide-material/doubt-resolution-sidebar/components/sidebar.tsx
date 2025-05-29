@@ -151,13 +151,14 @@ export const DoubtResolutionSidebar = () => {
                       <TabsTrigger value="RESOLVED" className={TabsTriggerClass}>Resolved</TabsTrigger>
                       <TabsTrigger value="UNRESOLVED" className={TabsTriggerClass}>Unresolved</TabsTrigger>
                   </TabsList>
-                  <TabsContent value="ALL" className="flex flex-col gap-4 ">
+                  
+                  <TabsContent value="ALL" className="flex flex-col gap-4 data-[state=inactive]:hidden ">
                       <DoubtList allDoubts={allDoubts} isLoading={isPending || isLoading} lastDoubtElementRef={lastDoubtElementRef} filter={filter} refetch={refetch} isFetchingNextPage={isFetchingNextPage} status="ALL" />
                   </TabsContent>
-                  <TabsContent value="RESOLVED" className="flex flex-col gap-4">
+                  <TabsContent value="RESOLVED" className="flex flex-col gap-4 data-[state=inactive]:hidden ">
                       <DoubtList allDoubts={allDoubts} isLoading={isPending || isLoading} lastDoubtElementRef={lastDoubtElementRef} filter={filter} refetch={refetch} isFetchingNextPage={isFetchingNextPage} status="RESOLVED" />
                   </TabsContent>
-                  <TabsContent value="UNRESOLVED" className="flex flex-col gap-4">
+                  <TabsContent value="UNRESOLVED" className="flex flex-col gap-4 data-[state=inactive]:hidden ">
                       <DoubtList allDoubts={allDoubts} isLoading={isPending || isLoading} lastDoubtElementRef={lastDoubtElementRef} filter={filter} refetch={refetch} isFetchingNextPage={isFetchingNextPage} status="ACTIVE" />
                   </TabsContent>
               </Tabs>
