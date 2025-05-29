@@ -3,7 +3,7 @@ import { DoubtType, StudentDetailsType } from "../types/add-doubt-type"
 import { getFromStorage } from "@/components/common/LoginPages/sections/login-form";
 import { useContentStore } from "@/stores/study-library/chapter-sidebar-store";
 import { useAddDoubt } from "../services/AddDoubt";
-import { ArrowUp, Clock } from "@phosphor-icons/react";
+import { ArrowUp } from "@phosphor-icons/react";
 import { toast } from "sonner";
 import { useMediaRefsStore } from "@/stores/mediaRefsStore";
 
@@ -14,7 +14,6 @@ interface AddDoubtProps {
     setShowInput: (showInput: boolean) => void;
     timestamp?: number;
     formattedTime?: string;
-    onTimestampClick: () => void;
 }
 
 export const AddDoubt = ({
@@ -23,8 +22,7 @@ export const AddDoubt = ({
     setDoubt, 
     setShowInput, 
     timestamp, 
-    formattedTime,
-    onTimestampClick
+    formattedTime
 }: AddDoubtProps) => {
 
     const {activeItem} = useContentStore();
@@ -87,22 +85,12 @@ export const AddDoubt = ({
     }
 
     return (
-        <div className="flex flex-col items-center gap-2">
-            <MyButton 
-                layoutVariant="icon" 
-                buttonType="secondary" 
-                onClick={onTimestampClick}
-                className="mb-1"
-            >
-                <Clock />
-            </MyButton>
-            <MyButton 
-                layoutVariant="icon" 
-                disable={doubtText.length === 0} 
-                onClick={handleAddDoubt}
-            >
-                <ArrowUp />
-            </MyButton>
-        </div>
+        <MyButton 
+            layoutVariant="icon" 
+            disable={doubtText.length === 0} 
+            onClick={handleAddDoubt}
+        >
+            <ArrowUp />
+        </MyButton>
     )
 }
