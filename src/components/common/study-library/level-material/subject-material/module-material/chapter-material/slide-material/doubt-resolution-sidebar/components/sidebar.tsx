@@ -125,11 +125,9 @@ export const DoubtResolutionSidebar = () => {
         setShowTimestampDialog(true);
     };
 
-    const handleTimestampClick = () => {
-        setShowTimestampDialog(true);
-    };
-
     const handleAskDoubtClick = () => {
+        setTimestamp(undefined);
+        setFormattedTime(undefined);
         setShowTimestampDialog(true);
     };
 
