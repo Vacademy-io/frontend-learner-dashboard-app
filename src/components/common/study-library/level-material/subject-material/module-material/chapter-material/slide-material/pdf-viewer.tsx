@@ -14,7 +14,7 @@ import "@react-pdf-viewer/default-layout/lib/styles/index.css";
 import { getISTTime } from "./utils";
 import { usePDFSync } from "@/hooks/study-library/usePdfSync";
 import { getEpochTimeInMillis } from "./utils";
-import { PdfViewerComponent, PdfViewerComponentRef } from "./pdf-viewer-component";
+import { PdfViewerComponent } from "./pdf-viewer-component";
 import { Preferences } from "@capacitor/preferences";
 import { useContentStore } from "@/stores/study-library/chapter-sidebar-store";
 import { useMediaRefsStore } from "@/stores/mediaRefsStore";
@@ -73,10 +73,7 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ documentId, pdfUrl }) => {
   // Track user activity
   const verificationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const inactivityThreshold = 60000;
-  const {setCurrentPdfPage, navigationTrigger} = useMediaRefsStore();
-
-  // Add ref for PDF viewer component
-  const pdfViewerRef = useRef<PdfViewerComponentRef>(null);
+  const {setCurrentPdfPage} = useMediaRefsStore();
 
   // Load saved verification time from Capacitor preferences
   useEffect(() => {
@@ -442,10 +439,6 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ documentId, pdfUrl }) => {
     pageStartTime.current = new Date();
     startTimeInMillis.current = now;
 
-    // Set the PDF length in the store
-    const { setCurrentPdfLength } = useMediaRefsStore.getState();
-    setCurrentPdfLength(e.doc.numPages);
-
     if (isFirstView) {
       console.log("integrate add document activity api now");
       syncPDFTrackingData();
@@ -510,15 +503,6 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ documentId, pdfUrl }) => {
       }
     };
   }, []);
-
-  // Listen for navigation triggers from global store
-  useEffect(() => {
-    if (navigationTrigger > 0 && pdfViewerRef.current) {
-      // The currentPdfPage from the store will be updated by navigateToPdfPage
-      const { currentPdfPage } = useMediaRefsStore.getState();
-      pdfViewerRef.current.jumpToPage(currentPdfPage);
-    }
-  }, [navigationTrigger]);
 
   // Update the return JSX to include a more informative pause dialog
   return (
@@ -608,7 +592,6 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ documentId, pdfUrl }) => {
       )}
 
       <PdfViewerComponent
-        ref={pdfViewerRef}
         pdfUrl={pdfUrl}
         handlePageChange={handlePageChange}
         handleDocumentLoad={handleDocumentLoad}
