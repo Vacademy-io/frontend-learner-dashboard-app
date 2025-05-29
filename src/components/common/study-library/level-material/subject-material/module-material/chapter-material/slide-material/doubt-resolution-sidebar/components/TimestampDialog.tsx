@@ -13,12 +13,51 @@ interface TimestampDialogProps {
     initialTimestamp?: number;
 }
 
-export const TimestampDialog = ({ open, onOpenChange, onTimestampSet, initialTimestamp }: TimestampDialogProps) => {
-    const { activeItem } = useContentStore();
+export const CurrentPositionButton = ({isDocument, setPageNumber, isVideo, setHours, setMinutes, setSeconds, clearValidationError}: {isDocument: boolean, setPageNumber: (pageNumber: string) => void, isVideo: boolean, setHours: (hours: string) => void, setMinutes: (minutes: string) => void, setSeconds: (seconds: string) => void, clearValidationError: () => void}) => {
+
+    const {activeItem} = useContentStore();
+
     const { 
         currentPdfPage, 
         currentYoutubeTime, 
         currentUploadedVideoTime,
+    } = useMediaRefsStore();
+
+    const getCurrentPosition = () => {
+        if (isDocument) {
+            // Display current page + 1 for user-friendly 1-based indexing
+            setPageNumber(String(currentPdfPage + 1));
+        } else if (isVideo) {
+            const currentTime = activeItem?.video_slide?.source_type === "FILE_ID" 
+                ? currentUploadedVideoTime 
+                : currentYoutubeTime;
+            
+            const totalSeconds = Math.floor(currentTime);
+            const h = Math.floor(totalSeconds / 3600);
+            const m = Math.floor((totalSeconds % 3600) / 60);
+            const s = totalSeconds % 60;
+            
+            setHours(String(h));
+            setMinutes(String(m));
+            setSeconds(String(s));
+        }
+        // Clear validation error when setting current position
+        clearValidationError();
+    };
+    return(
+        <MyButton 
+            buttonType="secondary" 
+            scale="medium"
+            onClick={getCurrentPosition}
+        >
+            {isDocument ? "Use Current Page" : "Use Current Position"}
+        </MyButton>
+    )
+}
+
+export const TimestampDialog = ({ open, onOpenChange, onTimestampSet, initialTimestamp }: TimestampDialogProps) => {
+    const { activeItem } = useContentStore();
+    const { 
         currentYoutubeVideoLength,
         currentPdfLength,
         currentCustomVideoLength
@@ -114,26 +153,6 @@ export const TimestampDialog = ({ open, onOpenChange, onTimestampSet, initialTim
         }
     };
 
-    const getCurrentPosition = () => {
-        if (isDocument) {
-            // Display current page + 1 for user-friendly 1-based indexing
-            setPageNumber(String(currentPdfPage + 1));
-        } else if (isVideo) {
-            const currentTime = activeItem?.video_slide?.source_type === "FILE_ID" 
-                ? currentUploadedVideoTime 
-                : currentYoutubeTime;
-            
-            const totalSeconds = Math.floor(currentTime);
-            const h = Math.floor(totalSeconds / 3600);
-            const m = Math.floor((totalSeconds % 3600) / 60);
-            const s = totalSeconds % 60;
-            
-            setHours(String(h));
-            setMinutes(String(m));
-            setSeconds(String(s));
-        }
-    };
-
     const handleSubmit = () => {
         // Validate input first
         if (!validateInput()) {
@@ -184,18 +203,21 @@ export const TimestampDialog = ({ open, onOpenChange, onTimestampSet, initialTim
                     </DialogTitle>
                 </DialogHeader>
                 
-                <div className="flex flex-col gap-4 py-4">
+                <div className="flex gap-2 flex-col justify-between">
                     {isDocument ? (
-                        <div className="flex flex-col gap-2">
-                            <label className="text-sm font-medium">Page Number</label>
+                        <div className="flex flex-col gap-2 w-full">
+                        <div className="flex items-center justify-between w-full gap-2">
                             <MyInput
                                 inputType="text"
-                                inputPlaceholder="Enter page number (starting from 1)"
+                                inputPlaceholder="Enter page number"
                                 input={pageNumber}
                                 onChangeFunction={(e) => handleNumericInput(e, setPageNumber)}
                                 onBlur={validateInput}
                                 size="medium"
+                                className="w-fit"
                             />
+                            <CurrentPositionButton isDocument={isDocument} setPageNumber={setPageNumber} isVideo={isVideo} setHours={setHours} setMinutes={setMinutes} setSeconds={setSeconds} clearValidationError={() => setValidationError("")} />
+                        </div>
                             {mediaLength > 0 && (
                                 <p className="text-xs text-gray-500">
                                     Total pages: {mediaLength}
@@ -203,38 +225,40 @@ export const TimestampDialog = ({ open, onOpenChange, onTimestampSet, initialTim
                             )}
                         </div>
                     ) : (
-                        <div className="flex flex-col gap-2">
-                            <label className="text-sm font-medium">Time (Hours:Minutes:Seconds)</label>
-                            <div className="flex items-center gap-2">
-                                <MyInput
-                                    inputType="text"
-                                    inputPlaceholder="00"
-                                    input={hours}
-                                    onChangeFunction={(e) => handleNumericInput(e, setHours, 23)}
-                                    onBlur={validateInput}
-                                    size="small"
-                                    className="w-16 text-center"
-                                />
-                                <span className="text-lg">:</span>
-                                <MyInput
-                                    inputType="text"
-                                    inputPlaceholder="00"
-                                    input={minutes}
-                                    onChangeFunction={(e) => handleNumericInput(e, setMinutes, 59)}
-                                    onBlur={validateInput}
-                                    size="small"
-                                    className="w-16 text-center"
-                                />
-                                <span className="text-lg">:</span>
-                                <MyInput
-                                    inputType="text"
-                                    inputPlaceholder="00"
-                                    input={seconds}
-                                    onChangeFunction={(e) => handleNumericInput(e, setSeconds, 59)}
-                                    onBlur={validateInput}
-                                    size="small"
-                                    className="w-16 text-center"
-                                />
+                        <div className="flex flex-col gap-2 w-full">
+                            <div className="flex justify-between items-center w-full">
+                                <div className="flex items-center gap-2">
+                                    <MyInput
+                                        inputType="text"
+                                        inputPlaceholder="00"
+                                        input={hours}
+                                        onChangeFunction={(e) => handleNumericInput(e, setHours, 23)}
+                                        onBlur={validateInput}
+                                        size="small"
+                                        className="w-16 text-center"
+                                    />
+                                    <span className="text-lg">:</span>
+                                    <MyInput
+                                        inputType="text"
+                                        inputPlaceholder="00"
+                                        input={minutes}
+                                        onChangeFunction={(e) => handleNumericInput(e, setMinutes, 59)}
+                                        onBlur={validateInput}
+                                        size="small"
+                                        className="w-16 text-center"
+                                    />
+                                    <span className="text-lg">:</span>
+                                    <MyInput
+                                        inputType="text"
+                                        inputPlaceholder="00"
+                                        input={seconds}
+                                        onChangeFunction={(e) => handleNumericInput(e, setSeconds, 59)}
+                                        onBlur={validateInput}
+                                        size="small"
+                                        className="w-16 text-center"
+                                    />
+                                </div>
+                                <CurrentPositionButton isDocument={isDocument} setPageNumber={setPageNumber} isVideo={isVideo} setHours={setHours} setMinutes={setMinutes} setSeconds={setSeconds} clearValidationError={() => setValidationError("")} />
                             </div>
                             {mediaLength > 0 && (
                                 <p className="text-xs text-gray-500">
@@ -246,21 +270,14 @@ export const TimestampDialog = ({ open, onOpenChange, onTimestampSet, initialTim
                     
                     {/* Error message display */}
                     {validationError && (
-                        <div className="text-red-500 text-sm bg-red-50 p-2 rounded-md border border-red-200">
+                        <div className="text-red-500 text-sm ">
                             {validationError}
                         </div>
                     )}
-                    
-                    <MyButton 
-                        buttonType="secondary" 
-                        scale="medium"
-                        onClick={getCurrentPosition}
-                    >
-                        {isDocument ? "Use Current Page" : "Use Current Position"}
-                    </MyButton>
+                
                 </div>
                 
-                <div className="flex gap-2 justify-end">
+                <div className="flex gap-2 justify-between w-full">
                     <MyButton 
                         buttonType="secondary" 
                         scale="medium"
