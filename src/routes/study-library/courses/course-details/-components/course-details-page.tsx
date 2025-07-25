@@ -295,15 +295,34 @@ export const CourseDetailsPage = () => {
     // Convert sessions to select options format - filter based on selectedTab
     const sessionOptions = useMemo(() => {
         const sessions = form.getValues("courseData")?.sessions || [];
-        
         // For PROGRESS and COMPLETED tabs, only show enrolled sessions
         // For ALL tab, show all available sessions
         if (selectedTab === "PROGRESS" || selectedTab === "COMPLETED") {
-            const enrolledSessionIds = enrolledSessions.map(enrolled => (enrolled as any).session?.id || (enrolled as any).id);
+            // Replace all (enrolled as any) with a type guard or type assertion
+            // Define a type for enrolled session
+            interface EnrolledSession {
+                session?: { id: string };
+                id?: string;
+                level?: { id: string };
+                level_id?: string;
+            }
+            const enrolledSessionIds = enrolledSessions.map((enrolled) => {
+                const e = enrolled as EnrolledSession;
+                return String(e.session?.id || e.id);
+            });
+            console.log('Enrolled session IDs:', enrolledSessionIds);
             const filteredSessions = sessions.filter(session => 
-                enrolledSessionIds.includes(session.sessionDetails.id)
+                enrolledSessionIds.includes(String(session.sessionDetails.id))
             );
-            
+            if (filteredSessions.length === 0) {
+                console.warn('No enrolled sessions found, falling back to all sessions');
+                return sessions.map((session) => ({
+                    _id: session.sessionDetails.id,
+                    value: session.sessionDetails.id,
+                    label: toTitleCase(session.sessionDetails.session_name),
+                    _fallback: true,
+                }));
+            }
             return filteredSessions.map((session) => ({
                 _id: session.sessionDetails.id,
                 value: session.sessionDetails.id,
@@ -324,37 +343,49 @@ export const CourseDetailsPage = () => {
         setSelectedSession(sessionId);
         const sessions = form.getValues("courseData")?.sessions || [];
         const selectedSessionData = sessions.find(
-            (session) => session.sessionDetails.id === sessionId
+            (session) => String(session.sessionDetails.id) === String(sessionId)
         );
 
         if (selectedSessionData) {
             let newLevelOptions;
-            
             // For PROGRESS and COMPLETED tabs, only show enrolled levels
             if (selectedTab === "PROGRESS" || selectedTab === "COMPLETED") {
-                // Find the enrolled session to get enrolled level IDs
-                const enrolledSession = enrolledSessions.find(enrolled => 
-                    ((enrolled as any).session?.id || (enrolled as any).id) === sessionId
-                );
-                
+                // Replace all (enrolled as any) with a type guard or type assertion
+                const enrolledSession = enrolledSessions.find((enrolled) => {
+                    const e = enrolled as EnrolledSession;
+                    return String(e.session?.id || e.id) === String(sessionId);
+                });
                 let enrolledLevelIds: string[] = [];
                 if (enrolledSession) {
+                    const e = enrolledSession as EnrolledSession;
                     // Extract level ID from enrolled session
-                    enrolledLevelIds = [(enrolledSession as any).level?.id || (enrolledSession as any).level_id].filter(Boolean);
+                    enrolledLevelIds = [
+                        String(e.level?.id || e.level_id)
+                    ].filter(Boolean);
                 }
-
-                // Filter levels based on enrollment
+                console.log('Enrolled level IDs:', enrolledLevelIds);
                 const filteredLevels = selectedSessionData.levelDetails.filter(level =>
-                    enrolledLevelIds.includes(level.id)
+                    enrolledLevelIds.includes(String(level.id))
                 );
-
-                newLevelOptions = filteredLevels.map(
-                    (level) => ({
-                        _id: level.id,
-                        value: level.id,
-                        label: level.name,
-                    })
-                );
+                if (filteredLevels.length === 0) {
+                    console.warn('No enrolled levels found, falling back to all levels');
+                    newLevelOptions = selectedSessionData.levelDetails.map(
+                        (level) => ({
+                            _id: level.id,
+                            value: level.id,
+                            label: level.name,
+                            _fallback: true,
+                        })
+                    );
+                } else {
+                    newLevelOptions = filteredLevels.map(
+                        (level) => ({
+                            _id: level.id,
+                            value: level.id,
+                            label: level.name,
+                        })
+                    );
+                }
             } else {
                 // For ALL tab, show all levels
                 newLevelOptions = selectedSessionData.levelDetails.map(
@@ -365,9 +396,7 @@ export const CourseDetailsPage = () => {
                     })
                 );
             }
-            
             setLevelOptions(newLevelOptions);
-
             // Select the first level when session changes
             if (newLevelOptions.length > 0 && newLevelOptions[0]?.value) {
                 setSelectedLevel(newLevelOptions[0].value);
@@ -680,7 +709,7 @@ export const CourseDetailsPage = () => {
                                                         <div className="w-1.5 h-1.5 bg-primary-500 rounded-full"></div>
                                                         <span>Session</span>
                                                     </label>
-                                                    {sessionOptions.length === 1 ? (
+                                                    {sessionOptions.length === 1 && sessionOptions[0]._fallback ? (
                                                         <div className="p-2.5 bg-gray-50/80 rounded-lg border border-gray-200">
                                                             <span className="text-sm font-medium text-gray-900">
                                                                 {sessionOptions[0]?.label}
@@ -732,7 +761,7 @@ export const CourseDetailsPage = () => {
                                                         <div className="w-1.5 h-1.5 bg-primary-500 rounded-full"></div>
                                                         <span>Level</span>
                                                     </label>
-                                                    {levelOptions.length === 1 ? (
+                                                    {levelOptions.length === 1 && levelOptions[0]._fallback ? (
                                                         <div className="p-2.5 bg-gray-50/80 rounded-lg border border-gray-200">
                                                             <span className="text-sm font-medium text-gray-900">
                                                                 {levelOptions[0]?.label}
