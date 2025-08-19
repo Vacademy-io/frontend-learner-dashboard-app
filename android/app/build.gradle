@@ -7,8 +7,8 @@ android {
         applicationId "io.vacademy.student.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 14
-        versionName "1.0.13"
+        versionCode 15
+        versionName "1.0.14"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -21,10 +21,28 @@ android {
 			DEEP_LINK_HOST: "learner.vacademy.io"
 		]
     }
+	// Signing configuration for Seven CS
+	signingConfigs {
+		seven_cs_release {
+			storeFile file("../../seven_cs/seven_cs_release.keystore")
+			storePassword System.getenv("SEVEN_CS_STORE_PASSWORD") ?: "ask_team_for_password"
+			keyAlias System.getenv("SEVEN_CS_KEY_ALIAS") ?: "ask_team_for_alias"
+			keyPassword System.getenv("SEVEN_CS_KEY_PASSWORD") ?: "ask_team_for_password"
+		}
+	}
+
     buildTypes {
+        debug {
+            minifyEnabled false
+            debuggable true
+            // Debug builds should not use release signing
+        }
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            debuggable false
+            // Apply signing configuration for release builds
+            signingConfig signingConfigs.seven_cs_release
         }
     }
 
@@ -43,10 +61,11 @@ android {
 		seven_cs {
 			dimension "client"
 			applicationId "com.sevencs.learner"
-			// Change app name for Seven CS
-			resValue "string", "app_name", "Seven CS Learner"
-			// Set the deep link host for Seven CS (adjust to your domain)
-			manifestPlaceholders.DEEP_LINK_HOST = "seven-cs.example.com"
+			resValue "string", "app_name", "The 7 Cs"
+			manifestPlaceholders.DEEP_LINK_HOST = "7cs.learner.io"
+			
+			// Apply signing configuration for release builds
+			signingConfig signingConfigs.seven_cs_release
 		}
 	}
 }

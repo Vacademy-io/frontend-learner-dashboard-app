@@ -1,42 +1,21 @@
 {
   "appId": "com.sevencs.learner",
-  "productName": "Seven CS Learner",
+  "productName": "The 7 Cs",
   "directories": {
     "buildResources": "resources"
   },
-  "files": [
-    "assets/**/*",
-    "build/**/*",
-    "capacitor.config.*",
-    "app/**/*"
-  ],
-  "publish": { 
-    "provider": "github",
-    "owner": "Vacademy-io",
-    "repo": "electron-build-repo",
-    "private": false
-  },
-  "nsis": {
-    "allowElevation": true,
-    "oneClick": false,
-    "perMachine": false,
-    "allowToChangeInstallationDirectory": true,
-    "createDesktopShortcut": true
-  },
+  "files": ["assets/**/*", "build/**/*", "capacitor.config.*", "app/**/*"],
   "win": {
-    "target": [
-      "nsis:x64",
-      "portable"
-    ],
-    "icon": "assets/seven_cs.ico",
-    "signingHashAlgorithms": [
-      "sha256"
-    ]
+    "target": ["nsis:x64", "portable"],
+    "icon": "assets/seven_cs.ico"
   },
   "mac": {
     "category": "public.app-category.education",
     "target": "dmg",
     "icon": "assets/seven_cs.icns"
+  },
+  "linux": {
+    "target": "AppImage",
+    "icon": "assets/seven_cs.png"
   }
 }
-
