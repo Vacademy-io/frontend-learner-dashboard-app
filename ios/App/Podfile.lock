@@ -1,0 +1,64 @@
+PODS:
+  - Capacitor (7.4.2):
+    - CapacitorCordova
+  - CapacitorApp (7.0.1):
+    - Capacitor
+  - CapacitorCommunityPrivacyScreen (6.0.0):
+    - Capacitor
+  - CapacitorCordova (7.4.2)
+  - CapacitorNetwork (7.0.1):
+    - Capacitor
+  - CapacitorPreferences (7.0.1):
+    - Capacitor
+  - CapacitorPushNotifications (7.0.1):
+    - Capacitor
+  - CapacitorStorage (1.2.5):
+    - Capacitor
+  - CapawesomeCapacitorAppUpdate (7.0.1):
+    - Capacitor
+
+DEPENDENCIES:
+  - "Capacitor (from `../../node_modules/.pnpm/@capacitor+ios@7.4.2_@capacitor+core@7.4.2/node_modules/@capacitor/ios`)"
+  - "CapacitorApp (from `../../node_modules/.pnpm/@capacitor+app@7.0.1_@capacitor+core@7.4.2/node_modules/@capacitor/app`)"
+  - "CapacitorCommunityPrivacyScreen (from `../../node_modules/.pnpm/@capacitor-community+privacy-screen@6.0.0_@capacitor+core@7.4.2/node_modules/@capacitor-community/privacy-screen`)"
+  - "CapacitorCordova (from `../../node_modules/.pnpm/@capacitor+ios@7.4.2_@capacitor+core@7.4.2/node_modules/@capacitor/ios`)"
+  - "CapacitorNetwork (from `../../node_modules/.pnpm/@capacitor+network@7.0.1_@capacitor+core@7.4.2/node_modules/@capacitor/network`)"
+  - "CapacitorPreferences (from `../../node_modules/.pnpm/@capacitor+preferences@7.0.1_@capacitor+core@7.4.2/node_modules/@capacitor/preferences`)"
+  - "CapacitorPushNotifications (from `../../node_modules/.pnpm/@capacitor+push-notifications@7.0.1_@capacitor+core@7.4.2/node_modules/@capacitor/push-notifications`)"
+  - "CapacitorStorage (from `../../node_modules/.pnpm/@capacitor+storage@1.2.5_@capacitor+core@7.4.2/node_modules/@capacitor/storage`)"
+  - "CapawesomeCapacitorAppUpdate (from `../../node_modules/.pnpm/@capawesome+capacitor-app-update@7.0.1_@capacitor+core@7.4.2/node_modules/@capawesome/capacitor-app-update`)"
+
+EXTERNAL SOURCES:
+  Capacitor:
+    :path: "../../node_modules/.pnpm/@capacitor+ios@7.4.2_@capacitor+core@7.4.2/node_modules/@capacitor/ios"
+  CapacitorApp:
+    :path: "../../node_modules/.pnpm/@capacitor+app@7.0.1_@capacitor+core@7.4.2/node_modules/@capacitor/app"
+  CapacitorCommunityPrivacyScreen:
+    :path: "../../node_modules/.pnpm/@capacitor-community+privacy-screen@6.0.0_@capacitor+core@7.4.2/node_modules/@capacitor-community/privacy-screen"
+  CapacitorCordova:
+    :path: "../../node_modules/.pnpm/@capacitor+ios@7.4.2_@capacitor+core@7.4.2/node_modules/@capacitor/ios"
+  CapacitorNetwork:
+    :path: "../../node_modules/.pnpm/@capacitor+network@7.0.1_@capacitor+core@7.4.2/node_modules/@capacitor/network"
+  CapacitorPreferences:
+    :path: "../../node_modules/.pnpm/@capacitor+preferences@7.0.1_@capacitor+core@7.4.2/node_modules/@capacitor/preferences"
+  CapacitorPushNotifications:
+    :path: "../../node_modules/.pnpm/@capacitor+push-notifications@7.0.1_@capacitor+core@7.4.2/node_modules/@capacitor/push-notifications"
+  CapacitorStorage:
+    :path: "../../node_modules/.pnpm/@capacitor+storage@1.2.5_@capacitor+core@7.4.2/node_modules/@capacitor/storage"
+  CapawesomeCapacitorAppUpdate:
+    :path: "../../node_modules/.pnpm/@capawesome+capacitor-app-update@7.0.1_@capacitor+core@7.4.2/node_modules/@capawesome/capacitor-app-update"
+
+SPEC CHECKSUMS:
+  Capacitor: 9d9e481b79ffaeacaf7a85d6a11adec32bd33b59
+  CapacitorApp: febecbb9582cb353aed037e18ec765141f880fe9
+  CapacitorCommunityPrivacyScreen: 682470c41cce325d7a85b95907887919d4694066
+  CapacitorCordova: 5e58d04631bc5094894ac106e2bf1da18a9e6151
+  CapacitorNetwork: 15cb4385f0913a8ceb5e9a4d7af1ec554bdb8de8
+  CapacitorPreferences: 6c98117d4d7508034a4af9db64d6b26fc75d7b94
+  CapacitorPushNotifications: 6a2794788c583dd89215f1805ca4bced1b13dbdf
+  CapacitorStorage: 5525ad0c4925b07029da1d2724bb479449e218d9
+  CapawesomeCapacitorAppUpdate: d1f04c1c870388248889908cf2ca960c7fdbf0ef
+
+PODFILE CHECKSUM: f855db4dc81426a376ff8c41ae7ee346028fd270
+
+COCOAPODS: 1.16.2
