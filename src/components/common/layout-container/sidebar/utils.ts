@@ -6,7 +6,7 @@ import {
   SignOut,
   // NotePencil,
 } from "@phosphor-icons/react";
-import { UserCircle, UserCircleMinus } from "phosphor-react";
+import { Password, UserCircle, UserCircleMinus } from "phosphor-react";
 
 export const SidebarItemsData: SidebarItemsType[] = [
   {
@@ -67,6 +67,11 @@ export const HamBurgerSidebarItemsData: SidebarItemsType[] = [
     icon: UserCircle,
     title: "View Profile Details",
     to: "/user-profile",
+  },
+  {
+    icon: Password,
+    title: "Change Password",
+    to: "/change-password",
   },
   {
     icon: SignOut,
