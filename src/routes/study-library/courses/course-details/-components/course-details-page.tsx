@@ -1,5 +1,5 @@
-import { Steps } from "@phosphor-icons/react";
-import { useNavigate, useRouter } from "@tanstack/react-router";
+   import { Steps } from "@phosphor-icons/react";
+import { useRouter } from "@tanstack/react-router";
 import {
     ChalkboardTeacher,
     Code,
@@ -58,14 +58,27 @@ import { useNavHeadingStore } from "@/stores/layout-container/useNavHeadingStore
 import { CourseStructureDetails } from "./course-structure-details";
 import { CourseStructureResponse } from "@/types/institute-details/course-details-interface";
 import { getIdByLevelAndSession } from "@/routes/courses/course-details/-utils/helper";
-import { MyButton } from "@/components/design-system/button";
-import { EnrollmentPaymentDialog } from "./payment-dialogs";
+import { DonationDialog } from "@/components/common/donation/DonationDialog";
+import { EnrollmentPaymentDialog } from "./payment-dialogs/EnrollmentPaymentDialog";
+import { useEnrollmentStatus } from "@/hooks/use-enrollment-status";
 import { getTokenFromStorage } from "@/lib/auth/sessionUtility";
 import { TokenKey } from "@/constants/auth/tokens";
 import { getSubjectDetails } from "@/routes/courses/course-details/-utils/helper";
 import { getTerminology } from "@/components/common/layout-container/sidebar/utils";
 import { ContentTerms, RoleTerms, SystemTerms } from "@/types/naming-settings";
 import { DashboardLoader } from "@/components/core/dashboard-loader";
+import { getStudentDisplaySettings } from "@/services/student-display-settings";
+import {
+    generateCertificateWithCache,
+    getCachedCertificateStatus,
+} from "@/services/certificates";
+import { toast } from "sonner";
+import confetti from "canvas-confetti";
+import LocalStorageUtils from "@/utils/localstorage";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { MyButton } from "@/components/design-system/button";
+import { extractTextFromHTML } from "@/components/common/helper";
+import { fetchPaymentOptions } from "@/routes/courses/-services/payment-options-api";
 
 type SlideType = {
     id: string;
@@ -215,21 +228,29 @@ interface EnrolledSession {
 }
 
 export const CourseDetailsPage = () => {
-    const navigate = useNavigate();
     const { setNavHeading } = useNavHeadingStore();
 
     useEffect(() => {
         setNavHeading(heading);
-    }, []);
+    }, [setNavHeading]);
 
     const [selectedSession, setSelectedSession] = useState<string>("");
     const [selectedLevel, setSelectedLevel] = useState<string>("");
     const router = useRouter();
     const searchParams = router.state.location.search;
+    
+    // Navigation helper function
+    const navigateTo = (
+        pathname: string,
+        searchParamsObj: Record<string, string | undefined>
+    ) => router.navigate({ to: pathname, search: searchParamsObj });
     const [instituteId, setInstituteId] = useState<string | null>(null);
-    const [enrolledSessions, setEnrolledSessions] = useState<EnrolledSession[]>(
-        []
-    );
+    const [certificateUrl, setCertificateUrl] = useState<string | null>(null);
+    const [showConfetti, setShowConfetti] = useState<boolean>(false);
+    const [certificateDialogOpen, setCertificateDialogOpen] =
+        useState<boolean>(false);
+
+    // Log certificate-related state changes
 
     // Loading state management
     const [isLoading, setIsLoading] = useState(true);
@@ -280,6 +301,16 @@ export const CourseDetailsPage = () => {
     // Get selectedTab from route params, default to "ALL" if not provided
     const selectedTab = searchParams.selectedTab || "ALL";
 
+    // Use enrollment status hook - must be called early to avoid initialization errors
+    const {
+        enrolledSessions,
+        userHasDonated,
+        addEnrolledSession,
+        refreshData: refreshEnrollmentData
+    } = useEnrollmentStatus(instituteId);
+
+
+
     useEffect(() => {
         const fetchInstituteAndUserId = async () => {
             updateLoadingState("userData", true);
@@ -288,18 +319,7 @@ export const CourseDetailsPage = () => {
             });
             setInstituteId(instituteResult.value || null);
 
-            // Fetch user's enrolled sessions
-            const sessionListResult = await Preferences.get({
-                key: "sessionList",
-            });
-            if (sessionListResult.value) {
-                const sessionList = JSON.parse(sessionListResult.value);
-                setEnrolledSessions(
-                    Array.isArray(sessionList)
-                        ? (sessionList as EnrolledSession[])
-                        : [sessionList as EnrolledSession]
-                );
-            }
+                    // Note: Enrolled sessions and donation status are now handled by the useEnrollmentStatus hook
 
             // Fetch invite code from preferences or use default
             const inviteCodeResult = await Preferences.get({
@@ -318,7 +338,7 @@ export const CourseDetailsPage = () => {
         };
 
         fetchInstituteAndUserId();
-    }, []);
+    }, [updateLoadingState]);
 
     const [
         packageSessionIdForCurrentLevel,
@@ -327,24 +347,22 @@ export const CourseDetailsPage = () => {
 
     useEffect(() => {
         const fetchInstituteDetails = async () => {
-            console.log('Fetching institute details with:', { instituteId, selectedSession, selectedLevel, courseId: searchParams.courseId });
+            
             updateLoadingState("instituteDetails", true);
             const fetchedInstituteId = await getInstituteId();
             try {
                 const response = await axios.get(
                     `${urlInstituteDetails}/${fetchedInstituteId}`
                 );
-                console.log('Institute response:', response.data);
                 const packageSessionId = getIdByLevelAndSession(
                     response.data.batches_for_sessions,
                     selectedSession,
                     selectedLevel,
                     searchParams.courseId || ""
                 );
-                console.log('Package session ID:', packageSessionId);
                 setPackageSessionIdForCurrentLevel(packageSessionId);
-            } catch (error) {
-                console.log(error);
+            } catch {
+                // Error handling
             } finally {
                 updateLoadingState("instituteDetails", false);
             }
@@ -354,7 +372,39 @@ export const CourseDetailsPage = () => {
         if (instituteId && selectedSession && selectedLevel) {
             fetchInstituteDetails();
         }
-    }, [instituteId, selectedSession, selectedLevel]);
+    }, [
+        instituteId,
+        selectedSession,
+        selectedLevel,
+        searchParams.courseId,
+        updateLoadingState,
+    ]);
+
+    // Fetch payment type when institute ID is available
+    useEffect(() => {
+        const fetchPaymentType = async () => {
+            if (instituteId) {
+                try {
+                    console.log('Fetching payment options for institute:', instituteId);
+                    const paymentOption = await fetchPaymentOptions(instituteId);
+                    if (paymentOption && paymentOption.type) {
+                        console.log('Payment type fetched:', paymentOption.type);
+                        setPaymentType(paymentOption.type);
+                    } else {
+                        console.log('No payment option returned, defaulting to SUBSCRIPTION type for direct navigation');
+                        setPaymentType("SUBSCRIPTION");
+                    }
+                } catch (error) {
+                    console.error("Error fetching payment options:", error);
+                    // Default to non-donation type for direct navigation if fetch fails
+                    console.log('API failed, defaulting to SUBSCRIPTION type for direct navigation');
+                    setPaymentType("SUBSCRIPTION");
+                }
+            }
+        };
+
+        fetchPaymentType();
+    }, [instituteId]);
 
     // Only run the query if instituteId is available
     const { data: studyLibraryData, isLoading: isCourseDetailsLoading } =
@@ -367,18 +417,202 @@ export const CourseDetailsPage = () => {
     // Update course details loading state
     useEffect(() => {
         updateLoadingState("courseDetails", isCourseDetailsLoading);
-    }, [isCourseDetailsLoading]);
+    }, [isCourseDetailsLoading, updateLoadingState]);
 
     const courseDetailsData = useMemo(() => {
         const found = studyLibraryData?.find(
             (item: CourseStructureResponse) =>
                 item.course.id === searchParams.courseId
         );
-        console.log('Course details data found:', found);
-        console.log('Search params courseId:', searchParams.courseId);
-        console.log('Study library data:', studyLibraryData);
         return found;
     }, [studyLibraryData, searchParams.courseId]);
+
+    // Trigger certificate generation after entering this page once essentials are available
+    useEffect(() => {
+        const tryGenerateCertificate = async () => {
+            try {
+                const settings = await getStudentDisplaySettings(false);
+                const threshold =
+                    settings.certificates?.generationThresholdPercent ?? 80;
+                // percent can come from query param (carried over from list) or course data
+                const pctFromQuery = ((): number | undefined => {
+                    const raw =
+                        (searchParams as { [k: string]: unknown })
+                            .percentageCompleted ??
+                        (searchParams as { [k: string]: unknown })
+                            .percentage_completed;
+                    if (typeof raw === "number") return raw;
+                    if (typeof raw === "string") {
+                        const n = Number(raw);
+                        return Number.isFinite(n) ? n : undefined;
+                    }
+                    return undefined;
+                })();
+                const pctFromCourse =
+                    courseDetailsData?.course?.percentage_completed;
+                const pctFromLocal = (() => {
+                    const key = `COURSE_PCT_${searchParams.courseId}`;
+                    const saved = LocalStorageUtils.get<{
+                        value: number;
+                        ts: number;
+                    }>(key);
+                    return saved?.value;
+                })();
+                const percentageCompleted =
+                    typeof pctFromQuery === "number" &&
+                    !Number.isNaN(pctFromQuery)
+                        ? pctFromQuery
+                        : typeof pctFromCourse === "number"
+                          ? pctFromCourse
+                          : typeof pctFromLocal === "number"
+                            ? pctFromLocal
+                            : undefined;
+                const userDetailsRaw = await Preferences.get({
+                    key: "StudentDetails",
+                });
+                const user = userDetailsRaw.value
+                    ? JSON.parse(userDetailsRaw.value)
+                    : null;
+                const userId: string | null = user?.user_id || user?.id || null;
+
+                if (!userId || !packageSessionIdForCurrentLevel) return;
+
+                // Always surface cached certificate if present
+                const cached = getCachedCertificateStatus(
+                    userId,
+                    packageSessionIdForCurrentLevel
+                );
+                if (cached?.url) {
+                    setCertificateUrl(cached.url);
+                }
+
+                if (percentageCompleted == null) return;
+
+                if (
+                    typeof percentageCompleted === "number" &&
+                    percentageCompleted >= threshold
+                ) {
+                    const celebrationKey = `CERTIFICATE_CELEBRATED_${userId}_${packageSessionIdForCurrentLevel}`;
+                    const alreadyCelebrated =
+                        !!LocalStorageUtils.get<boolean>(celebrationKey);
+
+                    const res = await generateCertificateWithCache({
+                        user_id: userId,
+                        package_session_id: packageSessionIdForCurrentLevel,
+                    });
+
+                    setCertificateUrl(res.url || null);
+
+                    if (res.status === 200 && !alreadyCelebrated) {
+                        // Enhanced multi-burst confetti (professional feel)
+                        try {
+                            const colors = [
+                                "#0ea5e9",
+                                "#22c55e",
+                                "#f59e0b",
+                                "#ef4444",
+                                "#8b5cf6",
+                            ];
+                            const defaults = {
+                                colors,
+                                origin: { y: 0.6 },
+                            } as const;
+
+                            function fire(
+                                particleRatio: number,
+                                opts: {
+                                    [K in keyof import("canvas-confetti").Options]?: import("canvas-confetti").Options[K];
+                                } = {}
+                            ) {
+                                confetti({
+                                    ...defaults,
+                                    particleCount: Math.floor(
+                                        220 * particleRatio
+                                    ),
+                                    ...opts,
+                                });
+                            }
+
+                            // Central bursts
+                            fire(0.25, { spread: 26, startVelocity: 55 });
+                            fire(0.2, { spread: 60 });
+                            fire(0.35, {
+                                spread: 100,
+                                decay: 0.91,
+                                scalar: 0.9,
+                            });
+                            fire(0.1, {
+                                spread: 120,
+                                startVelocity: 25,
+                                decay: 0.92,
+                                scalar: 1.2,
+                            });
+                            fire(0.1, { spread: 120, startVelocity: 45 });
+
+                            // Side cannons
+                            confetti({
+                                ...defaults,
+                                particleCount: 60,
+                                angle: 60,
+                                spread: 55,
+                                origin: { x: 0 },
+                                gravity: 0.9,
+                            });
+                            confetti({
+                                ...defaults,
+                                particleCount: 60,
+                                angle: 120,
+                                spread: 55,
+                                origin: { x: 1 },
+                                gravity: 0.9,
+                            });
+
+                            // Subtle fireworks loop for 2s
+                            const end = Date.now() + 2000;
+                            (function frame() {
+                                confetti({
+                                    ...defaults,
+                                    particleCount: 3,
+                                    startVelocity: 40,
+                                    ticks: 60,
+                                    origin: {
+                                        x: Math.random(),
+                                        y: Math.random() * 0.4 + 0.2,
+                                    },
+                                });
+                                if (Date.now() < end)
+                                    requestAnimationFrame(frame);
+                            })();
+                        } catch {
+                            // Confetti error handling
+                        }
+                        setShowConfetti(true);
+                        setTimeout(() => setShowConfetti(false), 3000);
+                        // Show professional modal after confetti
+                        setTimeout(() => setCertificateDialogOpen(true), 3200);
+                        toast.success("Certificate generated successfully!", {
+                            description: "You can now view your certificate.",
+                        });
+                        // Mark celebration as shown to avoid repeating confetti on future visits
+                        LocalStorageUtils.set(celebrationKey, true);
+                    }
+                }
+            } catch {
+                toast.error(
+                    "Failed to generate certificate. Please try again later."
+                );
+            }
+        };
+
+        // Only attempt after we have course data and package session id
+        if (packageSessionIdForCurrentLevel && courseDetailsData) {
+            tryGenerateCertificate();
+        }
+    }, [
+        packageSessionIdForCurrentLevel,
+        courseDetailsData,
+        searchParams.percentageCompleted,
+    ]);
 
     const form = useForm<CourseDetailsFormValues>({
         resolver: zodResolver(courseDetailsSchema),
@@ -418,17 +652,20 @@ export const CourseDetailsPage = () => {
         { _id: string; value: string; label: string }[]
     >([]);
 
-    // Convert sessions to select options format - filter based on selectedTab
+            // Watch sessions so memo recomputes when form.reset updates course data
+        const watchedSessions = form.watch("courseData.sessions") || [];
+
+            // Convert sessions to select options format - filter based on selectedTab
     const sessionOptions = useMemo(() => {
-        const sessions = form.getValues("courseData")?.sessions || [];
-        console.log('Form sessions:', sessions);
-        console.log('Enrolled sessions:', enrolledSessions);
-        console.log('Selected tab:', selectedTab);
+        const sessions = watchedSessions || [];
+        const safeEnrolledSessions = enrolledSessions || [];
+
+
 
         // For PROGRESS and COMPLETED tabs, only show enrolled sessions
         // For ALL tab, show all available sessions
         if (selectedTab === "PROGRESS" || selectedTab === "COMPLETED") {
-            const enrolledSessionIds = enrolledSessions.map(
+            const enrolledSessionIds = safeEnrolledSessions.map(
                 (enrolled) => enrolled.session.id
             );
             const filteredSessions = sessions.filter((session) =>
@@ -457,44 +694,63 @@ export const CourseDetailsPage = () => {
                 label: toTitleCase(session.sessionDetails.session_name),
             }));
         }
-    }, [form.watch("courseData.sessions"), enrolledSessions, selectedTab]);
+    }, [selectedTab, watchedSessions]); // Remove enrolledSessions dependency to avoid issues
 
     // Update level options when session changes - filter based on selectedTab
-    const handleSessionChange = (sessionId: string) => {
-        setSelectedSession(sessionId);
-        const sessions = form.getValues("courseData")?.sessions || [];
-        const selectedSessionData = sessions.find(
-            (session) => session.sessionDetails.id === sessionId
-        );
+    const handleSessionChange = useCallback(
+        (sessionId: string) => {
+            setSelectedSession(sessionId);
+            const sessions = form.getValues("courseData")?.sessions || [];
+            const selectedSessionData = sessions.find(
+                (session) => session.sessionDetails.id === sessionId
+            );
 
-        if (selectedSessionData) {
-            let newLevelOptions;
+            if (selectedSessionData) {
+                let newLevelOptions;
 
-            // For PROGRESS and COMPLETED tabs, only show enrolled levels
-            if (selectedTab === "PROGRESS" || selectedTab === "COMPLETED") {
-                // Find the enrolled session to get enrolled level IDs
-                const enrolledSession = enrolledSessions.find(
-                    (enrolled) => enrolled.session.id === sessionId
-                );
+                // For PROGRESS and COMPLETED tabs, only show enrolled levels
+                if (selectedTab === "PROGRESS" || selectedTab === "COMPLETED") {
+                    // Find the enrolled session to get enrolled level IDs
+                    const safeEnrolledSessions = enrolledSessions || [];
+                    const enrolledSession = safeEnrolledSessions.find(
+                        (enrolled) => enrolled.session.id === sessionId
+                    );
 
-                let enrolledLevelIds: string[] = [];
-                if (enrolledSession) {
-                    // Extract level ID from enrolled session
-                    enrolledLevelIds = [enrolledSession.level.id].filter(
-                        Boolean
-                    ) as string[];
-                }
+                    let enrolledLevelIds: string[] = [];
+                    if (enrolledSession) {
+                        // Extract level ID from enrolled session
+                        enrolledLevelIds = [enrolledSession.level.id].filter(
+                            Boolean
+                        ) as string[];
+                    }
 
-                // Filter levels based on enrollment
-                const filteredLevels = selectedSessionData.levelDetails.filter(
-                    (level) => enrolledLevelIds.includes(level.id)
-                );
+                    // Filter levels based on enrollment
+                    const filteredLevels =
+                        selectedSessionData.levelDetails.filter((level) =>
+                            enrolledLevelIds.includes(level.id)
+                        );
 
-                // If no enrolled levels found, show all levels as fallback
-                if (
-                    filteredLevels.length === 0 &&
-                    selectedSessionData.levelDetails.length > 0
-                ) {
+                    // If no enrolled levels found, show all levels as fallback
+                    if (
+                        filteredLevels.length === 0 &&
+                        selectedSessionData.levelDetails.length > 0
+                    ) {
+                        newLevelOptions = selectedSessionData.levelDetails.map(
+                            (level) => ({
+                                _id: level.id,
+                                value: level.id,
+                                label: level.name,
+                            })
+                        );
+                    } else {
+                        newLevelOptions = filteredLevels.map((level) => ({
+                            _id: level.id,
+                            value: level.id,
+                            label: level.name,
+                        }));
+                    }
+                } else {
+                    // For ALL tab, show all levels
                     newLevelOptions = selectedSessionData.levelDetails.map(
                         (level) => ({
                             _id: level.id,
@@ -502,79 +758,59 @@ export const CourseDetailsPage = () => {
                             label: level.name,
                         })
                     );
-                } else {
-                    newLevelOptions = filteredLevels.map((level) => ({
-                        _id: level.id,
-                        value: level.id,
-                        label: level.name,
-                    }));
                 }
-            } else {
-                // For ALL tab, show all levels
-                newLevelOptions = selectedSessionData.levelDetails.map(
-                    (level) => ({
-                        _id: level.id,
-                        value: level.id,
-                        label: level.name,
-                    })
-                );
-            }
 
-            setLevelOptions(newLevelOptions);
+                setLevelOptions(newLevelOptions);
 
-            // Select the first level when session changes
-            if (newLevelOptions.length > 0 && newLevelOptions[0]?.value) {
-                setSelectedLevel(newLevelOptions[0].value);
-            } else {
-                setSelectedLevel("");
+                // Select the first level when session changes
+                if (newLevelOptions.length > 0 && newLevelOptions[0]?.value) {
+                    setSelectedLevel(newLevelOptions[0].value);
+                } else {
+                    setSelectedLevel("");
+                }
             }
-        }
-    };
+        },
+        [form, selectedTab] // Remove enrolledSessions dependency to avoid issues
+    );
 
     // Handle level change - clear expanded items and reset state
     const handleLevelChange = (levelId: string) => {
         setSelectedLevel(levelId);
     };
 
-    // Set initial session and its levels - auto-select if only one option
-    useEffect(() => {
-        console.log('Session options:', sessionOptions);
-        console.log('Selected session:', selectedSession);
-        console.log('Selected level:', selectedLevel);
-        
-        if (
-            sessionOptions.length > 0 &&
-            !selectedSession &&
-            sessionOptions[0]?.value
-        ) {
-            const initialSessionId = sessionOptions[0].value;
-            console.log('Setting initial session:', initialSessionId);
-            handleSessionChange(initialSessionId);
-        }
-    }, [sessionOptions]);
+            // Set initial session and its levels - auto-select if only one option
+        useEffect(() => {
+
+                    if (
+                sessionOptions.length > 0 &&
+                !selectedSession &&
+                sessionOptions[0]?.value
+            ) {
+                const initialSessionId = sessionOptions[0].value;
+                handleSessionChange(initialSessionId);
+            }
+    }, [sessionOptions, selectedSession, selectedLevel, handleSessionChange]);
 
     useEffect(() => {
         const loadCourseData = async () => {
-            console.log('Loading course data:', courseDetailsData);
             if (courseDetailsData?.course) {
                 try {
                     const transformedData =
                         await transformApiDataToCourseData(courseDetailsData);
-                    console.log('Transformed data:', transformedData);
                     if (transformedData) {
                         form.reset({
                             courseData: transformedData,
                             mockCourses: mockCourses,
                         });
                     }
-                } catch (error) {
-                    console.error("Error transforming course data:", error);
+                } catch {
+                    // Error transforming course data
                 }
             }
         };
 
         loadCourseData();
-    }, [courseDetailsData]);
+    }, [courseDetailsData, form]);
 
     // Calculate module statistics
     useEffect(() => {
@@ -591,10 +827,13 @@ export const CourseDetailsPage = () => {
         // Calculate modules and chapters for non-depth-5 courses
         if (form.getValues("courseData.courseStructure") !== 5) {
             currentSubjects.forEach((subject) => {
-                if (subject.modules) {
-                    totalModules += subject.modules.length;
-                    subject.modules.forEach((module) => {
-                        if (module.chapters) {
+                const subj = subject as unknown as {
+                    modules?: Array<{ chapters?: Array<unknown> }>;
+                };
+                if (Array.isArray(subj.modules)) {
+                    totalModules += subj.modules.length;
+                    subj.modules.forEach((module) => {
+                        if (Array.isArray(module.chapters)) {
                             totalChapters += module.chapters.length;
                         }
                     });
@@ -607,7 +846,7 @@ export const CourseDetailsPage = () => {
             totalChapters,
             totalSubjects,
         });
-    }, [selectedSession, selectedLevel, form.watch("courseData")]);
+    }, [selectedSession, selectedLevel, form]);
 
     // Add this with other queries at the top level of the component
     const slideCountQuery = useQuery({
@@ -618,7 +857,7 @@ export const CourseDetailsPage = () => {
     // Update slide count loading state
     useEffect(() => {
         updateLoadingState("slideCount", slideCountQuery.isLoading);
-    }, [slideCountQuery.isLoading]);
+    }, [slideCountQuery.isLoading, updateLoadingState]);
 
     // Custom slide count calculation to handle special document types
     const processedSlideCounts = useMemo(() => {
@@ -715,13 +954,41 @@ export const CourseDetailsPage = () => {
     }, [slideCountQuery.data]);
 
     const [enrollmentDialogOpen, setEnrollmentDialogOpen] = useState(false);
+    const [donationDialogOpen, setDonationDialogOpen] = useState(false);
     const [inviteCode, setInviteCode] = useState<string>("default");
     const [authToken, setAuthToken] = useState<string>("");
+    const [paymentType, setPaymentType] = useState<string | null>(null);
     const [moduleStats, setModuleStats] = useState({
         totalModules: 0,
         totalChapters: 0,
         totalSubjects: 0,
     });
+
+    // Student display settings flags
+    const [showCourseConfiguration, setShowCourseConfiguration] =
+        useState<boolean>(true);
+    const [overviewVisible, setOverviewVisible] = useState<boolean>(true);
+
+    useEffect(() => {
+        getStudentDisplaySettings(false)
+            .then((settings) => {
+                const cd = settings?.courseDetails;
+                if (cd) {
+                    const resolvedShowCourseConfiguration =
+                        cd.showCourseConfiguration ?? true;
+                    const resolvedOverviewVisible =
+                        cd.courseOverview?.visible ?? true;
+                    setShowCourseConfiguration(resolvedShowCourseConfiguration);
+                    setOverviewVisible(resolvedOverviewVisible);
+                }
+            })
+            .catch(() => {
+                setShowCourseConfiguration(true);
+                setOverviewVisible(true);
+            });
+    }, []);
+
+    const hasRightSidebar = true;
 
     // Function to update module statistics for depth 5 courses
     const updateModuleStats = (
@@ -851,31 +1118,138 @@ export const CourseDetailsPage = () => {
         }
     };
 
-    // Debug logging
-    console.log('Loading states:', loadingStates);
-    console.log('isLoading:', isLoading);
-    console.log('instituteId:', instituteId);
-    console.log('studyLibraryData:', studyLibraryData);
-    console.log('packageSessionIdForCurrentLevel:', packageSessionIdForCurrentLevel);
+    // Debug logging removed
 
-    // Show loading until all APIs are complete or until we have the required data
-    if (isLoading || !instituteId || !studyLibraryData || !packageSessionIdForCurrentLevel) {
+    // Show loading until essential data is ready; defer packageSessionId-dependent UI below
+
+    
+    if (isLoading || !instituteId || !studyLibraryData) {
         return <DashboardLoader />;
     }
 
-    // Debug logging for CourseStructureDetails props
-    console.log('Rendering CourseStructureDetails with props:', {
-        selectedSession,
-        selectedLevel,
-        courseStructure: form.getValues("courseData.courseStructure"),
-        packageSessionId: packageSessionIdForCurrentLevel,
-        selectedTab,
-        courseData: form.getValues()
-    });
+    // Debug logging removed
 
     return (
         <>
-            {/* Enrollment Payment Dialog */}
+            {/* Donation Dialog for Enrollment */}
+            <DonationDialog
+                open={donationDialogOpen}
+                onOpenChange={setDonationDialogOpen}
+                packageSessionId={packageSessionIdForCurrentLevel || ""}
+                instituteId={instituteId || ""}
+                token={authToken}
+                courseTitle={form.getValues("courseData").title}
+                inviteCode={inviteCode}
+                mode="enrollment"
+                isUserEnrolled={false} // User is not enrolled yet in enrollment mode
+                onEnrollmentSuccess={async () => {
+                    // Update enrolled sessions immediately using the hook
+                    const newEnrolledSession = {
+                        id: packageSessionIdForCurrentLevel || "",
+                        session: {
+                            id: selectedSession,
+                            session_name: sessionOptions.find(s => s.value === selectedSession)?.label || "",
+                            status: "ACTIVE",
+                            start_date: new Date().toISOString(),
+                        },
+                        level: {
+                            id: selectedLevel,
+                            level_name: levelOptions.find(l => l.value === selectedLevel)?.label || "",
+                            duration_in_days: null,
+                            thumbnail_id: null,
+                        },
+                        start_time: new Date().toISOString(),
+                        status: "ACTIVE",
+                        package_dto: {
+                            id: searchParams.courseId || "",
+                            package_name: form.getValues("courseData").title,
+                            thumbnail_id: null,
+                        },
+                    };
+                    
+                    // Add the enrolled session and wait for it to complete
+                    await addEnrolledSession(newEnrolledSession);
+                    
+                    // Close dialogs
+                    setEnrollmentDialogOpen(false);
+                    setDonationDialogOpen(false);
+                    
+                    // Show success message
+                    toast.success("Successfully enrolled in the course!");
+                    
+                    // Redirect to slides immediately after enrollment
+                    
+                    // Try to get course structure data from multiple sources
+                    let subjectId = "";
+                    let moduleId = "";
+                    let chapterId = "";
+                    let slideId = "";
+                    
+                    // Method 1: Try to get from form data
+                    const currentSubjects = getSubjectDetails(
+                        form.getValues(),
+                        selectedSession,
+                        selectedLevel
+                    );
+                    
+                    if (currentSubjects.length > 0) {
+                        subjectId = currentSubjects[0]?.id || "";
+                        
+                        // Method 2: Fetch complete course structure using the same API
+                        if (packageSessionIdForCurrentLevel && subjectId) {
+                            try {
+                                // Import the API function dynamically to avoid circular dependencies
+                                const { fetchModulesWithChapters } = await import('@/services/study-library/getModulesWithChapters');
+                                
+                                const modulesData = await fetchModulesWithChapters(subjectId, packageSessionIdForCurrentLevel);
+                                
+                                if (modulesData && modulesData.length > 0) {
+                                    const firstModule = modulesData[0];
+                                    moduleId = firstModule.module.id || "";
+                                    
+                                    if (firstModule.chapters && firstModule.chapters.length > 0) {
+                                        const firstChapter = firstModule.chapters[0];
+                                        chapterId = firstChapter.id || "";
+                                        
+                                        // For slides, we need to fetch them separately
+                                        if (chapterId) {
+                                            try {
+                                                const { fetchSlidesByChapterId } = await import('@/hooks/study-library/use-slides');
+                                                const slides = await fetchSlidesByChapterId(chapterId);
+                                                
+                                                if (slides && slides.length > 0) {
+                                                    slideId = slides[0].id || "";
+                                                }
+                                            } catch (slideError) {
+                                                // Silent fallback
+                                            }
+                                        }
+                                    }
+                                }
+                            } catch (error) {
+                                // Silent fallback
+                            }
+                        }
+                    }
+                    
+                    // Navigate to slides with whatever IDs we found
+                    // Even if some IDs are missing, the slides page should handle it gracefully
+                    const navigationParams = {
+                        courseId: searchParams.courseId,
+                        subjectId: subjectId || "",
+                        moduleId: moduleId || "",
+                        chapterId: chapterId || "",
+                        slideId: slideId || "",
+                    };
+                    
+                    navigateTo(
+                        `/study-library/courses/course-details/subjects/modules/chapters/slides`,
+                        navigationParams
+                    );
+                }}
+            />
+
+            {/* Enrollment Payment Dialog for Non-Donation Payment Types */}
             <EnrollmentPaymentDialog
                 open={enrollmentDialogOpen}
                 onOpenChange={setEnrollmentDialogOpen}
@@ -885,6 +1259,7 @@ export const CourseDetailsPage = () => {
                 courseTitle={form.getValues("courseData").title}
                 inviteCode={inviteCode}
             />
+
             <div className="min-h-screen bg-gradient-to-br from-gray-50/80 via-white to-primary-50/20 relative overflow-hidden w-full max-w-full">
                 {/* Animated background elements */}
                 <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -895,7 +1270,7 @@ export const CourseDetailsPage = () => {
                     ></div>
                 </div>
 
-                {/* Enhanced Top Banner */}
+                {/* Enhanced Top Banner (always visible) */}
                 <div className="relative overflow-hidden animate-fade-in-up">
                     <div className="relative h-[200px] sm:h-[250px] lg:h-[280px]">
                         {/* Background with overlay */}
@@ -932,10 +1307,10 @@ export const CourseDetailsPage = () => {
 
                         {/* Content Container */}
                         <div className="relative z-20 h-full">
-                            <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 h-full flex items-center">
+                            <div className="max-w-7xl mx-auto px-2 sm:px-3 lg:px-4 h-full flex items-center">
                                 {form.watch("courseData").courseMediaId ? (
                                     // Layout with video - 3/5 and 2/5 split
-                                    <div className="w-full grid grid-cols-1 lg:grid-cols-5 gap-4 lg:gap-6 items-center">
+                                    <div className="w-full grid grid-cols-1 lg:grid-cols-5 gap-3 lg:gap-4 items-center">
                                         {/* Left side - Course Info (3/5) */}
                                         <div className="lg:col-span-3 text-white animate-fade-in-up">
                                             {!form.watch("courseData").title ? (
@@ -948,7 +1323,7 @@ export const CourseDetailsPage = () => {
                                             ) : (
                                                 <>
                                                     {/* Tags */}
-                                                    <div className="mb-2 sm:mb-3 flex flex-wrap gap-1.5">
+                                                    <div className="mb-1.5 sm:mb-2 flex flex-wrap gap-1.5">
                                                         {form
                                                             .getValues(
                                                                 "courseData"
@@ -971,7 +1346,7 @@ export const CourseDetailsPage = () => {
                                                     </div>
 
                                                     {/* Title */}
-                                                    <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold mb-2 sm:mb-3 leading-tight drop-shadow-[0_1px_2px_rgba(0,0,0,0.6)]">
+                                                    <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold mb-1.5 sm:mb-2 leading-tight drop-shadow-[0_1px_2px_rgba(0,0,0,0.6)]">
                                                         {toTitleCase(
                                                             form.getValues(
                                                                 "courseData"
@@ -1005,13 +1380,14 @@ export const CourseDetailsPage = () => {
                                                         .courseMediaId
                                                 }
                                             />
+                                            {/* Certificate CTA moved to Course Configuration section */}
                                         </div>
                                     </div>
                                 ) : (
                                     // Layout without video - full width
                                     <div className="w-full text-center text-white animate-fade-in-up">
                                         {!form.watch("courseData").title ? (
-                                            <div className="space-y-4 max-w-3xl mx-auto">
+                                            <div className="space-y-3 max-w-3xl mx-auto">
                                                 <div className="h-6 w-32 animate-pulse rounded bg-white/20 mx-auto" />
                                                 <div className="h-8 sm:h-10 w-3/4 animate-pulse rounded bg-white/20 mx-auto" />
                                                 <div className="h-4 w-full animate-pulse rounded bg-white/20" />
@@ -1020,7 +1396,7 @@ export const CourseDetailsPage = () => {
                                         ) : (
                                             <div className="max-w-4xl mx-auto">
                                                 {/* Tags */}
-                                                <div className="mb-3 sm:mb-4 flex flex-wrap gap-2 justify-center">
+                                                <div className="mb-2 sm:mb-3 flex flex-wrap gap-2 justify-center">
                                                     {form
                                                         .getValues("courseData")
                                                         .tags.map(
@@ -1036,7 +1412,7 @@ export const CourseDetailsPage = () => {
                                                 </div>
 
                                                 {/* Title */}
-                                                <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-3 sm:mb-4 leading-tight drop-shadow-[0_1px_2px_rgba(0,0,0,0.6)]">
+                                                <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-2 sm:mb-3 leading-tight drop-shadow-[0_1px_2px_rgba(0,0,0,0.6)]">
                                                     {toTitleCase(
                                                         form.getValues(
                                                             "courseData"
@@ -1054,6 +1430,8 @@ export const CourseDetailsPage = () => {
                                                             ).description || "",
                                                     }}
                                                 />
+
+                                                {/* Certificate CTA moved to Course Configuration section */}
                                             </div>
                                         )}
                                     </div>
@@ -1063,10 +1441,133 @@ export const CourseDetailsPage = () => {
                     </div>
                 </div>
 
-                {/* Video Player for non-lg screens */}
+                {/* Lightweight confetti placeholder overlay (replace with library later) */}
+                {showConfetti && (
+                    <div className="pointer-events-none fixed inset-0 z-[1000] overflow-hidden">
+                        <div className="absolute inset-0 bg-transparent animate-pulse" />
+                    </div>
+                )}
+
+                {/* Certificate Modal */}
+                <Dialog
+                    open={certificateDialogOpen}
+                    onOpenChange={setCertificateDialogOpen}
+                >
+                    <DialogContent className="max-w-md p-0 overflow-hidden">
+                        <div
+                            className="bg-gradient-to-r from-primary-600 to-primary-500 text-white px-5 py-4 flex items-center gap-3"
+                            style={{
+                                background:
+                                    "linear-gradient(to right, var(--color-primary-600, #2563eb), var(--color-primary-500, #3b82f6))",
+                                color: "#fff",
+                            }}
+                        >
+                            <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
+                                <GraduationCap
+                                    size={18}
+                                    className="text-white"
+                                />
+                            </div>
+                            <div>
+                                <div className="text-base font-semibold">
+                                    Course Completed
+                                </div>
+                                <div className="text-xs opacity-90">
+                                    Congratulations! You’ve earned a
+                                    certificate.
+                                </div>
+                            </div>
+                        </div>
+                        <div className="px-5 py-4">
+                            {(() => {
+                                const sessionLabel = (
+                                    sessionOptions || []
+                                ).find(
+                                    (o) => o.value === selectedSession
+                                )?.label;
+                                const levelLabel = (levelOptions || []).find(
+                                    (o) => o.value === selectedLevel
+                                )?.label;
+                                const isSessionVisible =
+                                    !!sessionLabel &&
+                                    sessionLabel.toLowerCase() !== "default";
+                                const isLevelVisible =
+                                    !!levelLabel &&
+                                    levelLabel.toLowerCase() !== "default";
+                                return (
+                                    <div className="space-y-2 text-sm">
+                                        <div>
+                                            <span className="font-medium text-gray-700">
+                                                Course:
+                                            </span>
+                                            <span className="ml-2">
+                                                {toTitleCase(
+                                                    form.getValues("courseData")
+                                                        .title
+                                                )}
+                                            </span>
+                                        </div>
+                                        {isSessionVisible && (
+                                            <div>
+                                                <span className="font-medium text-gray-700">
+                                                    Session:
+                                                </span>
+                                                <span className="ml-2">
+                                                    {toTitleCase(
+                                                        sessionLabel || ""
+                                                    )}
+                                                </span>
+                                            </div>
+                                        )}
+                                        {isLevelVisible && (
+                                            <div>
+                                                <span className="font-medium text-gray-700">
+                                                    Level:
+                                                </span>
+                                                <span className="ml-2">
+                                                    {toTitleCase(
+                                                        levelLabel || ""
+                                                    )}
+                                                </span>
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })()}
+                            <div className="mt-4 -mx-5 px-5 py-3 bg-gray-50 dark:bg-neutral-900/50 border-t border-gray-200 dark:border-neutral-800 flex items-center justify-end gap-2">
+                                <MyButton
+                                    buttonType="secondary"
+                                    scale="medium"
+                                    onClick={() =>
+                                        setCertificateDialogOpen(false)
+                                    }
+                                >
+                                    Close
+                                </MyButton>
+                                <MyButton
+                                    asChild
+                                    buttonType="primary"
+                                    scale="medium"
+                                >
+                                    <a
+                                        href={certificateUrl || undefined}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        onClick={() =>
+                                            setCertificateDialogOpen(false)
+                                        }
+                                    >
+                                        View Certificate
+                                    </a>
+                                </MyButton>
+                            </div>
+                        </div>
+                    </DialogContent>
+                </Dialog>
+                {/* Video Player for non-lg screens (always visible if course has media) */}
                 {form.watch("courseData").courseMediaId && (
-                    <div className="lg:hidden relative z-10 max-w-[350px] px-3 sm:px-4 py-4">
-                        <div className="bg-white border border-gray-200 rounded-md shadow-sm p-3 sm:p-4">
+                    <div className="lg:hidden relative z-10 max-w-[350px] px-0 py-3">
+                        <div className="bg-white border border-gray-200 rounded-md shadow-sm p-2 sm:p-3">
                             <VideoPlayer
                                 src={form.watch("courseData").courseMediaId}
                             />
@@ -1075,289 +1576,387 @@ export const CourseDetailsPage = () => {
                 )}
 
                 {/* Main Content Container */}
-                <div className="relative z-10 max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 py-4 lg:py-6">
-                    <div className="grid grid-cols-1 xl:grid-cols-4 gap-4 lg:gap-6">
+                <div className="relative z-10 w-full px-0 py-3 lg:py-4">
+                    <div
+                        className={`grid grid-cols-1 ${hasRightSidebar ? "lg:grid-cols-3" : ""} gap-3 lg:gap-4`}
+                    >
                         {/* Left Column - Course Content (3/4) */}
-                        <div className="xl:col-span-3 space-y-4 lg:space-y-6">
-                            {/* Enhanced Session and Level Selectors */}
-                            <div
-                                className="relative bg-white border border-gray-200 rounded-md shadow-sm hover:shadow-md transition-all duration-200 p-3 sm:p-4 group animate-fade-in-up"
-                                style={{ animationDelay: "0.1s" }}
-                            >
-                                {/* Background gradient overlay */}
-                                <div className="absolute inset-0 bg-gradient-to-br from-primary-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-md"></div>
-
-                                {/* Floating orb effect */}
-                                <div className="absolute top-0 right-0 w-12 h-12 bg-primary-100/20 rounded-full blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-700 -translate-y-1 translate-x-3"></div>
-
-                                <div className="relative">
-                                    <div className="flex items-center space-x-2 mb-3">
-                                        <div className="p-1.5 bg-gradient-to-br from-primary-100 to-primary-200 rounded-md shadow-sm">
-                                            <GraduationCap
-                                                size={18}
-                                                className="text-primary-600"
-                                                weight="duotone"
-                                            />
+                        <div
+                            className={`${hasRightSidebar ? "lg:col-span-2" : ""} space-y-3 lg:space-y-4`}
+                        >
+                            {/* Certificate Card (separate from Course Configuration) */}
+                            {certificateUrl && (
+                                <div
+                                    className="relative bg-white border border-gray-200 rounded-md shadow-sm hover:shadow-md transition-all duration-200 p-3 sm:p-4 group animate-fade-in-up"
+                                    style={{ animationDelay: "0.05s" }}
+                                >
+                                    <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-md"></div>
+                                    <div className="relative flex items-start justify-between gap-3">
+                                        <div className="flex items-center gap-2">
+                                            <div className="p-1.5 bg-gradient-to-br from-emerald-100 to-emerald-200 rounded-md shadow-sm">
+                                                <GraduationCap
+                                                    size={18}
+                                                    className="text-emerald-600"
+                                                    weight="duotone"
+                                                />
+                                            </div>
+                                            <div>
+                                                <div className="text-sm font-bold text-gray-900">
+                                                    Certificate available
+                                                </div>
+                                                <div className="text-xs text-gray-600">
+                                                    You can view or download
+                                                    your certificate now.
+                                                </div>
+                                            </div>
                                         </div>
-                                        <h3 className="text-base font-bold text-gray-900">
-                                            {getTerminology(
-                                                ContentTerms.Course,
-                                                SystemTerms.Course
-                                            )}{" "}
-                                            Configuration
-                                        </h3>
+                                        <a
+                                            href={certificateUrl}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="inline-flex items-center gap-2 bg-emerald-600 text-white hover:bg-emerald-700 px-3 py-1.5 rounded-md text-xs font-medium shadow"
+                                        >
+                                            View Certificate
+                                        </a>
                                     </div>
+                                </div>
+                            )}
+                            {/* Enhanced Session and Level Selectors */}
+                            {showCourseConfiguration && (
+                                <div
+                                    className="relative bg-white border border-gray-200 rounded-md shadow-sm hover:shadow-md transition-all duration-200 p-3 sm:p-4 group animate-fade-in-up"
+                                    style={{ animationDelay: "0.1s" }}
+                                >
+                                    {/* Background gradient overlay */}
+                                    <div className="absolute inset-0 bg-gradient-to-br from-primary-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-md"></div>
 
-                                    {sessionOptions &&
-                                    sessionOptions.length > 0 ? (
-                                        <div>
-                                            {/* Preview notice for ALL tab - only show if user is not enrolled */}
-                                            {selectedTab === "ALL" &&
-                                                (() => {
-                                                    // Check if user is enrolled in this course
-                                                    const isEnrolledInCourse =
-                                                        enrolledSessions.some(
-                                                            (
-                                                                enrolledSession
-                                                            ) => {
-                                                                return (
+                                    {/* Floating orb effect */}
+                                    <div className="absolute top-0 right-0 w-12 h-12 bg-primary-100/20 rounded-full blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-700 -translate-y-1 translate-x-3"></div>
+
+                                    <div className="relative">
+                                        <div className="flex items-center space-x-2 mb-3">
+                                            <div className="p-1.5 bg-gradient-to-br from-primary-100 to-primary-200 rounded-md shadow-sm">
+                                                <GraduationCap
+                                                    size={18}
+                                                    className="text-primary-600"
+                                                    weight="duotone"
+                                                />
+                                            </div>
+                                            <h3 className="text-base font-bold text-gray-900">
+                                                {getTerminology(
+                                                    ContentTerms.Course,
+                                                    SystemTerms.Course
+                                                )}{" "}
+                                                Configuration
+                                            </h3>
+                                        </div>
+
+                                        {sessionOptions &&
+                                        sessionOptions.length > 0 ? (
+                                            <div>
+                                                {/* Preview notice for ALL tab - only show if user is not enrolled */}
+                                                {selectedTab === "ALL" &&
+                                                    (() => {
+                                                        // Check if user is enrolled in this course
+                                                        const safeEnrolledSessions = enrolledSessions || [];
+                                                        const isEnrolledInCourse =
+                                                            safeEnrolledSessions.some(
+                                                                (
                                                                     enrolledSession
-                                                                        .package_dto
-                                                                        .id ===
-                                                                    searchParams.courseId
-                                                                );
-                                                            }
-                                                        );
+                                                                ) => {
+                                                                    return (
+                                                                        enrolledSession
+                                                                            .package_dto
+                                                                            .id ===
+                                                                        searchParams.courseId
+                                                                    );
+                                                                }
+                                                            );
 
-                                                    // Only show preview mode message if user is NOT enrolled
-                                                    if (!isEnrolledInCourse) {
-                                                        return (
-                                                            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                                                                <div className="flex items-center space-x-2">
-                                                                    <div className="w-2 h-2 bg-blue-500 rounded-sm"></div>
-                                                                    <span className="text-sm font-medium text-blue-800">
+                                                        // Only show preview mode message if user is NOT enrolled
+                                                        if (
+                                                            !isEnrolledInCourse
+                                                        ) {
+                                                            return (
+                                                                <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                                                                    <div className="flex items-center space-x-2">
+                                                                        <div className="w-2 h-2 bg-blue-500 rounded-sm"></div>
+                                                                        <span className="text-sm font-medium text-blue-800">
+                                                                            {getTerminology(
+                                                                                ContentTerms.Course,
+                                                                                SystemTerms.Course
+                                                                            )}{" "}
+                                                                            Preview
+                                                                            Mode
+                                                                        </span>
+                                                                    </div>
+                                                                    <p className="text-xs text-blue-700 mt-1">
+                                                                        Browse{" "}
                                                                         {getTerminology(
                                                                             ContentTerms.Course,
                                                                             SystemTerms.Course
-                                                                        )}{" "}
-                                                                        Preview
-                                                                        Mode
-                                                                    </span>
+                                                                        ).toLocaleLowerCase()}{" "}
+                                                                        structure.
+                                                                        Enroll
+                                                                        to
+                                                                        access{" "}
+                                                                        {getTerminology(
+                                                                            ContentTerms.Slides,
+                                                                            SystemTerms.Slides
+                                                                        ).toLocaleLowerCase()}
+                                                                        s and
+                                                                        materials.
+                                                                    </p>
                                                                 </div>
-                                                                <p className="text-xs text-blue-700 mt-1">
-                                                                    Browse{" "}
-                                                                    {getTerminology(
-                                                                        ContentTerms.Course,
-                                                                        SystemTerms.Course
-                                                                    ).toLocaleLowerCase()}{" "}
-                                                                    structure.
-                                                                    Enroll to
-                                                                    access{" "}
-                                                                    {getTerminology(
-                                                                        ContentTerms.Slides,
-                                                                        SystemTerms.Slides
-                                                                    ).toLocaleLowerCase()}
-                                                                    s and
-                                                                    materials.
-                                                                </p>
+                                                            );
+                                                        }
+
+                                                        // If user is enrolled, don't show preview mode message
+                                                        return null;
+                                                    })()}
+
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 lg:gap-4">
+                                                    {/* Session Selector */}
+                                                    {sessionOptions &&
+                                                        sessionOptions.length >
+                                                            0 &&
+                                                        // Hide if only one and label is 'default'
+                                                        (sessionOptions.length ===
+                                                            1 &&
+                                                        sessionOptions[0]
+                                                            .label ===
+                                                            "default" ? null : sessionOptions.length ===
+                                                          1 ? (
+                                                            <div className="p-2.5 bg-gray-50/80 rounded-lg border border-gray-200">
+                                                                <span className="text-sm font-medium text-gray-900">
+                                                                    {
+                                                                        sessionOptions[0]
+                                                                            ?.label
+                                                                    }
+                                                                </span>
                                                             </div>
-                                                        );
-                                                    }
+                                                        ) : sessionOptions.length >
+                                                          1 ? (
+                                                            <div className="flex flex-col gap-2">
+                                                                <Select
+                                                                    value={
+                                                                        selectedSession
+                                                                    }
+                                                                    onValueChange={
+                                                                        handleSessionChange
+                                                                    }
+                                                                >
+                                                                    <SelectTrigger>
+                                                                        <SelectValue placeholder="Select Session" />
+                                                                    </SelectTrigger>
+                                                                    <SelectContent>
+                                                                        {sessionOptions.map(
+                                                                            (
+                                                                                option
+                                                                            ) => (
+                                                                                <SelectItem
+                                                                                    key={
+                                                                                        option._id
+                                                                                    }
+                                                                                    value={
+                                                                                        option.value
+                                                                                    }
+                                                                                >
+                                                                                    {
+                                                                                        option.label
+                                                                                    }
+                                                                                </SelectItem>
+                                                                            )
+                                                                        )}
+                                                                    </SelectContent>
+                                                                </Select>
+                                                            </div>
+                                                        ) : null)}
 
-                                                    // If user is enrolled, don't show preview mode message
-                                                    return null;
-                                                })()}
-
-                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 lg:gap-4">
-                                                {/* Session Selector */}
-                                                {sessionOptions &&
-                                                    sessionOptions.length > 0 &&
-                                                    // Hide if only one and label is 'default'
-                                                    (sessionOptions.length ===
-                                                        1 &&
-                                                    sessionOptions[0].label ===
-                                                        "default" ? null : sessionOptions.length ===
-                                                      1 ? (
-                                                        <div className="p-2.5 bg-gray-50/80 rounded-lg border border-gray-200">
-                                                            <span className="text-sm font-medium text-gray-900">
-                                                                {
-                                                                    sessionOptions[0]
-                                                                        ?.label
-                                                                }
-                                                            </span>
-                                                        </div>
-                                                    ) : sessionOptions.length >
-                                                      1 ? (
-                                                        <div className="flex flex-col gap-2">
-                                                            <Select
-                                                                value={
-                                                                    selectedSession
-                                                                }
-                                                                onValueChange={
-                                                                    handleSessionChange
-                                                                }
-                                                            >
-                                                                <SelectTrigger>
-                                                                    <SelectValue placeholder="Select Session" />
-                                                                </SelectTrigger>
-                                                                <SelectContent>
-                                                                    {sessionOptions.map(
-                                                                        (
-                                                                            option
-                                                                        ) => (
-                                                                            <SelectItem
-                                                                                key={
-                                                                                    option._id
-                                                                                }
-                                                                                value={
-                                                                                    option.value
-                                                                                }
-                                                                            >
-                                                                                {
-                                                                                    option.label
-                                                                                }
-                                                                            </SelectItem>
-                                                                        )
-                                                                    )}
-                                                                </SelectContent>
-                                                            </Select>
-                                                        </div>
-                                                    ) : null)}
-
-                                                {/* Level Selector */}
-                                                {levelOptions &&
-                                                    levelOptions.length > 0 &&
-                                                    // Hide if only one and label is 'default'
-                                                    (levelOptions.length ===
-                                                        1 &&
-                                                    levelOptions[0].label ===
-                                                        "default" ? null : levelOptions.length ===
-                                                      1 ? (
-                                                        <div className="p-2.5 bg-gray-50/80 rounded-lg border border-gray-200">
-                                                            <span className="text-sm font-medium text-gray-900">
-                                                                {
-                                                                    levelOptions[0]
-                                                                        ?.label
-                                                                }
-                                                            </span>
-                                                        </div>
-                                                    ) : levelOptions.length >
-                                                      1 ? (
-                                                        <div className="flex flex-col gap-2">
-                                                            <Select
-                                                                value={
-                                                                    selectedLevel
-                                                                }
-                                                                onValueChange={
-                                                                    handleLevelChange
-                                                                }
-                                                                disabled={
-                                                                    !selectedSession
-                                                                }
-                                                            >
-                                                                <SelectTrigger>
-                                                                    <SelectValue placeholder="Select Level" />
-                                                                </SelectTrigger>
-                                                                <SelectContent>
-                                                                    {levelOptions.map(
-                                                                        (
-                                                                            option
-                                                                        ) => (
-                                                                            <SelectItem
-                                                                                key={
-                                                                                    option._id
-                                                                                }
-                                                                                value={
-                                                                                    option.value
-                                                                                }
-                                                                            >
-                                                                                {
-                                                                                    option.label
-                                                                                }
-                                                                            </SelectItem>
-                                                                        )
-                                                                    )}
-                                                                </SelectContent>
-                                                            </Select>
-                                                        </div>
-                                                    ) : null)}
+                                                    {/* Level Selector */}
+                                                    {levelOptions &&
+                                                        levelOptions.length >
+                                                            0 &&
+                                                        // Hide if only one and label is 'default'
+                                                        (levelOptions.length ===
+                                                            1 &&
+                                                        levelOptions[0]
+                                                            .label ===
+                                                            "default" ? null : levelOptions.length ===
+                                                          1 ? (
+                                                            <div className="p-2.5 bg-gray-50/80 rounded-lg border border-gray-200">
+                                                                <span className="text-sm font-medium text-gray-900">
+                                                                    {
+                                                                        levelOptions[0]
+                                                                            ?.label
+                                                                    }
+                                                                </span>
+                                                            </div>
+                                                        ) : levelOptions.length >
+                                                          1 ? (
+                                                            <div className="flex flex-col gap-2">
+                                                                <Select
+                                                                    value={
+                                                                        selectedLevel
+                                                                    }
+                                                                    onValueChange={
+                                                                        handleLevelChange
+                                                                    }
+                                                                    disabled={
+                                                                        !selectedSession
+                                                                    }
+                                                                >
+                                                                    <SelectTrigger>
+                                                                        <SelectValue placeholder="Select Level" />
+                                                                    </SelectTrigger>
+                                                                    <SelectContent>
+                                                                        {levelOptions.map(
+                                                                            (
+                                                                                option
+                                                                            ) => (
+                                                                                <SelectItem
+                                                                                    key={
+                                                                                        option._id
+                                                                                    }
+                                                                                    value={
+                                                                                        option.value
+                                                                                    }
+                                                                                >
+                                                                                    {
+                                                                                        option.label
+                                                                                    }
+                                                                                </SelectItem>
+                                                                            )
+                                                                        )}
+                                                                    </SelectContent>
+                                                                </Select>
+                                                            </div>
+                                                        ) : null)}
+                                                </div>
                                             </div>
-                                        </div>
-                                    ) : (
-                                        <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                                            <div className="flex items-center space-x-2">
-                                                <div className="w-2 h-2 bg-yellow-500 rounded-sm"></div>
-                                                <span className="text-sm font-medium text-yellow-800">
+                                        ) : (
+                                            <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                                                <div className="flex items-center space-x-2">
+                                                    <div className="w-2 h-2 bg-yellow-500 rounded-sm"></div>
+                                                    <span className="text-sm font-medium text-yellow-800">
+                                                        {selectedTab === "ALL"
+                                                            ? `No ${getTerminology(
+                                                                  ContentTerms.Session,
+                                                                  SystemTerms.Session
+                                                              ).toLocaleLowerCase()} available for this ${getTerminology(
+                                                                  ContentTerms.Course,
+                                                                  SystemTerms.Course
+                                                              ).toLocaleLowerCase()}`
+                                                            : `You are not enrolled in any ${getTerminology(
+                                                                  ContentTerms.Session,
+                                                                  SystemTerms.Session
+                                                              ).toLocaleLowerCase()} for this ${getTerminology(
+                                                                  ContentTerms.Course,
+                                                                  SystemTerms.Course
+                                                              ).toLocaleLowerCase()}`}
+                                                    </span>
+                                                </div>
+                                                <p className="text-xs text-yellow-700 mt-1">
                                                     {selectedTab === "ALL"
-                                                        ? `No ${getTerminology(
-                                                              ContentTerms.Session,
-                                                              SystemTerms.Session
-                                                          ).toLocaleLowerCase()} available for this ${getTerminology(
+                                                        ? `This ${getTerminology(
                                                               ContentTerms.Course,
                                                               SystemTerms.Course
-                                                          ).toLocaleLowerCase()}`
-                                                        : `You are not enrolled in any ${getTerminology(
+                                                          ).toLocaleLowerCase()} may not have any active ${getTerminology(
                                                               ContentTerms.Session,
                                                               SystemTerms.Session
-                                                          ).toLocaleLowerCase()} for this ${getTerminology(
-                                                              ContentTerms.Course,
-                                                              SystemTerms.Course
-                                                          ).toLocaleLowerCase()}`}
-                                                </span>
+                                                          ).toLocaleLowerCase()}s configured.`
+                                                        : `Please contact your ${getTerminology(
+                                                              RoleTerms.Teacher,
+                                                              SystemTerms.Teacher
+                                                          ).toLocaleLowerCase()} or ${getTerminology(
+                                                              RoleTerms.Admin,
+                                                              SystemTerms.Admin
+                                                          ).toLocaleLowerCase()} to get enrolled.`}
+                                                </p>
                                             </div>
-                                            <p className="text-xs text-yellow-700 mt-1">
-                                                {selectedTab === "ALL"
-                                                    ? `This ${getTerminology(
-                                                          ContentTerms.Course,
-                                                          SystemTerms.Course
-                                                      ).toLocaleLowerCase()} may not have any active ${getTerminology(
-                                                          ContentTerms.Session,
-                                                          SystemTerms.Session
-                                                      ).toLocaleLowerCase()}s configured.`
-                                                    : `Please contact your ${getTerminology(
-                                                          RoleTerms.Teacher,
-                                                          SystemTerms.Teacher
-                                                      ).toLocaleLowerCase()} or ${getTerminology(
-                                                          RoleTerms.Admin,
-                                                          SystemTerms.Admin
-                                                      ).toLocaleLowerCase()} to get enrolled.`}
-                                            </p>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-
-                            {/* Course Structure */}
-                            {packageSessionIdForCurrentLevel && (
-                                <div
-                                    className="animate-fade-in-up"
-                                    style={{ animationDelay: "0.2s" }}
-                                >
-                                    <CourseStructureDetails
-                                        selectedSession={selectedSession}
-                                        selectedLevel={selectedLevel}
-                                        courseStructure={form.getValues(
-                                            "courseData.courseStructure"
                                         )}
-                                        courseData={form.getValues()}
-                                        packageSessionId={packageSessionIdForCurrentLevel}
-                                        selectedTab={selectedTab}
-                                        updateModuleStats={updateModuleStats}
-                                        isEnrolledInCourse={enrolledSessions.some(
-                                            (enrolledSession) =>
-                                                enrolledSession.package_dto.id ===
-                                                searchParams.courseId
-                                        )}
-                                        onLoadingChange={handleModulesLoadingChange}
-                                    />
+                                    </div>
                                 </div>
                             )}
+
+                            {/* Course Structure (always rendered; internal logic will adapt to enrollment/public) */}
+                            <div
+                                className="animate-fade-in-up"
+                                style={{ animationDelay: "0.2s" }}
+                            >
+                                <CourseStructureDetails
+                                    selectedSession={selectedSession}
+                                    selectedLevel={selectedLevel}
+                                    courseStructure={form.getValues(
+                                        "courseData.courseStructure"
+                                    )}
+                                    courseData={form.getValues()}
+                                    packageSessionId={
+                                        packageSessionIdForCurrentLevel || ""
+                                    }
+                                    selectedTab={selectedTab}
+                                    updateModuleStats={updateModuleStats}
+                                    isEnrolledInCourse={(enrolledSessions || []).some(
+                                        (enrolledSession) =>
+                                            enrolledSession.package_dto.id ===
+                                            searchParams.courseId
+                                    )}
+                                    onLoadingChange={handleModulesLoadingChange}
+                                    {...(paymentType && { paymentType })}
+                                />
+                            </div>
+
+                            {/* Inline Enroll card when sidebar is hidden */}
+                            {!hasRightSidebar &&
+                                selectedTab === "ALL" &&
+                                (() => {
+                                    if (!selectedSession || !selectedLevel)
+                                        return null;
+                                    const safeEnrolledSessions = enrolledSessions || [];
+                                    const isAlreadyEnrolled =
+                                        safeEnrolledSessions.some(
+                                            (enrolledSession) =>
+                                                enrolledSession.package_dto
+                                                    .id ===
+                                                    searchParams.courseId &&
+                                                enrolledSession.session.id ===
+                                                    selectedSession &&
+                                                enrolledSession.level.id ===
+                                                    selectedLevel
+                                        );
+                                    if (isAlreadyEnrolled) return null;
+                                    return (
+                                        <div className="relative bg-white border border-gray-200 rounded-md shadow-sm p-2 sm:p-3">
+                                            <MyButton
+                                                type="button"
+                                                scale="large"
+                                                buttonType="primary"
+                                                layoutVariant="default"
+                                                className="!min-w-full !w-full text-xs h-8"
+                                                onClick={() => {
+                                                    console.log('Enrollment button clicked, payment type:', paymentType);
+                                                    // Check payment type first - if not donation, use enrollment dialog
+                                                    if (paymentType && paymentType.toLowerCase() !== 'donation') {
+                                                        console.log('Non-donation payment type, opening enrollment dialog');
+                                                        setEnrollmentDialogOpen(true);
+                                                    } else {
+                                                        console.log('Donation payment type, opening donation dialog');
+                                                        setDonationDialogOpen(true);
+                                                    }
+                                                }}
+                                            >
+                                                Enroll
+                                            </MyButton>
+                                        </div>
+                                    );
+                                })()}
 
                             {/* Content Sections */}
                             <div className="space-y-4">
                                 {/* What You'll Learn Section */}
-                                {form.getValues("courseData")
-                                    .whatYoullLearn && (
+                                {extractTextFromHTML(
+                                    form.getValues("courseData").whatYoullLearn
+                                ) && (
                                     <div
                                         className="relative bg-white border border-gray-200 rounded-md shadow-sm hover:shadow-md transition-all duration-300 p-3 sm:p-4 group animate-fade-in-up"
                                         style={{ animationDelay: "0.3s" }}
@@ -1390,8 +1989,9 @@ export const CourseDetailsPage = () => {
                                 )}
 
                                 {/* About Course Section */}
-                                {form.getValues("courseData")
-                                    .aboutTheCourse && (
+                                {extractTextFromHTML(
+                                    form.getValues("courseData").aboutTheCourse
+                                ) && (
                                     <div
                                         className="relative bg-white border border-gray-200 rounded-md shadow-sm hover:shadow-md transition-all duration-300 p-3 sm:p-4 group animate-fade-in-up"
                                         style={{ animationDelay: "0.4s" }}
@@ -1428,8 +2028,9 @@ export const CourseDetailsPage = () => {
                                 )}
 
                                 {/* Who Should Join Section */}
-                                {form.getValues("courseData")
-                                    .whoShouldLearn && (
+                                {extractTextFromHTML(
+                                    form.getValues("courseData").whoShouldLearn
+                                ) && (
                                     <div
                                         className="relative bg-white border border-gray-200 rounded-md shadow-sm hover:shadow-md transition-all duration-300 p-3 sm:p-4 group animate-fade-in-up"
                                         style={{ animationDelay: "0.5s" }}
@@ -1535,326 +2136,368 @@ export const CourseDetailsPage = () => {
                         </div>
 
                         {/* Right Column - Course Stats Sidebar (1/4) */}
-                        <div className="xl:col-span-1">
-                            <div className="sticky top-4 space-y-4">
-                                <div
-                                    className="relative bg-white border border-gray-200 rounded-md shadow-sm hover:shadow-md transition-all duration-300 p-3 sm:p-4 group animate-fade-in-up"
-                                    style={{ animationDelay: "0.7s" }}
-                                >
-                                    {/* Background gradient overlay */}
-                                    <div className="absolute inset-0 bg-gradient-to-br from-primary-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-md"></div>
+                        {hasRightSidebar && (
+                            <div className="lg:col-span-1">
+                                <div className="sticky top-4 space-y-4">
+                                    {
+                                        <div
+                                            className="relative bg-white border border-gray-200 rounded-md shadow-sm hover:shadow-md transition-all duration-300 p-3 sm:p-4 group animate-fade-in-up"
+                                            style={{ animationDelay: "0.7s" }}
+                                        >
+                                            {/* Background gradient overlay */}
+                                            <div className="absolute inset-0 bg-gradient-to-br from-primary-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-md"></div>
 
-                                    {/* Floating orb effect */}
-                                    <div className="absolute top-0 right-0 w-12 h-12 bg-primary-100/20 rounded-full blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-700 -translate-y-1 translate-x-3"></div>
+                                            {/* Floating orb effect */}
+                                            <div className="absolute top-0 right-0 w-12 h-12 bg-primary-100/20 rounded-full blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-700 -translate-y-1 translate-x-3"></div>
 
-                                    <div className="relative">
-                                        {/* Header */}
-                                        <div className="flex items-center space-x-2 mb-4">
-                                            <div className="p-1.5 bg-gradient-to-br from-primary-100 to-primary-200 rounded-lg shadow-sm">
-                                                <Steps
-                                                    size={18}
-                                                    className="text-primary-600"
-                                                    weight="duotone"
-                                                />
-                                            </div>
-                                            <h2 className="text-base font-bold text-gray-900">
-                                                {getTerminology(
-                                                    ContentTerms.Course,
-                                                    SystemTerms.Course
-                                                ).toLocaleLowerCase()}{" "}
-                                                Overview
-                                            </h2>
-                                        </div>
-
-                                        {/* Course Stats */}
-                                        <div className="space-y-3">
-                                            {/* Level Badge */}
-                                            {levelOptions.length > 0 &&
-                                                selectedLevel &&
-                                                levelOptions.find(
-                                                    (option) =>
-                                                        option.value ===
-                                                        selectedLevel
-                                                )?.label !== "default" && (
-                                                    <div className="flex items-center justify-between p-2.5 bg-gradient-to-r from-primary-50 to-primary-100 rounded-lg border border-primary-200">
-                                                        <div className="flex items-center space-x-2">
-                                                            <Steps
-                                                                size={16}
-                                                                className="text-primary-600"
-                                                                weight="duotone"
-                                                            />
-                                                            <span className="text-xs font-medium text-primary-700">
-                                                                {getTerminology(
-                                                                    ContentTerms.Level,
-                                                                    SystemTerms.Level
-                                                                ).toLocaleLowerCase()}
-                                                            </span>
-                                                        </div>
-                                                        <span className="text-xs font-bold text-primary-800">
-                                                            {
-                                                                levelOptions.find(
-                                                                    (option) =>
-                                                                        option.value ===
-                                                                        selectedLevel
-                                                                )?.label
-                                                            }
-                                                        </span>
+                                            <div className="relative">
+                                                {/* Header */}
+                                                <div className="flex items-center space-x-2 mb-4">
+                                                    <div className="p-1.5 bg-gradient-to-br from-primary-100 to-primary-200 rounded-lg shadow-sm">
+                                                        <Steps
+                                                            size={18}
+                                                            className="text-primary-600"
+                                                            weight="duotone"
+                                                        />
                                                     </div>
-                                                )}
-
-                                            {/* Slide Counts */}
-                                            {slideCountQuery.isLoading ? (
-                                                <div className="space-y-2">
-                                                    {[1, 2, 3, 4, 5].map(
-                                                        (i) => (
-                                                            <div
-                                                                key={i}
-                                                                className="flex items-center justify-between p-2.5 bg-gray-50 rounded-lg animate-pulse"
-                                                            >
-                                                                <div className="h-3 w-16 bg-gray-200 rounded"></div>
-                                                                <div className="h-3 w-6 bg-gray-200 rounded"></div>
-                                                            </div>
-                                                        )
-                                                    )}
-                                                </div>
-                                            ) : slideCountQuery.error ? (
-                                                <div className="p-2.5 bg-red-50 border border-red-200 rounded-lg">
-                                                    <p className="text-xs text-red-600 font-medium">
-                                                        Error loading{" "}
+                                                    <h2 className="text-base font-bold text-gray-900">
                                                         {getTerminology(
-                                                            ContentTerms.Slides,
-                                                            SystemTerms.Slides
-                                                        ).toLocaleLowerCase()}
-                                                        counts
-                                                    </p>
+                                                            ContentTerms.Course,
+                                                            SystemTerms.Course
+                                                        ).toLocaleLowerCase()}{" "}
+                                                        Overview
+                                                    </h2>
                                                 </div>
-                                            ) : (
-                                                <div className="space-y-2">
-                                                    {processedSlideCounts.map(
-                                                        (count: {
-                                                            source_type: string;
-                                                            slide_count: number;
-                                                            display_name: string;
-                                                        }) => (
-                                                            <div
-                                                                key={
-                                                                    count.source_type
-                                                                }
-                                                                className="flex items-center justify-between p-2.5 bg-gray-50/80 rounded-lg hover:bg-gray-100/80 transition-all duration-300 group/item"
-                                                            >
+
+                                                {/* Course Stats */}
+                                                <div className="space-y-3">
+                                                    {/* Level Badge */}
+                                                    {levelOptions.length > 0 &&
+                                                        selectedLevel &&
+                                                        levelOptions.find(
+                                                            (option) =>
+                                                                option.value ===
+                                                                selectedLevel
+                                                        )?.label !==
+                                                            "default" && (
+                                                            <div className="flex items-center justify-between p-2.5 bg-gradient-to-r from-primary-50 to-primary-100 rounded-lg border border-primary-200">
                                                                 <div className="flex items-center space-x-2">
-                                                                    {getSlideTypeIcon(
-                                                                        count.source_type
-                                                                    )}
-                                                                    <span className="text-xs font-medium text-gray-700">
-                                                                        {
-                                                                            count.display_name
+                                                                    <Steps
+                                                                        size={
+                                                                            16
                                                                         }
+                                                                        className="text-primary-600"
+                                                                        weight="duotone"
+                                                                    />
+                                                                    <span className="text-xs font-medium text-primary-700">
+                                                                        {getTerminology(
+                                                                            ContentTerms.Level,
+                                                                            SystemTerms.Level
+                                                                        ).toLocaleLowerCase()}
                                                                     </span>
                                                                 </div>
-                                                                <span className="text-xs font-bold text-gray-900 bg-white px-2 py-0.5 rounded-md shadow-sm">
+                                                                <span className="text-xs font-bold text-primary-800">
                                                                     {
-                                                                        count.slide_count
+                                                                        levelOptions.find(
+                                                                            (
+                                                                                option
+                                                                            ) =>
+                                                                                option.value ===
+                                                                                selectedLevel
+                                                                        )?.label
                                                                     }
                                                                 </span>
                                                             </div>
-                                                        )
-                                                    )}
+                                                        )}
 
-                                                    {/* Module Statistics */}
-                                                    {(() => {
-                                                        const currentSubjects =
-                                                            getSubjectDetails(
-                                                                form.getValues(),
-                                                                selectedSession,
-                                                                selectedLevel
-                                                            );
-
-                                                        return (
-                                                            <>
-                                                                {/* Total Modules */}
-                                                                {moduleStats.totalModules >
-                                                                    0 && (
-                                                                    <div className="flex items-center justify-between p-2.5 bg-gray-50/80 rounded-lg hover:bg-gray-100/80 transition-all duration-300 group/item">
-                                                                        <div className="flex items-center space-x-2">
-                                                                            <FileText
-                                                                                size={
-                                                                                    16
-                                                                                }
-                                                                                className="text-blue-600 group-hover/item:scale-110 transition-transform duration-300"
-                                                                                weight="duotone"
-                                                                            />
-                                                                            <span className="text-xs font-medium text-gray-700">
-                                                                                {getTerminology(
-                                                                                    ContentTerms.Modules,
-                                                                                    SystemTerms.Modules
-                                                                                )}
-                                                                            </span>
-                                                                        </div>
-                                                                        <span className="text-xs font-bold text-gray-900 bg-white px-2 py-0.5 rounded-md shadow-sm">
-                                                                            {
-                                                                                moduleStats.totalModules
+                                                    {/* Slide Counts */}
+                                                    {slideCountQuery.isLoading ? (
+                                                        <div className="space-y-2">
+                                                            {[
+                                                                1, 2, 3, 4, 5,
+                                                            ].map((i) => (
+                                                                <div
+                                                                    key={i}
+                                                                    className="flex items-center justify-between p-2.5 bg-gray-50 rounded-lg animate-pulse"
+                                                                >
+                                                                    <div className="h-3 w-16 bg-gray-200 rounded"></div>
+                                                                    <div className="h-3 w-6 bg-gray-200 rounded"></div>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    ) : slideCountQuery.error ? (
+                                                        <div className="p-2.5 bg-red-50 border border-red-200 rounded-lg">
+                                                            <p className="text-xs text-red-600 font-medium">
+                                                                Error loading{" "}
+                                                                {getTerminology(
+                                                                    ContentTerms.Slides,
+                                                                    SystemTerms.Slides
+                                                                ).toLocaleLowerCase()}
+                                                                counts
+                                                            </p>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="space-y-2">
+                                                            {overviewVisible &&
+                                                                processedSlideCounts.map(
+                                                                    (count: {
+                                                                        source_type: string;
+                                                                        slide_count: number;
+                                                                        display_name: string;
+                                                                    }) => (
+                                                                        <div
+                                                                            key={
+                                                                                count.source_type
                                                                             }
-                                                                        </span>
-                                                                    </div>
-                                                                )}
-
-                                                                {/* Total Chapters */}
-                                                                {moduleStats.totalChapters >
-                                                                    0 && (
-                                                                    <div className="flex items-center justify-between p-2.5 bg-gray-50/80 rounded-lg hover:bg-gray-100/80 transition-all duration-300 group/item">
-                                                                        <div className="flex items-center space-x-2">
-                                                                            <PresentationChart
-                                                                                size={
-                                                                                    16
-                                                                                }
-                                                                                className="text-green-600 group-hover/item:scale-110 transition-transform duration-300"
-                                                                                weight="duotone"
-                                                                            />
-                                                                            <span className="text-xs font-medium text-gray-700">
-                                                                                {getTerminology(
-                                                                                    ContentTerms.Chapters,
-                                                                                    SystemTerms.Chapters
-                                                                                )}
-                                                                            </span>
-                                                                        </div>
-                                                                        <span className="text-xs font-bold text-gray-900 bg-white px-2 py-0.5 rounded-md shadow-sm">
-                                                                            {
-                                                                                moduleStats.totalChapters
-                                                                            }
-                                                                        </span>
-                                                                    </div>
-                                                                )}
-
-                                                                {/* Total Subjects (for depth 5) */}
-                                                                {form.getValues(
-                                                                    "courseData.courseStructure"
-                                                                ) === 5 &&
-                                                                    currentSubjects.length >
-                                                                        0 && (
-                                                                        <div className="flex items-center justify-between p-2.5 bg-gray-50/80 rounded-lg hover:bg-gray-100/80 transition-all duration-300 group/item">
+                                                                            className="flex items-center justify-between p-2.5 bg-gray-50/80 rounded-lg hover:bg-gray-100/80 transition-all duration-300 group/item"
+                                                                        >
                                                                             <div className="flex items-center space-x-2">
-                                                                                <Folder
-                                                                                    size={
-                                                                                        16
-                                                                                    }
-                                                                                    className="text-purple-600 group-hover/item:scale-110 transition-transform duration-300"
-                                                                                    weight="duotone"
-                                                                                />
+                                                                                {getSlideTypeIcon(
+                                                                                    count.source_type
+                                                                                )}
                                                                                 <span className="text-xs font-medium text-gray-700">
-                                                                                    {getTerminology(
-                                                                                        ContentTerms.Subjects,
-                                                                                        SystemTerms.Subjects
-                                                                                    )}
+                                                                                    {
+                                                                                        count.display_name
+                                                                                    }
                                                                                 </span>
                                                                             </div>
                                                                             <span className="text-xs font-bold text-gray-900 bg-white px-2 py-0.5 rounded-md shadow-sm">
                                                                                 {
-                                                                                    currentSubjects.length
+                                                                                    count.slide_count
                                                                                 }
                                                                             </span>
                                                                         </div>
-                                                                    )}
-                                                            </>
-                                                        );
-                                                    })()}
-
-                                                    {/* Instructors Count */}
-                                                    {form.getValues(
-                                                        "courseData"
-                                                    ).instructors.length >
-                                                        0 && (
-                                                        <div className="flex items-center justify-between p-2.5 bg-gray-50/80 rounded-lg hover:bg-gray-100/80 transition-all duration-300 group/item">
-                                                            <div className="flex items-center space-x-2">
-                                                                <ChalkboardTeacher
-                                                                    size={16}
-                                                                    className="text-orange-600 group-hover/item:scale-110 transition-transform duration-300"
-                                                                    weight="duotone"
-                                                                />
-                                                                <span className="text-xs font-medium text-gray-700">
-                                                                    Instructors
-                                                                </span>
-                                                            </div>
-                                                            <span className="text-xs font-bold text-gray-900 bg-white px-2 py-0.5 rounded-md shadow-sm">
-                                                                {
-                                                                    form.getValues(
-                                                                        "courseData"
                                                                     )
-                                                                        .instructors
-                                                                        .length
-                                                                }
-                                                            </span>
+                                                                )}
+
+                                                            {/* Module Statistics */}
+                                                            {overviewVisible &&
+                                                                (() => {
+                                                                    const currentSubjects =
+                                                                        getSubjectDetails(
+                                                                            form.getValues(),
+                                                                            selectedSession,
+                                                                            selectedLevel
+                                                                        );
+
+                                                                    return (
+                                                                        <>
+                                                                            {/* Total Modules */}
+                                                                            {moduleStats.totalModules >
+                                                                                0 && (
+                                                                                <div className="flex items-center justify-between p-2.5 bg-gray-50/80 rounded-lg hover:bg-gray-100/80 transition-all duration-300 group/item">
+                                                                                    <div className="flex items-center space-x-2">
+                                                                                        <FileText
+                                                                                            size={
+                                                                                                16
+                                                                                            }
+                                                                                            className="text-blue-600 group-hover/item:scale-110 transition-transform duration-300"
+                                                                                            weight="duotone"
+                                                                                        />
+                                                                                        <span className="text-xs font-medium text-gray-700">
+                                                                                            {getTerminology(
+                                                                                                ContentTerms.Modules,
+                                                                                                SystemTerms.Modules
+                                                                                            )}
+                                                                                        </span>
+                                                                                    </div>
+                                                                                    <span className="text-xs font-bold text-gray-900 bg-white px-2 py-0.5 rounded-md shadow-sm">
+                                                                                        {
+                                                                                            moduleStats.totalModules
+                                                                                        }
+                                                                                    </span>
+                                                                                </div>
+                                                                            )}
+
+                                                                            {/* Total Chapters */}
+                                                                            {moduleStats.totalChapters >
+                                                                                0 && (
+                                                                                <div className="flex items-center justify-between p-2.5 bg-gray-50/80 rounded-lg hover:bg-gray-100/80 transition-all duration-300 group/item">
+                                                                                    <div className="flex items-center space-x-2">
+                                                                                        <PresentationChart
+                                                                                            size={
+                                                                                                16
+                                                                                            }
+                                                                                            className="text-green-600 group-hover/item:scale-110 transition-transform duration-300"
+                                                                                            weight="duotone"
+                                                                                        />
+                                                                                        <span className="text-xs font-medium text-gray-700">
+                                                                                            {getTerminology(
+                                                                                                ContentTerms.Chapters,
+                                                                                                SystemTerms.Chapters
+                                                                                            )}
+                                                                                        </span>
+                                                                                    </div>
+                                                                                    <span className="text-xs font-bold text-gray-900 bg-white px-2 py-0.5 rounded-md shadow-sm">
+                                                                                        {
+                                                                                            moduleStats.totalChapters
+                                                                                        }
+                                                                                    </span>
+                                                                                </div>
+                                                                            )}
+
+                                                                            {/* Total Subjects (for depth 5) */}
+                                                                            {form.getValues(
+                                                                                "courseData.courseStructure"
+                                                                            ) ===
+                                                                                5 &&
+                                                                                currentSubjects.length >
+                                                                                    0 && (
+                                                                                    <div className="flex items-center justify-between p-2.5 bg-gray-50/80 rounded-lg hover:bg-gray-100/80 transition-all duration-300 group/item">
+                                                                                        <div className="flex items-center space-x-2">
+                                                                                            <Folder
+                                                                                                size={
+                                                                                                    16
+                                                                                                }
+                                                                                                className="text-purple-600 group-hover/item:scale-110 transition-transform duration-300"
+                                                                                                weight="duotone"
+                                                                                            />
+                                                                                            <span className="text-xs font-medium text-gray-700">
+                                                                                                {getTerminology(
+                                                                                                    ContentTerms.Subjects,
+                                                                                                    SystemTerms.Subjects
+                                                                                                )}
+                                                                                            </span>
+                                                                                        </div>
+                                                                                        <span className="text-xs font-bold text-gray-900 bg-white px-2 py-0.5 rounded-md shadow-sm">
+                                                                                            {
+                                                                                                currentSubjects.length
+                                                                                            }
+                                                                                        </span>
+                                                                                    </div>
+                                                                                )}
+                                                                        </>
+                                                                    );
+                                                                })()}
+
+                                                            {/* Instructors Count */}
+                                                            {form.getValues(
+                                                                "courseData"
+                                                            ).instructors
+                                                                .length > 0 && (
+                                                                <div className="flex items-center justify-between p-2.5 bg-gray-50/80 rounded-lg hover:bg-gray-100/80 transition-all duration-300 group/item">
+                                                                    <div className="flex items-center space-x-2">
+                                                                        <ChalkboardTeacher
+                                                                            size={
+                                                                                16
+                                                                            }
+                                                                            className="text-orange-600 group-hover/item:scale-110 transition-transform duration-300"
+                                                                            weight="duotone"
+                                                                        />
+                                                                        <span className="text-xs font-medium text-gray-700">
+                                                                            Instructors
+                                                                        </span>
+                                                                    </div>
+                                                                    <span className="text-xs font-bold text-gray-900 bg-white px-2 py-0.5 rounded-md shadow-sm">
+                                                                        {
+                                                                            form.getValues(
+                                                                                "courseData"
+                                                                            )
+                                                                                .instructors
+                                                                                .length
+                                                                        }
+                                                                    </span>
+                                                                </div>
+                                                            )}
                                                         </div>
                                                     )}
                                                 </div>
-                                            )}
-                                        </div>
-                                        {/* Only show enroll button for ALL tab when user is not enrolled */}
-                                        {selectedTab === "ALL" &&
-                                            (() => {
-                                                // Only show enrollment options if session and level are selected
-                                                if (
-                                                    !selectedSession ||
-                                                    !selectedLevel
-                                                ) {
-                                                    return null; // Don't show anything if session/level not selected
-                                                }
+                                                {/* Only show enroll button for ALL tab when user is not enrolled */}
+                                                {selectedTab === "ALL" &&
+                                                    (() => {
+                                                        // Only show enrollment options if session and level are selected
+                                                        if (
+                                                            !selectedSession ||
+                                                            !selectedLevel
+                                                        ) {
+                                                            return null; // Don't show anything if session/level not selected
+                                                        }
 
-                                                // Check if user is already enrolled in this course
-                                                const isAlreadyEnrolled =
-                                                    enrolledSessions.some(
-                                                        (enrolledSession) => {
-                                                            // Check if the enrolled session matches the current course
-                                                            // The package_dto.id represents the course/package ID
-                                                            return (
-                                                                enrolledSession
-                                                                    .package_dto
-                                                                    .id ===
-                                                                    searchParams.courseId &&
-                                                                enrolledSession
-                                                                    .session
-                                                                    .id ===
-                                                                    selectedSession &&
-                                                                enrolledSession
-                                                                    .level
-                                                                    .id ===
-                                                                    selectedLevel
+                                                        // Check if user is already enrolled in this course
+                                                        const safeEnrolledSessions = enrolledSessions || [];
+                                                        const isAlreadyEnrolled =
+                                                            safeEnrolledSessions.some(
+                                                                (
+                                                                    enrolledSession
+                                                                ) => {
+                                                                    // Check if the enrolled session matches the current course
+                                                                    // The package_dto.id represents the course/package ID
+                                                                    return (
+                                                                        enrolledSession
+                                                                            .package_dto
+                                                                            .id ===
+                                                                            searchParams.courseId &&
+                                                                        enrolledSession
+                                                                            .session
+                                                                            .id ===
+                                                                            selectedSession &&
+                                                                        enrolledSession
+                                                                            .level
+                                                                            .id ===
+                                                                            selectedLevel
+                                                                    );
+                                                                }
                                                             );
-                                                        }
-                                                    );
 
-                                                // Only show enroll button if not already enrolled
-                                                return !isAlreadyEnrolled ? (
-                                                    <MyButton
-                                                        type="button"
-                                                        scale="large"
-                                                        buttonType="primary"
-                                                        layoutVariant="default"
-                                                        className="mt-2 !min-w-full !w-full text-xs h-8"
-                                                        onClick={() =>
-                                                            setEnrollmentDialogOpen(
-                                                                true
-                                                            )
-                                                        }
-                                                    >
-                                                        Enroll
-                                                    </MyButton>
-                                                ) : null; // Don't show anything if already enrolled
-                                            })()}
-                                    </div>
+                                                        // Only show enroll button if not already enrolled
+                                                        return !isAlreadyEnrolled ? (
+                                                            <MyButton
+                                                                type="button"
+                                                                scale="large"
+                                                                buttonType="primary"
+                                                                layoutVariant="default"
+                                                                className="mt-2 !min-w-full !w-full text-xs h-8"
+                                                                onClick={() => {
+                                                                    console.log('Enrollment button clicked, payment type:', paymentType);
+                                                                    // Check payment type first - if not donation, use enrollment dialog
+                                                                    if (paymentType && paymentType.toLowerCase() !== 'donation') {
+                                                                        console.log('Non-donation payment type, opening enrollment dialog');
+                                                                        setEnrollmentDialogOpen(true);
+                                                                    } else {
+                                                                        console.log('Donation payment type, opening donation dialog');
+                                                                        setDonationDialogOpen(true);
+                                                                    }
+                                                                }}
+                                                            >
+                                                                Enroll
+                                                            </MyButton>
+                                                        ) : null; // Don't show anything if already enrolled
+                                                    })()}
+                                            </div>
+                                        </div>
+                                    }
+
+                                    {/* Ratings & Reviews */}
+                                    {packageSessionIdForCurrentLevel && (
+                                        <div
+                                            className="animate-fade-in-up"
+                                            style={{ animationDelay: "1.0s" }}
+                                        >
+                                            <CourseDetailsRatingsComponent
+                                                packageSessionId={
+                                                    packageSessionIdForCurrentLevel
+                                                }
+                                                onLoadingChange={
+                                                    handleRatingsLoadingChange
+                                                }
+                                            />
+                                        </div>
+                                    )}
                                 </div>
                             </div>
-                        </div>
+                        )}
                     </div>
 
                     {/* Ratings Component */}
-                    {packageSessionIdForCurrentLevel && (
+                    {!hasRightSidebar && packageSessionIdForCurrentLevel && (
                         <div
                             className="mt-6 lg:mt-8 animate-fade-in-up"
                             style={{ animationDelay: "0.8s" }}
                         >
                             <CourseDetailsRatingsComponent
-                                packageSessionId={packageSessionIdForCurrentLevel}
+                                packageSessionId={
+                                    packageSessionIdForCurrentLevel
+                                }
                                 onLoadingChange={handleRatingsLoadingChange}
                             />
                         </div>

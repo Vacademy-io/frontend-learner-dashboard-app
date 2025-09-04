@@ -1,19 +1,25 @@
-import { Storage } from "@capacitor/storage";
+import { Preferences } from "@capacitor/preferences";
 import { TokenKey } from "@/constants/auth/tokens";
 import axios from "axios";
 import { isTokenExpired } from "./sessionUtility"; // Utility for JWT expiration checks
 import { REFRESH_TOKEN_URL } from "@/constants/urls";
 
-// Helper functions to interact with Capacitor Storage
-export const getTokenFromStorage = async (key: string): Promise<string | null> => {
-  const { value } = await Storage.get({ key });
-  return value;
+// Helper functions to interact with Capacitor Preferences
+export const getTokenFromStorage = async (
+  key: string
+): Promise<string | null> => {
+  try {
+    const { value } = await Preferences.get({ key });
+    return value;
+  } catch (error) {
+    return null;
+  }
 };
 
 const removeTokensAndInstituteId = async () => {
-  await Storage.remove({ key: TokenKey.accessToken });
-  await Storage.remove({ key: TokenKey.refreshToken });
-  await Storage.remove({ key: "instituteId" });
+  await Preferences.remove({ key: TokenKey.accessToken });
+  await Preferences.remove({ key: TokenKey.refreshToken });
+  await Preferences.remove({ key: "instituteId" });
 };
 
 const refreshTokens = async (refreshToken: string): Promise<void> => {
@@ -26,12 +32,15 @@ const refreshTokens = async (refreshToken: string): Promise<void> => {
     } = response.data;
 
     // Store the new tokens and institute ID
-    await Storage.set({ key: TokenKey.accessToken, value: accessToken });
-    await Storage.set({ key: TokenKey.refreshToken, value: newRefreshToken });
-    await Storage.set({ key: "instituteId", value: instituteId });
-  } catch (error) {
-    console.error("Error refreshing token", error);
-    throw error;
+    await Preferences.set({ key: TokenKey.accessToken, value: accessToken });
+    await Preferences.set({
+      key: TokenKey.refreshToken,
+      value: newRefreshToken,
+    });
+    await Preferences.set({ key: "instituteId", value: instituteId });
+  } 
+   catch (error) {
+    console.error("[Auth] Failed to refresh tokens:", error);
   }
 };
 
@@ -57,10 +66,10 @@ authenticatedAxiosInstance.interceptors.request.use(
     }
 
     // Check if the access token is expired
-    if (!isTokenExpired(accessToken)) {
-      // request.headers["Authorization"] = `Bearer ${accessToken}`;
+    const isExpired = isTokenExpired(accessToken);
+    
+    if (!isExpired) {
       request.headers.Authorization = `Bearer ${accessToken}`;
-
       return request;
     } else {
       // If the access token is expired, refresh it
@@ -77,7 +86,6 @@ authenticatedAxiosInstance.interceptors.request.use(
 
         return request;
       } catch (error) {
-        console.error("Error refreshing token: Logging out ...", error);
 
         // If token refresh fails, remove tokens and institute ID
         await removeTokensAndInstituteId();
@@ -96,16 +104,25 @@ authenticatedAxiosInstance.interceptors.request.use(
 authenticatedAxiosInstance.interceptors.response.use(
   (response) => response,
   async (error) => {
+    // Handle error responses
+    if (error.response) {
+      // Error response handling logic
+    }
+
     // Handle unauthorized errors (401)
     if (error.response && error.response.status === 401) {
-      console.error("Unauthorized access. Logging out...");
-
       // Remove tokens and institute ID
       await removeTokensAndInstituteId();
 
       // Optionally, you can add logic to redirect to login page
       // This might involve using a navigation library or window.location
     }
+
+    // Handle forbidden errors (403) - might be token issues
+    if (error.response && error.response.status === 403) {
+      // Handle 403 errors silently
+    }
+
     return Promise.reject(error);
   }
 );

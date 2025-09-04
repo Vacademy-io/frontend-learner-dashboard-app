@@ -75,15 +75,24 @@ export const getFirebaseToken = async (): Promise<string | null> => {
   }
 
   try {
+    // Prefer the explicitly-registered service worker for reliability in dev (Vite) and prod
+    let serviceWorkerRegistration: ServiceWorkerRegistration | undefined = undefined;
+    if ('serviceWorker' in navigator) {
+      try {
+        serviceWorkerRegistration = await navigator.serviceWorker.getRegistration('/firebase-messaging-sw.js') || undefined;
+      } catch {
+        // no-op
+      }
+    }
+
     const token = await getToken(messaging, {
-      vapidKey: VAPID_KEY
+      vapidKey: VAPID_KEY,
+      serviceWorkerRegistration
     });
     
     if (token) {
-      console.log('Firebase token generated:', token);
       return token;
     } else {
-      console.log('No registration token available.');
       return null;
     }
   } catch (error) {
@@ -99,7 +108,6 @@ export const onFirebaseMessage = (callback: (payload: MessagePayload) => void) =
   }
 
   return onMessage(messaging, (payload) => {
-    console.log('Message received in foreground:', payload);
     callback(payload);
   });
 };
@@ -112,7 +120,6 @@ export const registerServiceWorker = async () => {
 
   try {
     const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
-    console.log('Service Worker registered successfully:', registration);
     return registration;
   } catch (error) {
     console.error('Service Worker registration failed:', error);

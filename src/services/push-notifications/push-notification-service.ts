@@ -61,15 +61,57 @@ class PushNotificationService {
     const permStatus = await PushNotifications.requestPermissions();
     
     if (permStatus.receive === 'granted') {
+      // Android: ensure a high-importance notification channel exists
+      try {
+        if (Capacitor.getPlatform() === 'android') {
+          await PushNotifications.createChannel({
+            id: 'default',
+            name: 'General Notifications',
+            description: 'General app notifications',
+            importance: 5, // IMPORTANCE_HIGH
+            visibility: 1, // VISIBILITY_PUBLIC
+            lights: true,
+            vibration: true
+          } as unknown as Parameters<typeof PushNotifications.createChannel>[0]);
+        }
+      } catch (e) {
+        console.warn('Failed to create Android notification channel', e);
+      }
+
       // Register for push notifications
       await PushNotifications.register();
 
       // Listen for registration success
       PushNotifications.addListener('registration', async (token: Token) => {
         console.log('Push registration success, token: ' + token.value);
-        this.currentToken = token.value;
-        await this.saveTokenToStorage(token.value);
-        await this.registerStoredToken();
+
+        // Default to native token
+        let finalToken: string | null = token.value;
+
+        // On iOS, prefer FCM registration token if Firebase Messaging plugin is available
+        try {
+          if (Capacitor.getPlatform() === 'ios') {
+            type FirebaseMessagingPlugin = { getToken: () => Promise<{ token?: string }> };
+            type CapacitorPlugins = { FirebaseMessaging?: FirebaseMessagingPlugin };
+            const plugins: CapacitorPlugins | undefined = (window as unknown as { Capacitor?: { Plugins?: CapacitorPlugins } }).Capacitor?.Plugins;
+            const fm: FirebaseMessagingPlugin | undefined = plugins?.FirebaseMessaging;
+            if (fm) {
+              const { token: fcmToken } = await fm.getToken();
+              if (fcmToken) {
+                console.log('Obtained iOS FCM token:', fcmToken);
+                finalToken = fcmToken;
+              }
+            }
+          }
+        } catch {
+          console.warn('[Push] iOS FCM plugin not available or failed to get token. Falling back to native token.');
+        }
+
+        if (finalToken) {
+          this.currentToken = finalToken;
+          await this.saveTokenToStorage(finalToken);
+          await this.registerStoredToken();
+        }
       });
 
       // Listen for registration errors
@@ -101,11 +143,9 @@ class PushNotificationService {
       try {
         // Register Firebase messaging service worker
         const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
-        console.log('Firebase Service Worker registered successfully:', registration);
 
         const permission = await Notification.requestPermission();
         if (permission === 'granted') {
-          console.log('Web push notification permission granted');
           
           // Get FCM token using Firebase
           const { getFirebaseToken } = await import('@/services/firebase-config');
@@ -115,18 +155,26 @@ class PushNotificationService {
             this.currentToken = token;
             await this.saveTokenToStorage(token);
             await this.registerStoredToken();
-            console.log('FCM token retrieved and stored:', token);
             
             // Setup foreground message listener
             const { onFirebaseMessage } = await import('@/services/firebase-config');
             onFirebaseMessage((payload) => {
-              console.log('Foreground message received:', payload);
               this.notifyListeners({
                 title: payload.notification?.title || 'New notification',
                 body: payload.notification?.body || '',
                 id: payload.messageId || Date.now().toString(),
                 data: payload.data || {}
               });
+              // Also forward to window so the app can react even if no listeners are attached yet
+              try {
+                window.postMessage({
+                  type: 'FCM_FOREGROUND_MESSAGE',
+                  payload,
+                  forwardedAt: Date.now()
+                }, '*');
+              } catch {
+                // ignore
+              }
             });
           } else {
             console.warn('No FCM token available');
@@ -148,7 +196,6 @@ class PushNotificationService {
       try {
         // Check permissions (always granted on desktop)
         const permission = await window.electronAPI.checkNotificationPermission();
-        console.log('Electron notification permission:', permission);
         
         // Setup notification click handler
         window.electronAPI.onNotificationClicked((data: Record<string, unknown>) => {
@@ -223,7 +270,6 @@ class PushNotificationService {
 
       // Guard: ensure we have both userId and instituteId before registering
       if (!userId || !instituteId) {
-        console.warn('[Push] Skipping registration: missing userId or instituteId', { userId, instituteId });
         return;
       }
 
@@ -253,7 +299,6 @@ class PushNotificationService {
       if (!response.ok) {
         throw new Error(`Push token registration failed with status ${response.status}`);
       }
-      console.log('Push token registered successfully');
     } catch (error) {
       console.error('Error registering push token:', error);
     }
@@ -295,6 +340,11 @@ class PushNotificationService {
 
   private notifyListeners(notification: PushNotificationSchema): void {
     this.listeners.forEach(listener => listener(notification));
+  }
+
+  // Public method to programmatically dispatch a notification to listeners (web bridge, tests)
+  public dispatch(notification: PushNotificationSchema): void {
+    this.notifyListeners(notification);
   }
 
 

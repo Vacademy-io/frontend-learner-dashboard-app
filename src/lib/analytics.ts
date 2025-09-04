@@ -1,5 +1,8 @@
 import * as amplitude from '@amplitude/analytics-browser';
 
+// Local readiness flag to ensure analytics failures never impact the app
+let analyticsReady = false;
+
 // Amplitude configuration
 const AMPLITUDE_API_KEY = 'da01da74b4f51da33ee2dea67aa520e2';
 
@@ -11,9 +14,9 @@ export const initializeAnalytics = () => {
     amplitude.init(AMPLITUDE_API_KEY, {
       autocapture: true,
     });
-    console.log('Amplitude analytics initialized successfully');
   } catch (error) {
     console.error('Failed to initialize Amplitude analytics:', error);
+    analyticsReady = false;
   }
 };
 
@@ -22,8 +25,12 @@ export const initializeAnalytics = () => {
  * @param eventName - The name of the event to track
  * @param eventProperties - Optional properties to include with the event
  */
-export const trackEvent = (eventName: string, eventProperties?: Record<string, any>) => {
+export const trackEvent = (
+  eventName: string,
+  eventProperties?: Record<string, string | number | boolean | null | undefined>
+) => {
   try {
+    if (!analyticsReady) return;
     amplitude.track(eventName, eventProperties);
   } catch (error) {
     console.error('Failed to track event:', eventName, error);
@@ -35,13 +42,20 @@ export const trackEvent = (eventName: string, eventProperties?: Record<string, a
  * @param userId - The unique identifier for the user
  * @param userProperties - Optional user properties
  */
-export const identifyUser = (userId: string, userProperties?: Record<string, any>) => {
+export const identifyUser = (
+  userId: string,
+  userProperties?: Record<string, string | number | boolean | null | undefined>
+) => {
   try {
+    if (!analyticsReady) return;
     amplitude.setUserId(userId);
     if (userProperties) {
       const identify = new amplitude.Identify();
-      Object.keys(userProperties).forEach(key => {
-        identify.set(key, userProperties[key]);
+      Object.entries(userProperties).forEach(([key, value]) => {
+        if (value === null || value === undefined) return;
+        if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+          identify.set(key, value);
+        }
       });
       amplitude.identify(identify);
     }
@@ -55,6 +69,7 @@ export const identifyUser = (userId: string, userProperties?: Record<string, any
  */
 export const resetUser = () => {
   try {
+    if (!analyticsReady) return;
     amplitude.reset();
   } catch (error) {
     console.error('Failed to reset user:', error);
@@ -72,4 +87,16 @@ export const AnalyticsEvents = {
   LESSON_COMPLETED: 'Lesson Completed',
   ASSESSMENT_STARTED: 'Assessment Started',
   ASSESSMENT_COMPLETED: 'Assessment Completed',
+  // Announcement events
+  SYSTEM_ALERT_VIEWED: 'System Alert Viewed',
+  SYSTEM_ALERT_MARKED_READ: 'System Alert Marked as Read',
+  SYSTEM_ALERT_DISMISSED: 'System Alert Dismissed',
+  DASHBOARD_PIN_CLICKED: 'Dashboard Pin Clicked',
+  STREAM_MESSAGE_VIEWED: 'Stream Message Viewed',
+  STREAM_MESSAGE_MARKED_READ: 'Stream Message Marked as Read',
+  COMMUNITY_MESSAGE_VIEWED: 'Community Message Viewed',
+  COMMUNITY_MESSAGE_MARKED_READ: 'Community Message Marked as Read',
+  STREAM_MESSAGES_LOAD_MORE: 'Stream Messages Load More',
+  COMMUNITY_MESSAGES_LOAD_MORE: 'Community Messages Load More',
+  REPLY_POSTED: 'Reply Posted',
 } as const; 

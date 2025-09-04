@@ -39,10 +39,16 @@ import { getPublicUrlWithoutLogin } from "@/services/upload_file";
 import { useRouter } from "@tanstack/react-router";
 import { getTerminology } from "@/components/common/layout-container/sidebar/utils";
 import { ContentTerms, RoleTerms, SystemTerms } from "@/types/naming-settings";
+import { Preferences } from "@capacitor/preferences";
 // import { CODE_CIRCLE_INSTITUTE_ID } from "@/constants/urls";
-// import { getInstituteId } from "@/constants/helper";
+// import { getInstituteId } from "@/constants/urls";
 import { getStudentDisplaySettings } from "@/services/student-display-settings";
+import { DonationDialog } from "@/components/common/donation/DonationDialog";
+import { useEnrollmentStatus } from "@/hooks/use-enrollment-status";
+import { getTokenFromStorage } from "@/lib/auth/sessionUtility";
+import { TokenKey } from "@/constants/auth/tokens";
 import type { StudentCourseDetailsTabId } from "@/types/student-display-settings";
+import { PackageSessionMessages } from "@/components/announcements";
 
 export interface Chapter {
     id: string;
@@ -85,6 +91,7 @@ export const CourseStructureDetails = ({
     isEnrolledInCourse,
     onLoadingChange,
     updateModuleStats,
+    paymentType,
 }: {
     selectedSession: string;
     selectedLevel: string;
@@ -95,16 +102,9 @@ export const CourseStructureDetails = ({
     isEnrolledInCourse?: boolean;
     onLoadingChange?: (loading: boolean) => void;
     updateModuleStats?: (modulesData: Record<string, Array<{ chapters?: Array<unknown> }>>) => void;
+    paymentType?: string | null;
 }) => {
-    // Debug logging
-    console.log('CourseStructureDetails props:', {
-        selectedSession,
-        selectedLevel,
-        courseStructure,
-        packageSessionId,
-        selectedTab,
-        isEnrolledInCourse
-    });
+
     const router = useRouter();
     const searchParams = router.state.location.search;
     const navigateTo = (
@@ -114,12 +114,53 @@ export const CourseStructureDetails = ({
     const { setNavHeading } = useNavHeadingStore();
 
     const [studyLibraryData, setStudyLibraryData] = useState<SubjectType[]>([]);
+    const [showContentPrefixes, setShowContentPrefixes] = useState<boolean>(true);
+    // Helper: format video duration from millis to h:mm:ss or m:ss
+    const formatDuration = (millis?: number | null): string => {
+        if (!millis || millis <= 0) return "";
+        const totalSeconds = Math.round(millis / 1000);
+        const hours = Math.floor(totalSeconds / 3600);
+        const minutes = Math.floor((totalSeconds % 3600) / 60);
+        const seconds = totalSeconds % 60;
+        if (hours > 0) {
+            return `${hours}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+        }
+        return `${minutes}:${String(seconds).padStart(2, "0")}`;
+    };
+
+    // Helper: compute short meta text for a slide
+    const getSlideMetaText = (slide: Slide): string => {
+        // Prefer document/video/question/assignment specifics
+        if (slide.document_slide) {
+            const pages: number | undefined =
+                (slide.document_slide as { published_document_total_pages?: number }).published_document_total_pages ??
+                slide.document_slide.total_pages;
+            if (typeof pages === "number" && pages > 0) return `${pages} pages`;
+        }
+        if (slide.video_slide) {
+            const ms: number | undefined =
+                (slide.video_slide as { published_video_length_in_millis?: number }).published_video_length_in_millis ??
+                slide.video_slide.video_length_in_millis;
+            const text = formatDuration(ms);
+            if (text) return text;
+        }
+        if (slide.question_slide) {
+            const qType = slide.question_slide.question_type;
+            if (qType) return qType;
+        }
+        if (slide.assignment_slide) {
+            const end = slide.assignment_slide.end_date;
+            if (end) return `Due ${end}`;
+        }
+        return "";
+    };
     type LocalTab = { label: string; value: string };
     const [filteredTabs, setFilteredTabs] = useState<LocalTab[]>([]);
 
     const [selectedStructureTab, setSelectedStructureTab] = useState<string>(
         TabType.OUTLINE
     );
+    // const [showCourseDiscussion, setShowCourseDiscussion] = useState(false);
     const handleTabChange = (value: string) => setSelectedStructureTab(value);
     // Enforce Course Details tabs (visibility/order/default) from settings
     useEffect(() => {
@@ -150,11 +191,12 @@ export const CourseStructureDetails = ({
                     value: mapSettingIdToValue(t.id),
                 }));
 
-            // Debug logs for visibility enforcement
-            console.group('[Course Details Settings] Visible tabs resolved');
-            console.log('Raw settings tabs:', settings?.courseDetails?.tabs);
-            console.log('Mapped & ordered visible tabs:', ordered);
-            console.groupEnd();
+            // Check if course discussion should be shown based on student display settings
+            const shouldShowCourseDiscussion = settings?.notifications?.allowBatchStream === true;
+            // setShowCourseDiscussion(shouldShowCourseDiscussion);
+
+
+            
             // Fallback: ensure CONTENT_STRUCTURE appears if visible in settings but mapping missed
             const hasContentStructureSetting = tabsSetting.some((t) => t.id === 'CONTENT_STRUCTURE' && t.visible !== false);
             const hasContentStructureMapped = ordered.some((t) => t.value === TabType.CONTENT_STRUCTURE);
@@ -162,26 +204,32 @@ export const CourseStructureDetails = ({
             if (hasContentStructureSetting && !hasContentStructureMapped) {
                 finalTabs.push({ label: 'Content Structure', value: TabType.CONTENT_STRUCTURE });
             }
-            console.log('[Course Details Settings] finalTabs to render:', finalTabs);
+            
+            // Add course discussion tab if enabled
+            if (shouldShowCourseDiscussion) {
+                finalTabs.push({ label: 'Course Discussion', value: TabType.COURSE_DISCUSSION });
+            }
+            
+
             if (finalTabs.length) setFilteredTabs(finalTabs as typeof tabs);
+
+            // New: respect content prefix visibility
+            const resolvedShowPrefixes = settings?.courseDetails?.showCourseContentPrefixes !== false;
+
+            setShowContentPrefixes(resolvedShowPrefixes);
 
             const defaultTabId = settings?.courseDetails?.defaultTab || "OUTLINE";
             const defaultValue = mapSettingIdToValue(defaultTabId);
             const isDefaultVisible = ordered.some((t) => t.value === defaultValue);
             const firstVisible = (ordered[0]?.value as string) || TabType.OUTLINE;
             const resolvedDefault = isDefaultVisible ? (defaultValue as string) : firstVisible;
-            console.log('[Course Details Settings] Default tab resolved:', {
-                configuredDefault: defaultTabId,
-                mappedDefault: defaultValue,
-                isDefaultVisible,
-                finalDefault: resolvedDefault,
-            });
+
             setSelectedStructureTab(resolvedDefault);
         });
     }, []);
 
     const renderTabs = useMemo(() => {
-        const priorityOrder = [TabType.OUTLINE, TabType.CONTENT_STRUCTURE];
+        const priorityOrder = [TabType.OUTLINE, TabType.CONTENT_STRUCTURE, TabType.COURSE_DISCUSSION];
         const byValue = new Map(filteredTabs.map((t) => [t.value, t]));
         const prioritized = priorityOrder
             .filter((v) => byValue.has(v))
@@ -190,7 +238,7 @@ export const CourseStructureDetails = ({
             (t) => !priorityOrder.includes(t.value as TabType)
         );
         const finalArr = [...prioritized, ...rest];
-        console.log('[Course Details UI] renderTabs:', finalArr);
+
         return finalArr;
     }, [filteredTabs]);
     const [subjectModulesMap, setSubjectModulesMap] =
@@ -201,6 +249,26 @@ export const CourseStructureDetails = ({
     const [selectedModuleId, setSelectedModuleId] = useState<string | null>(null);
     const [selectedChapterId, setSelectedChapterId] = useState<string | null>(null);
     const [thumbUrlById, setThumbUrlById] = useState<Record<string, string>>({});
+    
+    // Donation dialog state
+    const [donationDialogOpen, setDonationDialogOpen] = useState(false);
+    const [targetSlideDetails, setTargetSlideDetails] = useState<{
+        courseId: string;
+        subjectId: string;
+        moduleId: string;
+        chapterId: string;
+        slideId: string;
+    } | null>(null);
+    const [instituteId, setInstituteId] = useState<string | null>(null);
+    const [authToken, setAuthToken] = useState<string>("");
+
+    // Use enrollment status hook
+    const { userHasDonated } = useEnrollmentStatus(instituteId);
+    
+    // Log enrollment status changes
+    useEffect(() => {
+
+    }, [instituteId, userHasDonated, isEnrolledInCourse]);
 // const [thumbUrlById, setThumbUrlById] = useState<Record<string, string>>({});
 
     // Helpers to safely extract optional thumbnail IDs without using any
@@ -212,6 +280,25 @@ export const CourseStructureDetails = ({
         return (mod as unknown as { thumbnail_id?: string | null })
             .thumbnail_id || undefined;
     };
+
+    // Fetch institute ID and auth token
+    useEffect(() => {
+        const fetchInstituteAndAuth = async () => {
+            try {
+                // Get institute ID from preferences
+                const instituteResult = await Preferences.get({ key: "InstituteId" });
+                setInstituteId(instituteResult.value || null);
+
+                // Get auth token
+                const token = await getTokenFromStorage(TokenKey.accessToken);
+                setAuthToken(token || "");
+                    } catch (error) {
+            // Silent error handling
+        }
+        };
+
+        fetchInstituteAndAuth();
+    }, []);
 
     // Ensure subject thumbnails are fetched for Content Structure top level
     useEffect(() => {
@@ -240,17 +327,48 @@ export const CourseStructureDetails = ({
             if (Object.keys(updates).length > 0) setThumbUrlById((prev) => ({ ...prev, ...updates }));
         };
         prefetchTopLevelSubjects();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+         
     }, [selectedSubjectId, studyLibraryData, thumbUrlById]);
 
-    const handleSlideNavigation = (
+    const handleSlideNavigation = async (
         subjectId: string,
         moduleId: string,
         chapterId: string,
         slideId: string
     ) => {
+        console.log('Slide navigation clicked:', { 
+            paymentType, 
+            isEnrolledInCourse, 
+            selectedTab, 
+            userHasDonated 
+        });
+        
         // Allow navigation if user is enrolled in the course OR if it's PROGRESS/COMPLETED tabs
         if (isEnrolledInCourse || selectedTab === "PROGRESS" || selectedTab === "COMPLETED") {
+            // Default behavior: Direct navigation for enrolled users
+            // Only show donation dialog if payment type is specifically "DONATION"
+            if (paymentType && paymentType.toLowerCase() === 'donation' && isEnrolledInCourse) {
+                // For donation type, check donation status
+                if (userHasDonated === false) {
+                    console.log('Donation type detected and user not donated, showing donation dialog');
+                    // Show donation dialog for slide access
+                    setTargetSlideDetails({
+                        courseId: searchParams.courseId || "",
+                        subjectId,
+                        moduleId,
+                        chapterId,
+                        slideId,
+                    });
+                    setDonationDialogOpen(true);
+                    return;
+                }
+            }
+            
+            // Default: Navigate directly to slide (for all non-donation types or when payment type is not loaded)
+            console.log('Navigating directly to slide (default behavior)', { 
+                paymentType, 
+                reason: paymentType ? 'non-donation type' : 'payment type not loaded' 
+            });
             navigateTo(
                 `/study-library/courses/course-details/subjects/modules/chapters/slides`,
                 {
@@ -267,15 +385,18 @@ export const CourseStructureDetails = ({
 
     // Helper function to determine if slides should be clickable
     const isSlideClickable = () => {
+        // If user is enrolled, slides are clickable in ALL tabs
+        // If not enrolled, slides are only clickable in PROGRESS/COMPLETED tabs
         return isEnrolledInCourse || selectedTab === "PROGRESS" || selectedTab === "COMPLETED";
     };
 
     // Helper function to get slide styling based on clickability
-    const getSlideStyling = () => {
+    const getSlideStyling = (textSize: "xs" | "sm" = "xs") => {
+        const sizeClass = textSize === "sm" ? "text-sm" : "text-xs";
         if (isSlideClickable()) {
-            return "group flex cursor-pointer items-center gap-1.5 px-2 py-1 text-xs text-neutral-500 rounded hover:bg-gradient-to-r hover:from-amber-50/60 hover:to-orange-50/40 hover:border-amber-200/40 border border-transparent transition-all duration-200";
+            return `group flex cursor-pointer items-center gap-1.5 px-2 py-1 ${sizeClass} text-neutral-500 rounded hover:bg-gradient-to-r hover:from-amber-50/60 hover:to-orange-50/40 hover:border-amber-200/40 border border-transparent transition-all duration-200`;
         } else {
-            return "group flex items-center gap-1.5 px-2 py-1 text-xs text-neutral-400 rounded bg-neutral-50/50 border border-transparent";
+            return `group flex items-center gap-1.5 px-2 py-1 ${sizeClass} text-neutral-400 rounded bg-neutral-50/50 border border-transparent`;
         }
     };
 
@@ -289,10 +410,7 @@ export const CourseStructureDetails = ({
             const slides = await fetchSlidesByChapterId(chapterId);
             setSlidesMap((prev) => ({ ...prev, [chapterId]: slides }));
         } catch (err) {
-            console.error(
-                `Error fetching slides for chapter ${chapterId}:`,
-                err
-            );
+            // Silent error handling
         }
     };
 
@@ -305,10 +423,6 @@ export const CourseStructureDetails = ({
             }) => {
                 // Ensure packageSessionId is available for all course depths
                 if (!packageSessionId) {
-                    console.warn(
-                        "packageSessionId is not available for course depth:",
-                        courseStructure
-                    );
                     throw new Error(
                         "Package session ID is required for fetching modules"
                     );
@@ -361,9 +475,6 @@ export const CourseStructureDetails = ({
 
     const refreshData = async () => {
         if (!packageSessionId) {
-            console.warn(
-                "packageSessionId is not available for refreshing study library data"
-            );
             return;
         }
         // Refresh by reloading modules
@@ -382,7 +493,7 @@ export const CourseStructureDetails = ({
                 updateModuleStats(modulesMap);
             }
         } catch (error) {
-            console.error("Failed to refresh data:", error);
+            // Silent error handling
         }
     };
 
@@ -489,7 +600,19 @@ export const CourseStructureDetails = ({
                         </Button>
                     </div>
                 </div>
-                <div className="max-w-2xl space-y-1.5">
+                <div className="w-full space-y-1.5">
+                    {(() => {
+                        const subjects = studyLibraryData || [];
+                        const summary = subjects.map((subject) => {
+                            const modules = subjectModulesMap[subject.id] || [];
+                            const chapters = modules.flatMap((m) => m.chapters || []);
+                            const slidesCounts = chapters.map((ch) => (slidesMap[ch.id] || []).length);
+                            const totalSlides = slidesCounts.reduce((a, b) => a + b, 0);
+                            return { subjectId: subject.id, modules: modules.length, chapters: chapters.length, totalSlides };
+                        });
+
+                        return null;
+                    })()}
                     {courseStructure === 5 &&
                         studyLibraryData?.map(
                             (subject: SubjectType, idx: number) => {
@@ -538,16 +661,16 @@ export const CourseStructureDetails = ({
                                                         crossOrigin="anonymous"
                                                         referrerPolicy="no-referrer"
                                                         loading="eager"
-                                                        onLoad={() => console.log('[thumb] (study-library) subject img load', { id: subject.id })}
                                                         onError={(e) => {
-                                                            console.warn('[thumb] (study-library) subject img error', { id: subject.id, src: e.currentTarget.src });
                                                             e.currentTarget.classList.add('border-red-400');
                                                         }}
                                                     />
                                                 )}
-                                                <span className="w-7 shrink-0 text-center font-mono text-xs font-semibold text-neutral-500 bg-neutral-100 rounded px-1 py-0.5">
-                                                    S{idx + 1}
-                                                </span>
+                                                {showContentPrefixes && (
+                                                    <span className="w-7 shrink-0 text-center font-mono text-xs font-semibold text-neutral-500 bg-neutral-100 rounded px-1 py-0.5">
+                                                        S{idx + 1}
+                                                    </span>
+                                                )}
                                                 <span
                                                     className="truncate font-medium group-hover:text-primary-700 transition-colors"
                                                     title={toTitleCase(
@@ -618,18 +741,17 @@ export const CourseStructureDetails = ({
                                                                             crossOrigin="anonymous"
                                                                             referrerPolicy="no-referrer"
                                                                             loading="eager"
-                                                                            onLoad={() => console.log('[thumb] (study-library) module img load', { id: mod.module.id })}
-                                                                            onError={(e) => {
-                                                                                console.warn('[thumb] (study-library) module img error', { id: mod.module.id, src: e.currentTarget.src });
-                                                                                e.currentTarget.classList.add('border-red-400');
-                                                                            }}
+                                                                                                                                    onError={(e) => {
+                                                            e.currentTarget.classList.add('border-red-400');
+                                                        }}
                                                                         />
                                                                     )}
-                                                                    <span className="w-6 shrink-0 text-center font-mono text-xs font-medium text-neutral-500 bg-neutral-100 rounded px-1">
-                                                                        M
-                                                                        {modIdx +
-                                                                            1}
-                                                                    </span>
+                                                                    {showContentPrefixes && (
+                                                                        <span className="w-6 shrink-0 text-center font-mono text-xs font-medium text-neutral-500 bg-neutral-100 rounded px-1">
+                                                                            M
+                                                                            {modIdx + 1}
+                                                                        </span>
+                                                                    )}
                                                                     <span
                                                                         className="truncate group-hover:text-blue-700 transition-colors"
                                                                         title={
@@ -714,18 +836,17 @@ export const CourseStructureDetails = ({
                                                                                                     crossOrigin="anonymous"
                                                                                                     referrerPolicy="no-referrer"
                                                                                                     loading="eager"
-                                                                                                    onLoad={() => console.log('[thumb] (study-library) chapter img load', { id: ch.id })}
-                                                                                                    onError={(e) => {
-                                                                                                        console.warn('[thumb] (study-library) chapter img error', { id: ch.id, src: e.currentTarget.src });
-                                                                                                        e.currentTarget.classList.add('border-red-400');
-                                                                                                    }}
+                                                                                                                                                            onError={(e) => {
+                                                            e.currentTarget.classList.add('border-red-400');
+                                                        }}
                                                                                                 />
                                                                                             )}
-                                                                                            <span className="text-xs w-5 shrink-0 text-center font-mono text-neutral-500 bg-neutral-100 rounded px-0.5">
-                                                                                                C
-                                                                                                {chIdx +
-                                                                                                    1}
-                                                                                            </span>
+                                                                                            {showContentPrefixes && (
+                                                                                                <span className="text-xs w-5 shrink-0 text-center font-mono text-neutral-500 bg-neutral-100 rounded px-0.5">
+                                                                                                    C
+                                                                                                    {chIdx + 1}
+                                                                                                </span>
+                                                                                            )}
                                                                                             <span
                                                                                                 className="truncate group-hover:text-green-700 transition-colors text-xs"
                                                                                                 title={toTitleCase(
@@ -781,11 +902,12 @@ export const CourseStructureDetails = ({
                                                                                                                     );
                                                                                                                 } : undefined}
                                                                                                             >
-                                                                                                                <span className="w-5 shrink-0 text-center font-mono text-neutral-400 bg-neutral-100 rounded px-0.5 text-xs">
-                                                                                                                    S
-                                                                                                                    {sIdx +
-                                                                                                                        1}
-                                                                                                                </span>
+                                                                                                                {showContentPrefixes && (
+                                                                                                                    <span className="w-5 shrink-0 text-center font-mono text-neutral-400 bg-neutral-100 rounded px-0.5 text-xs">
+                                                                                                                        S
+                                                                                                                        {sIdx + 1}
+                                                                                                                    </span>
+                                                                                                                )}
                                                                                                                 <div className="shrink-0 group-hover:scale-110 transition-transform">
                                                                                                                     {getIcon(
                                                                                                                         slide,
@@ -794,14 +916,18 @@ export const CourseStructureDetails = ({
                                                                                                                 </div>
                                                                                                                 <span
                                                                                                                     className="truncate group-hover:text-amber-700 transition-colors"
-                                                                                                                    title={
-                                                                                                                        slide.title
-                                                                                                                    }
+                                                                                                                    title={slide.title}
                                                                                                                 >
-                                                                                                                    {
-                                                                                                                        slide.title
-                                                                                                                    }
+                                                                                                                    {slide.title}
                                                                                                                 </span>
+                                                                                                                {(() => {
+                                                                                                                    const meta = getSlideMetaText(slide);
+                                                                                                                    return meta ? (
+                                                                                                                        <span className="ml-2 shrink-0 text-[10px] px-1.5 py-0.5 rounded bg-neutral-100 text-neutral-600 border border-neutral-200">
+                                                                                                                            {meta}
+                                                                                                                        </span>
+                                                                                                                    ) : null;
+                                                                                                                })()}
                                                                                                             </div>
                                                                                                         )
                                                                                                     )
@@ -882,10 +1008,12 @@ export const CourseStructureDetails = ({
                                                                         }
                                                                     />
                                                                 </div>
-                                                                <span className="w-6 shrink-0 text-center font-mono text-xs font-medium text-neutral-500 bg-neutral-100 rounded px-1">
-                                                                    M
-                                                                    {modIdx + 1}
-                                                                </span>
+                                                                {showContentPrefixes && (
+                                                                    <span className="w-6 shrink-0 text-center font-mono text-xs font-medium text-neutral-500 bg-neutral-100 rounded px-1">
+                                                                        M
+                                                                        {modIdx + 1}
+                                                                    </span>
+                                                                )}
                                                                 <span
                                                                     className="truncate group-hover:text-blue-700 transition-colors"
                                                                     title={toTitleCase(
@@ -962,11 +1090,12 @@ export const CourseStructureDetails = ({
                                                                                                 }
                                                                                             />
                                                                                         </div>
-                                                                                        <span className="text-xs w-5 shrink-0 text-center font-mono text-neutral-500 bg-neutral-100 rounded px-0.5">
-                                                                                            C
-                                                                                            {chIdx +
-                                                                                                1}
-                                                                                        </span>
+                                                                                        {showContentPrefixes && (
+                                                                                            <span className="text-xs w-5 shrink-0 text-center font-mono text-neutral-500 bg-neutral-100 rounded px-0.5">
+                                                                                                C
+                                                                                                {chIdx + 1}
+                                                                                            </span>
+                                                                                        )}
                                                                                         <span
                                                                                             className="truncate group-hover:text-green-700 transition-colors text-xs"
                                                                                             title={toTitleCase(
@@ -1026,11 +1155,12 @@ export const CourseStructureDetails = ({
                                                                                                             );
                                                                                                         } : undefined}
                                                                                                     >
-                                                                                                        <span className="w-5 shrink-0 text-center font-mono text-neutral-400 bg-neutral-100 rounded px-0.5 text-xs">
-                                                                                                            S
-                                                                                                            {sIdx +
-                                                                                                                1}
-                                                                                                        </span>
+                                                                                                        {showContentPrefixes && (
+                                                                                                            <span className="w-5 shrink-0 text-center font-mono text-neutral-400 bg-neutral-100 rounded px-0.5 text-xs">
+                                                                                                                S
+                                                                                                                {sIdx + 1}
+                                                                                                            </span>
+                                                                                                        )}
                                                                                                         <div className="shrink-0 group-hover:scale-110 transition-transform">
                                                                                                             {getIcon(
                                                                                                                 slide,
@@ -1039,14 +1169,18 @@ export const CourseStructureDetails = ({
                                                                                                         </div>
                                                                                                         <span
                                                                                                             className="truncate group-hover:text-amber-700 transition-colors"
-                                                                                                            title={
-                                                                                                                slide.title
-                                                                                                            }
+                                                                                                            title={slide.title}
                                                                                                         >
-                                                                                                            {
-                                                                                                                slide.title
-                                                                                                            }
+                                                                                                            {slide.title}
                                                                                                         </span>
+                                                                                                        {(() => {
+                                                                                                            const meta = getSlideMetaText(slide);
+                                                                                                            return meta ? (
+                                                                                                                <span className="ml-2 shrink-0 text-[10px] px-1.5 py-0.5 rounded bg-neutral-100 text-neutral-600 border border-neutral-200">
+                                                                                                                    {meta}
+                                                                                                                </span>
+                                                                                                            ) : null;
+                                                                                                        })()}
                                                                                                     </div>
                                                                                                 )
                                                                                             )
@@ -1158,13 +1292,14 @@ export const CourseStructureDetails = ({
                                                                                                 }
                                                                                             />
                                                                                         </div>
-                                                                                        <span className="text-xs w-5 shrink-0 text-center font-mono text-neutral-500 bg-neutral-100 rounded px-0.5">
-                                                                                            C
-                                                                                            {chIdx +
-                                                                                                1}
-                                                                                        </span>
+                                                                                        {showContentPrefixes && (
+                                                                                            <span className="text-xs w-5 shrink-0 text-center font-mono text-neutral-500 bg-neutral-100 rounded px-0.5">
+                                                                                                C
+                                                                                                {chIdx + 1}
+                                                                                            </span>
+                                                                                        )}
                                                                                         <span
-                                                                                            className="truncate group-hover:text-green-700 transition-colors text-xs"
+                                                                                            className="truncate group-hover:text-green-700 transition-colors text-sm"
                                                                                             title={toTitleCase(
                                                                                                 ch.chapter_name
                                                                                             )}
@@ -1222,11 +1357,12 @@ export const CourseStructureDetails = ({
                                                                                                             );
                                                                                                         } : undefined}
                                                                                                     >
-                                                                                                        <span className="w-5 shrink-0 text-center font-mono text-neutral-400 bg-neutral-100 rounded px-0.5 text-xs">
-                                                                                                            S
-                                                                                                            {sIdx +
-                                                                                                                1}
-                                                                                                        </span>
+                                                                                                        {showContentPrefixes && (
+                                                                                                            <span className="w-5 shrink-0 text-center font-mono text-neutral-400 bg-neutral-100 rounded px-0.5 text-xs">
+                                                                                                                S
+                                                                                                                {sIdx + 1}
+                                                                                                            </span>
+                                                                                                        )}
                                                                                                         <div className="shrink-0 group-hover:scale-110 transition-transform">
                                                                                                             {getIcon(
                                                                                                                 slide,
@@ -1235,14 +1371,18 @@ export const CourseStructureDetails = ({
                                                                                                         </div>
                                                                                                         <span
                                                                                                             className="truncate group-hover:text-amber-700 transition-colors"
-                                                                                                            title={
-                                                                                                                slide.title
-                                                                                                            }
+                                                                                                            title={slide.title}
                                                                                                         >
-                                                                                                            {
-                                                                                                                slide.title
-                                                                                                            }
+                                                                                                            {slide.title}
                                                                                                         </span>
+                                                                                                        {(() => {
+                                                                                                            const meta = getSlideMetaText(slide);
+                                                                                                            return meta ? (
+                                                                                                                <span className="ml-2 shrink-0 text-[10px] px-1.5 py-0.5 rounded bg-neutral-100 text-neutral-600 border border-neutral-200">
+                                                                                                                    {meta}
+                                                                                                                </span>
+                                                                                                            ) : null;
+                                                                                                        })()}
                                                                                                     </div>
                                                                                                 )
                                                                                             )
@@ -1361,14 +1501,7 @@ export const CourseStructureDetails = ({
                                                                                                     key={
                                                                                                         slide.id
                                                                                                     }
-                                                                                                    className={`group flex items-center gap-1.5 px-2 py-1 text-xs text-neutral-500 rounded border border-transparent transition-all duration-200 ${
-                                                                                                        selectedTab ===
-                                                                                                            "PROGRESS" ||
-                                                                                                        selectedTab ===
-                                                                                                            "COMPLETED"
-                                                                                                            ? "cursor-pointer hover:bg-gradient-to-r hover:from-amber-50/60 hover:to-orange-50/40 hover:border-amber-200/40"
-                                                                                                            : "cursor-default opacity-60"
-                                                                                                    }`}
+                                                                                                    className={getSlideStyling("sm")}
                                                                                                     onClick={() => {
                                                                                                         handleSlideNavigation(
                                                                                                             subject.id,
@@ -1380,11 +1513,12 @@ export const CourseStructureDetails = ({
                                                                                                         );
                                                                                                     }}
                                                                                                 >
-                                                                                                    <span className="w-5 shrink-0 text-center font-mono text-neutral-400 bg-neutral-100 rounded px-0.5 text-xs">
-                                                                                                        S
-                                                                                                        {sIdx +
-                                                                                                            1}
-                                                                                                    </span>
+                                                                                                    {showContentPrefixes && (
+                                                                                                        <span className="w-5 shrink-0 text-center font-mono text-neutral-400 bg-neutral-100 rounded px-0.5 text-xs">
+                                                                                                            S
+                                                                                                            {sIdx + 1}
+                                                                                                        </span>
+                                                                                                    )}
                                                                                                     <div className="shrink-0 group-hover:scale-110 transition-transform">
                                                                                                         {getIcon(
                                                                                                             slide,
@@ -1393,14 +1527,18 @@ export const CourseStructureDetails = ({
                                                                                                     </div>
                                                                                                     <span
                                                                                                         className="truncate group-hover:text-amber-700 transition-colors"
-                                                                                                        title={
-                                                                                                            slide.title
-                                                                                                        }
+                                                                                                        title={slide.title}
                                                                                                     >
-                                                                                                        {
-                                                                                                            slide.title
-                                                                                                        }
+                                                                                                        {slide.title}
                                                                                                     </span>
+                                                                                                    {(() => {
+                                                                                                        const meta = getSlideMetaText(slide);
+                                                                                                        return meta ? (
+                                                                                                            <span className="ml-2 shrink-0 text-[10px] px-1.5 py-0.5 rounded bg-neutral-100 text-neutral-600 border border-neutral-200">
+                                                                                                                {meta}
+                                                                                                            </span>
+                                                                                                        ) : null;
+                                                                                                    })()}
                                                                                                 </div>
                                                                                             )
                                                                                         )
@@ -1463,11 +1601,9 @@ export const CourseStructureDetails = ({
                                                 crossOrigin="anonymous"
                                                 referrerPolicy="no-referrer"
                                                 loading="eager"
-                                                onLoad={() => console.log('[thumb] (study-library) subject grid img load', { id: subject.id })}
-                                                onError={(e) => {
-                                                    console.warn('[thumb] (study-library) subject grid img error', { id: subject.id, src: e.currentTarget.src });
-                                                    e.currentTarget.classList.add('border-red-400');
-                                                }}
+                                                                                                        onError={(e) => {
+                                                            e.currentTarget.classList.add('border-red-400');
+                                                        }}
                                             />
                                         ) : (
                                             <Folder size={20} className="text-neutral-500" />
@@ -1496,11 +1632,9 @@ export const CourseStructureDetails = ({
                                                 crossOrigin="anonymous"
                                                 referrerPolicy="no-referrer"
                                                 loading="eager"
-                                                onLoad={() => console.log('[thumb] (study-library) module grid img load', { id: m.module.id })}
-                                                onError={(e) => {
-                                                    console.warn('[thumb] (study-library) module grid img error', { id: m.module.id, src: e.currentTarget.src });
-                                                    e.currentTarget.classList.add('border-red-400');
-                                                }}
+                                                                                                        onError={(e) => {
+                                                            e.currentTarget.classList.add('border-red-400');
+                                                        }}
                                             />
                                         ) : (
                                             <Folder size={20} className="text-neutral-500" />
@@ -1532,11 +1666,9 @@ export const CourseStructureDetails = ({
                                                     crossOrigin="anonymous"
                                                     referrerPolicy="no-referrer"
                                                     loading="eager"
-                                                    onLoad={() => console.log('[thumb] (study-library) chapter grid img load', { id: ch.id })}
-                                                    onError={(e) => {
-                                                        console.warn('[thumb] (study-library) chapter grid img error', { id: ch.id, src: e.currentTarget.src });
-                                                        e.currentTarget.classList.add('border-red-400');
-                                                    }}
+                                                                                                            onError={(e) => {
+                                                            e.currentTarget.classList.add('border-red-400');
+                                                        }}
                                                 />
                                             ) : (
                                                 <FileText size={18} className="text-neutral-500" />
@@ -1607,6 +1739,29 @@ export const CourseStructureDetails = ({
                 </p>
             </div>
         ),
+        [TabType.COURSE_DISCUSSION]: (
+            <div className="space-y-4">
+                {packageSessionId ? (
+                    <PackageSessionMessages
+                        packageSessionId={packageSessionId}
+                    />
+                ) : (
+                    <div className="rounded-md bg-gradient-to-br from-white to-neutral-50/50 border border-neutral-200 p-5 text-sm text-neutral-600">
+                        <div className="flex items-center gap-3 mb-3">
+                            <div className="w-8 h-8 rounded-md bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
+                                <span className="text-white text-xs font-bold">D</span>
+                            </div>
+                            <span className="font-medium text-neutral-700">
+                                Course Discussion
+                            </span>
+                        </div>
+                        <p className="text-neutral-500">
+                            Course discussion will be available once you enroll in this course.
+                        </p>
+                    </div>
+                )}
+            </div>
+        ),
     };
 
     // Removed institute-based override so settings decide visible tabs exclusively
@@ -1614,17 +1769,10 @@ export const CourseStructureDetails = ({
     useEffect(() => {
         const loadModules = async () => {
             // Debug logging
-            console.log('Loading modules with packageSessionId:', packageSessionId);
-            console.log('Course data:', courseData);
-            console.log('Selected session:', selectedSession);
-            console.log('Selected level:', selectedLevel);
+            
             
             // Ensure packageSessionId is available before making API calls
             if (!packageSessionId) {
-                console.warn(
-                    "packageSessionId is not available, skipping module loading for course depth:",
-                    courseStructure
-                );
                 return;
             }
 
@@ -1636,12 +1784,12 @@ export const CourseStructureDetails = ({
                     selectedSession,
                     selectedLevel
                 );
-                console.log('Subjects to fetch modules for:', subjects);
+
                 
                 const modulesMap = await fetchModules({
                     subjects: subjects,
                 });
-                console.log('Modules map result:', modulesMap);
+
                 setSubjectModulesMap(modulesMap);
 
                 // Auto-expand all sections by default
@@ -1675,10 +1823,6 @@ export const CourseStructureDetails = ({
                     updateModuleStats(modulesMap);
                 }
             } catch (error) {
-                console.error(
-                    "Failed to fetch modules or study library details:",
-                    error
-                );
                 setSubjectModulesMap({});
             } finally {
                 handleLoadingChange(false);
@@ -1733,10 +1877,6 @@ export const CourseStructureDetails = ({
                     updateModuleStats(modulesMap);
                 }
             } catch (error) {
-                console.error(
-                    "Failed to fetch modules or study library details:",
-                    error
-                );
                 setSubjectModulesMap({});
             } finally {
                 handleLoadingChange(false);
@@ -1752,7 +1892,7 @@ export const CourseStructureDetails = ({
             selectedSession,
             selectedLevel
         );
-        console.log('Study library data:', studyLibraryData);
+
         setStudyLibraryData(studyLibraryData);
     }, [selectedSession, selectedLevel, courseData]);
 
@@ -1772,7 +1912,7 @@ export const CourseStructureDetails = ({
                             const url = await getPublicUrlWithoutLogin(fileId);
                             setThumbUrlById((prev) => ({ ...prev, [key]: url }));
                         } catch (err) {
-                            console.debug('prefetch module thumbnail failed', err);
+                            // Silent error handling
                         }
                     }
                 }
@@ -1788,7 +1928,7 @@ export const CourseStructureDetails = ({
                             const url = await getPublicUrlWithoutLogin(fileId);
                             setThumbUrlById((prev) => ({ ...prev, [key]: url }));
                         } catch (err) {
-                            console.debug('prefetch chapter thumbnail failed', err);
+                            // Silent error handling
                         }
                     }
                 }
@@ -1799,12 +1939,7 @@ export const CourseStructureDetails = ({
     }, [selectedSubjectId, selectedModuleId, selectedChapterId, subjectModulesMap]);
 
     // Mount/unmount logs to verify which component is active
-    useEffect(() => {
-        console.log('[thumb] CourseStructureDetails (study-library) mounted');
-        return () => {
-            console.log('[thumb] CourseStructureDetails (study-library) unmounted');
-        };
-    }, []);
+
 
     // Global prefetch thumbnails for all subjects/modules/chapters
     useEffect(() => {
@@ -1817,10 +1952,7 @@ export const CourseStructureDetails = ({
                 // Avoid work/logs when nothing to prefetch yet
                 if (!hasSubjects && !hasModules) return;
 
-                console.log('[thumb] (study-library) prefetch start', {
-                    subjects: subjectsArr.map((s) => ({ id: s.id, thumbnail_id: getSubjectThumbnailId(s) })),
-                    subjectModulesMapKeys: moduleMapKeys,
-                });
+
 
                 const pending: Array<{ key: string; fileId: string }> = [];
 
@@ -1829,7 +1961,7 @@ export const CourseStructureDetails = ({
                     const key = `subject:${s.id}`;
                     const fileId = getSubjectThumbnailId(s);
                     if (fileId && !thumbUrlById[key]) {
-                        console.log('[thumb] (study-library) subject candidate', { key, fileId, hasUrl: Boolean(thumbUrlById[key]) });
+
                         pending.push({ key, fileId });
                     }
                 }
@@ -1840,7 +1972,7 @@ export const CourseStructureDetails = ({
                         const moduleKey = `module:${m.module.id}`;
                         const moduleFileId = getModuleThumbnailId(m.module);
                         if (moduleFileId && !thumbUrlById[moduleKey]) {
-                            console.log('[thumb] (study-library) module candidate', { moduleKey, moduleFileId, hasUrl: Boolean(thumbUrlById[moduleKey]) });
+
                             pending.push({ key: moduleKey, fileId: moduleFileId });
                         }
 
@@ -1848,7 +1980,7 @@ export const CourseStructureDetails = ({
                             const chapterKey = `chapter:${ch.id}`;
                             const chapterFileId = ch.file_id ?? undefined;
                             if (chapterFileId && !thumbUrlById[chapterKey]) {
-                                console.log('[thumb] (study-library) chapter candidate', { chapterKey, chapterFileId, hasUrl: Boolean(thumbUrlById[chapterKey]) });
+
                                 pending.push({ key: chapterKey, fileId: chapterFileId });
                             }
                         }
@@ -1863,10 +1995,10 @@ export const CourseStructureDetails = ({
                     unique.map(async ({ key, fileId }) => {
                         try {
                             const url = await getPublicUrlWithoutLogin(fileId);
-                            console.log('[thumb] (study-library) fetched', { key, fileId, url });
+
                             return { key, url } as const;
                         } catch (err) {
-                            console.debug('[thumb] (study-library) fetch failed', { key, fileId, err });
+
                             return { key, url: '' } as const;
                         }
                     })
@@ -1875,11 +2007,11 @@ export const CourseStructureDetails = ({
                 const updates: Record<string, string> = {};
                 for (const { key, url } of results) if (url) updates[key] = url;
                 if (Object.keys(updates).length > 0) {
-                    console.log('[thumb] (study-library) applying', updates);
+
                     setThumbUrlById((prev) => ({ ...prev, ...updates }));
                 }
             } catch (err) {
-                console.debug('[thumb] (study-library) unexpected error', err);
+
             }
         };
         prefetchAll();
@@ -1899,7 +2031,7 @@ export const CourseStructureDetails = ({
     const firstModuleId = modules[0]?.module.id;
     const firstChapterId = modules[0]?.chapters[0]?.id;
 
-    console.log('[ContentStructure] init depth', { courseStructure, firstSubjectId, firstModuleId, firstChapterId });
+
 
     if (courseStructure >= 5) {
       // subjects at top level - nothing to preselect
@@ -1931,44 +2063,74 @@ export const CourseStructureDetails = ({
     }, []);
 
     // Debug logging for render
-    console.log('Rendering CourseStructureDetails with:', {
-        studyLibraryData,
-        subjectModulesMap,
-        filteredTabs,
-        selectedStructureTab
-    });
+
 
     return (
-        <PullToRefreshWrapper onRefresh={refreshData}>
-            <div className="flex size-full flex-col gap-4 rounded-lg bg-gradient-to-br from-neutral-50/50 to-white py-4 text-neutral-700">
+        <>
+            {/* Donation Dialog for Slide Access */}
+            {donationDialogOpen && targetSlideDetails && (
+                <DonationDialog
+                    open={donationDialogOpen}
+                    onOpenChange={setDonationDialogOpen}
+                    packageSessionId={packageSessionId}
+                    instituteId={instituteId || ""}
+                    token={authToken}
+                    courseTitle={courseData.title}
+                    inviteCode="default"
+                    mode="slide-access"
+                    isUserEnrolled={isEnrolledInCourse} // Pass enrollment status
+                    targetSlideDetails={targetSlideDetails}
+                    onSlideAccessSuccess={(courseId, subjectId, moduleId, chapterId, slideId) => {
+                        // Navigate to slides after successful donation or skip
+                        navigateTo(
+                            `/study-library/courses/course-details/subjects/modules/chapters/slides`,
+                            {
+                                courseId,
+                                subjectId,
+                                moduleId,
+                                chapterId,
+                                slideId,
+                            }
+                        );
+                        setDonationDialogOpen(false);
+                        setTargetSlideDetails(null);
+                    }}
+                />
+            )}
+            
+            <PullToRefreshWrapper onRefresh={refreshData}>
+                <div className="flex size-full flex-col gap-4 rounded-lg bg-gradient-to-br from-neutral-50/50 to-white pt-0 pb-4 text-neutral-700">
                 <Tabs
                     value={selectedStructureTab}
                     onValueChange={handleTabChange}
                     className="w-full"
                 >
-                    <TabsList className="h-auto border-b border-neutral-200/80 bg-transparent p-0 flex flex-row flex-wrap items-center justify-start gap-2 overflow-x-auto w-full">
-                        {renderTabs.map((tab: { label: string; value: string }) => (
-                            <TabsTrigger
-                                key={tab.value}
-                                value={tab.value}
-                                className={`inline-flex items-center data-[state=active]:text-primary data-[state=active]:border-primary hover:text-primary -mb-px px-3 whitespace-nowrap 
-                                py-2 text-sm font-medium transition-all duration-200 
-                                hover:bg-gradient-to-r hover:from-primary-50/60 hover:to-blue-50/40 focus-visible:ring-2 focus-visible:ring-primary-300 focus-visible:ring-offset-1
-                                data-[state=active]:rounded-t-lg data-[state=active]:border-b-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-white data-[state=active]:to-primary-50/30 data-[state=inactive]:text-neutral-500 data-[state=inactive]:hover:rounded-t-lg`}
-                            >
-                                {tab.label}
-                            </TabsTrigger>
-                        ))}
-                    </TabsList>
+                    {renderTabs.length > 1 && (
+                        <TabsList className="h-auto border-b border-neutral-200/80 bg-transparent p-0 flex flex-row flex-wrap items-center justify-start gap-2 overflow-x-auto w-full">
+                            {renderTabs.map((tab: { label: string; value: string }) => (
+                                <TabsTrigger
+                                    key={tab.value}
+                                    value={tab.value}
+                                    className={`inline-flex items-center data-[state=active]:text-primary data-[state=active]:border-primary hover:text-primary -mb-px px-3 whitespace-nowrap 
+                                    py-2 text-sm font-medium transition-all duration-200 
+                                    hover:bg-gradient-to-r hover:from-primary-50/60 hover:to-blue-50/40 focus-visible:ring-2 focus-visible:ring-primary-300 focus-visible:ring-offset-1
+                                    data-[state=active]:rounded-t-lg data-[state=active]:border-b-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-white data-[state=active]:to-primary-50/30 data-[state=inactive]:text-neutral-500 data-[state=inactive]:hover:rounded-t-lg`}
+                                >
+                                    {tab.label}
+                                </TabsTrigger>
+                            ))}
+                        </TabsList>
+                    )}
                     <TabsContent
                         key={selectedStructureTab}
                         value={selectedStructureTab}
-                        className="mt-4 rounded-lg bg-white border border-neutral-200/60 p-4"
+                        className={`${renderTabs.length > 1 ? 'mt-4' : ''} rounded-lg bg-white border border-neutral-200/60 p-4`}
                     >
                         {tabContent[selectedStructureTab as TabType]}
                     </TabsContent>
                 </Tabs>
             </div>
         </PullToRefreshWrapper>
+        </>
     );
 };
