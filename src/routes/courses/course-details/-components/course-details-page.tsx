@@ -1,4 +1,3 @@
-import { Steps } from "@phosphor-icons/react";
 import { useRouter } from "@tanstack/react-router";
 import {
     Code,
@@ -15,14 +14,6 @@ import {
     Notebook,
 } from "phosphor-react";
 import { toTitleCase } from "@/lib/utils";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select";
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -37,18 +28,14 @@ import {
     AssignmentSlide,
 } from "../../-services/getAllSlides";
 import { useQuery } from "@tanstack/react-query";
-import { CourseDetailsRatingsComponent } from "./course-details-ratings-page";
 import {
     getIdByLevelAndSession,
     transformApiDataToCourseData,
 } from "../-utils/helper";
-import { VideoPlayer } from "./course-details-video-player";
 import { handleGetAllCourseDetails } from "../-services/get-course-details";
 import axios from "axios";
 import { urlInstituteDetails } from "@/constants/urls";
 import CourseListHeader from "../../-component/CourseListHeader";
-import { MyButton } from "@/components/design-system/button";
-import { CourseStructureDetails } from "./course-structure-details";
 import { handleGetSlideCountDetails } from "../-services/get-slides-count";
 import {
     BatchForSessionType,
@@ -57,14 +44,19 @@ import {
 import { CourseStructureResponse } from "@/types/institute-details/course-details-interface";
 import { getTerminology } from "@/components/common/layout-container/sidebar/utils";
 import { ContentTerms, SystemTerms } from "@/types/naming-settings";
-import { AuthModal } from "@/components/common/auth/modal/AuthModal";
 // import { getTokenFromStorage } from "@/lib/auth/sessionUtility";
 // import { TokenKey } from "@/constants/auth/tokens";
 // import { Preferences } from "@capacitor/preferences";
 import { getSubdomain } from "@/helpers/helper";
 import { handleGetInstituteIdWithLocalStorageCheck } from "../../-services/courses-services";
 import { DashboardLoader } from "@/components/core/dashboard-loader";
-import { extractTextFromHTML } from "@/components/common/helper";
+import { getStudentDisplaySettings, inspectStudentDisplaySettingsCache, clearStudentDisplaySettingsCache } from "@/services/student-display-settings";
+import { CourseHeader } from "./course-header";
+import { CourseSelectors } from "./course-selectors";
+import { CourseOverview } from "./course-overview";
+import { CourseContent } from "./course-content";
+import { CourseSidebar } from "./course-sidebar";
+import { CourseDetailsRatingsComponent } from "./course-details-ratings-page";
 
 type SlideType = {
     id: string;
@@ -194,7 +186,16 @@ export const CourseDetailsPage = () => {
         modulesData: false,
         ratingsData: false,
         userData: false,
+        settings: false,
     });
+
+    // Student display settings flags
+    const [overviewVisible, setOverviewVisible] = useState<boolean>(true);
+    const [showCourseContentPrefixes, setShowCourseContentPrefixes] = useState<boolean>(true);
+    const [courseOverviewShowSlidesData, setCourseOverviewShowSlidesData] = useState<boolean>(true);
+    const [ratingsAndReviewsVisible, setRatingsAndReviewsVisible] = useState<boolean>(true);
+    const [filteredTabs, setFilteredTabs] = useState<Array<{label: string; value: string}>>([]);
+    const [selectedTab, setSelectedTab] = useState<string>("OUTLINE");
 
     // Function to update loading states
     const updateLoadingState = useCallback(
@@ -215,6 +216,7 @@ export const CourseDetailsPage = () => {
             setIsLoading(false);
         }
     }, [isAllLoadingComplete]);
+
 
 
 
@@ -248,6 +250,156 @@ export const CourseDetailsPage = () => {
     useEffect(() => {
         updateLoadingState("userData", isLoadingInstituteId);
     }, [isLoadingInstituteId, updateLoadingState]);
+
+    // Fetch settings when institute ID becomes available
+    useEffect(() => {
+        // Also try to get institute ID from Capacitor storage as fallback
+        const fetchSettingsWithFallback = async () => {
+            let effectiveInstituteId = instituteId;
+            
+            if (!effectiveInstituteId) {
+                try {
+                    const { Preferences } = await import('@capacitor/preferences');
+                    const instituteResult = await Preferences.get({ key: 'InstituteId' });
+                    effectiveInstituteId = instituteResult.value;
+                    
+                    if (effectiveInstituteId) {
+                        console.log(`🔄 [Course Details - Logout State] Using institute ID from Capacitor storage: ${effectiveInstituteId}`);
+                    }
+                } catch (error) {
+                    console.warn(`⚠️ [Course Details - Logout State] Failed to get institute ID from Capacitor:`, error);
+                }
+            }
+
+            if (!effectiveInstituteId) {
+                console.log(`⏳ [Course Details - Logout State] No institute ID available, using defaults...`, {
+                    timestamp: new Date().toISOString(),
+                    page: 'courses/course-details',
+                    state: 'logout'
+                });
+                // Set defaults when no institute ID is available
+                setOverviewVisible(true);
+                setShowCourseContentPrefixes(true);
+                setCourseOverviewShowSlidesData(true);
+                setRatingsAndReviewsVisible(true);
+                setFilteredTabs([
+                    { label: "Outline", value: "OUTLINE" },
+                    { label: "Content Structure", value: "CONTENT_STRUCTURE" },
+                    { label: "Teachers", value: "TEACHERS" },
+                    { label: "Assessment", value: "ASSESSMENTS" },
+                ]);
+                setSelectedTab("OUTLINE");
+                return;
+            }
+
+            console.log(`🎯 [Course Details - Logout State] Fetching settings with institute ID...`, {
+                effectiveInstituteId,
+                timestamp: new Date().toISOString(),
+                page: 'courses/course-details',
+                state: 'logout'
+            });
+
+            // Debug: Inspect current cache
+            inspectStudentDisplaySettingsCache(effectiveInstituteId);
+
+            // Track settings source by checking cache first - use the specific institute cache key
+            const hasCachedSettings = localStorage.getItem(`STUDENT_DISPLAY_SETTINGS_CACHE_V1:${effectiveInstituteId}`) !== null;
+            
+            getStudentDisplaySettings(true, effectiveInstituteId) // Force refresh to get backend settings
+            .then((settings) => {
+                // Use the actual source from the service
+                const settingsSource = settings._source || 'UNKNOWN';
+                
+                console.log(`🔍 [Course Details - Logout State] Settings source detection:`, {
+                    hasCachedSettings,
+                    hasSettings: !!settings,
+                    settingsKeys: settings ? Object.keys(settings) : [],
+                    effectiveInstituteId,
+                    actualSource: settingsSource
+                });
+                
+                console.log(`📡 [Course Details - Logout State] Settings received`, {
+                    settingsSource,
+                    effectiveInstituteId,
+                    hasCachedSettings,
+                    hasSettings: !!settings,
+                    hasCourseDetails: !!settings?.courseDetails,
+                    courseDetailsKeys: settings?.courseDetails ? Object.keys(settings.courseDetails) : [],
+                    timestamp: new Date().toISOString()
+                });
+
+                const cd = settings?.courseDetails;
+                if (cd) {
+                    const resolvedOverviewVisible = cd.courseOverview?.visible ?? true;
+                    const resolvedShowCourseContentPrefixes = cd.showCourseContentPrefixes ?? true;
+                    const resolvedCourseOverviewShowSlidesData = cd.courseOverview?.showSlidesData ?? true;
+                    const resolvedRatingsAndReviewsVisible = cd.ratingsAndReviewsVisible ?? true;
+                    
+                    setOverviewVisible(resolvedOverviewVisible);
+                    setShowCourseContentPrefixes(resolvedShowCourseContentPrefixes);
+                    setCourseOverviewShowSlidesData(resolvedCourseOverviewShowSlidesData);
+                    setRatingsAndReviewsVisible(resolvedRatingsAndReviewsVisible);
+
+                    // Handle tabs configuration - match study-library logic
+                    const tabsSetting = cd.tabs || [];
+                    const ordered = tabsSetting
+                        .filter((t) => t.visible !== false)
+                        .sort((a, b) => (a.order || 0) - (b.order || 0))
+                        .map((t) => ({
+                            label: t.label || t.id,
+                            value: t.id,
+                        }));
+
+                    if (ordered.length) {
+                        setFilteredTabs(ordered);
+                        const defaultTabId = cd.defaultTab || "OUTLINE";
+                        const isDefaultVisible = ordered.some((t) => t.value === defaultTabId);
+                        const firstVisible = ordered[0]?.value || "OUTLINE";
+                        const resolvedDefault = isDefaultVisible ? defaultTabId : firstVisible;
+                        setSelectedTab(resolvedDefault);
+                    }
+
+                    console.log(`🎛️ [Course Details - Logout State] Settings applied from ${settingsSource}:`, {
+                        effectiveInstituteId,
+                        overviewVisible: resolvedOverviewVisible,
+                        showCourseContentPrefixes: resolvedShowCourseContentPrefixes,
+                        showSlidesData: resolvedCourseOverviewShowSlidesData,
+                        ratingsVisible: resolvedRatingsAndReviewsVisible,
+                        tabs: ordered.map(t => t.value),
+                        defaultTab: cd.defaultTab || "OUTLINE",
+                        showCourseConfiguration: cd.showCourseConfiguration,
+                        source: settingsSource
+                    });
+                } else {
+                    console.log(`⚠️ [Course Details - Logout State] No course details in settings, using defaults`, {
+                        effectiveInstituteId,
+                        source: 'DEFAULTS'
+                    });
+                }
+            })
+            .catch((error) => {
+                console.warn(`❌ [Course Details - Logout State] Settings fetch failed, using defaults`, {
+                    error: error instanceof Error ? error.message : 'Unknown error',
+                    effectiveInstituteId,
+                    source: 'DEFAULTS_FALLBACK',
+                    timestamp: new Date().toISOString()
+                });
+                setOverviewVisible(true);
+                setShowCourseContentPrefixes(true);
+                setCourseOverviewShowSlidesData(true);
+                setRatingsAndReviewsVisible(true);
+                setFilteredTabs([
+                    { label: "Outline", value: "OUTLINE" },
+                    { label: "Content Structure", value: "CONTENT_STRUCTURE" },
+                    { label: "Teachers", value: "TEACHERS" },
+                    { label: "Assessment", value: "ASSESSMENTS" },
+                ]);
+                setSelectedTab("OUTLINE");
+            });
+        };
+
+        fetchSettingsWithFallback();
+    }, [instituteId]);
 
     const [
         packageSessionIdForCurrentLevel,
@@ -350,10 +502,6 @@ export const CourseDetailsPage = () => {
         mode: "onChange",
     });
 
-    const getInitials = (email: string) => {
-        const name = email.split("@")[0];
-        return name?.slice(0, 2).toUpperCase();
-    };
 
     const [levelOptions, setLevelOptions] = useState<
         { _id: string; value: string; label: string }[]
@@ -681,6 +829,147 @@ export const CourseDetailsPage = () => {
     //     redirectToDashboardIfAuthenticated();
     // }, [navigate]);
 
+    // Single log for main component rendering (only when settings change)
+    useEffect(() => {
+        console.log("🎯 [Course Details - Logout State] Rendering with settings:", {
+            overviewVisible,
+            showCourseContentPrefixes,
+            courseOverviewShowSlidesData,
+            ratingsAndReviewsVisible,
+            selectedTab,
+            tabsCount: filteredTabs.length,
+            page: 'courses/course-details',
+            state: 'logout'
+        });
+    }, [overviewVisible, showCourseContentPrefixes, courseOverviewShowSlidesData, ratingsAndReviewsVisible, selectedTab, filteredTabs.length]);
+
+    // Debug: Expose cache functions to console for testing
+    useEffect(() => {
+        (window as unknown as { debugSettings: { clearCache: () => void; inspectCache: (id?: string) => void; refreshSettings: () => void; forceApiCall: () => void; testRawApiCall: () => void; compareSettings: () => void; testNetworkConnectivity: () => void } }).debugSettings = {
+            clearCache: clearStudentDisplaySettingsCache,
+            inspectCache: (id?: string) => inspectStudentDisplaySettingsCache(id || instituteId),
+            refreshSettings: () => {
+                console.log('🔄 [Debug] Refreshing settings...');
+                clearStudentDisplaySettingsCache();
+                window.location.reload();
+            },
+            forceApiCall: async () => {
+                console.log('🌐 [Debug] Forcing API call to get backend settings...');
+                try {
+                    const settings = await getStudentDisplaySettings(true, instituteId);
+                    console.log('🌐 [Debug] Backend API response:', {
+                        source: settings._source,
+                        courseOverviewVisible: settings.courseDetails?.courseOverview?.visible,
+                        ratingsVisible: settings.courseDetails?.ratingsAndReviewsVisible,
+                        showCourseConfiguration: settings.courseDetails?.showCourseConfiguration,
+                        fullSettings: settings
+                    });
+                } catch (error) {
+                    console.error('🌐 [Debug] API call failed:', error);
+                }
+            },
+            testRawApiCall: async () => {
+                console.log('🧪 [Debug] Testing raw API call...');
+                try {
+                    const { authenticatedAxiosInstance } = await import('@/lib/auth/axiosInstance');
+                    const { BASE_URL } = await import('@/constants/urls');
+                    const { STUDENT_DISPLAY_SETTINGS_KEY } = await import('@/types/student-display-settings');
+                    
+                    const apiUrl = `${BASE_URL}/admin-core-service/institute/setting/v1/get`;
+                    
+                    // Add timeout wrapper
+                    const timeoutPromise = new Promise((_, reject) => {
+                        setTimeout(() => reject(new Error('API call timeout after 5 seconds')), 5000);
+                    });
+                    
+                    const apiPromise = authenticatedAxiosInstance.get(apiUrl, {
+                        params: { 
+                            instituteId: instituteId, 
+                            settingKey: STUDENT_DISPLAY_SETTINGS_KEY 
+                        },
+                        timeout: 3000, // 3 second timeout
+                    });
+                    
+                    const response = await Promise.race([apiPromise, timeoutPromise]) as any;
+                    
+                    console.log('🧪 [Debug] Raw API response:', {
+                        status: response.status,
+                        statusText: response.statusText,
+                        data: response.data,
+                        headers: response.headers
+                    });
+                } catch (error) {
+                    console.error('🧪 [Debug] Raw API call failed:', {
+                        error: error instanceof Error ? error.message : 'Unknown error',
+                        errorStack: error instanceof Error ? error.stack : undefined,
+                        errorResponse: (error as any)?.response ? {
+                            status: (error as any).response.status,
+                            statusText: (error as any).response.statusText,
+                            data: (error as any).response.data
+                        } : undefined
+                    });
+                }
+            },
+            compareSettings: async () => {
+                console.log('🔍 [Debug] Comparing cached vs API settings...');
+                try {
+                    const cachedSettings = await getStudentDisplaySettings(false, instituteId);
+                    const apiSettings = await getStudentDisplaySettings(true, instituteId);
+                    
+                    console.log('🔍 [Debug] Settings comparison:', {
+                        cached: {
+                            source: cachedSettings._source,
+                            courseOverviewVisible: cachedSettings.courseDetails?.courseOverview?.visible,
+                            ratingsVisible: cachedSettings.courseDetails?.ratingsAndReviewsVisible,
+                            showCourseConfiguration: cachedSettings.courseDetails?.showCourseConfiguration
+                        },
+                        api: {
+                            source: apiSettings._source,
+                            courseOverviewVisible: apiSettings.courseDetails?.courseOverview?.visible,
+                            ratingsVisible: apiSettings.courseDetails?.ratingsAndReviewsVisible,
+                            showCourseConfiguration: apiSettings.courseDetails?.showCourseConfiguration
+                        },
+                        areDifferent: JSON.stringify(cachedSettings) !== JSON.stringify(apiSettings)
+                    });
+                } catch (error) {
+                    console.error('🔍 [Debug] Comparison failed:', error);
+                }
+            },
+            testNetworkConnectivity: async () => {
+                console.log('🌐 [Debug] Testing network connectivity...');
+                try {
+                    // Test basic connectivity
+                    const response = await fetch('https://httpbin.org/get', { 
+                        method: 'GET',
+                        mode: 'cors'
+                    });
+                    console.log('🌐 [Debug] Basic connectivity test:', {
+                        status: response.status,
+                        statusText: response.statusText,
+                        ok: response.ok
+                    });
+                    
+                    // Test backend domain
+                    const backendResponse = await fetch('https://backend-stage.vacademy.io/health', { 
+                        method: 'GET',
+                        mode: 'cors'
+                    });
+                    console.log('🌐 [Debug] Backend connectivity test:', {
+                        status: backendResponse.status,
+                        statusText: backendResponse.statusText,
+                        ok: backendResponse.ok
+                    });
+                } catch (error) {
+                    console.error('🌐 [Debug] Network connectivity test failed:', {
+                        error: error instanceof Error ? error.message : 'Unknown error',
+                        errorStack: error instanceof Error ? error.stack : undefined
+                    });
+                }
+            }
+        };
+        console.log('🛠️ [Debug] Settings debug functions available at window.debugSettings');
+    }, [instituteId]);
+
     // Show loading until essential APIs are complete
     // Note: packageSessionIdForCurrentLevel is not required for initial render
     if (isLoading || isLoadingInstituteId || !instituteId || !studyLibraryData) {
@@ -689,624 +978,99 @@ export const CourseDetailsPage = () => {
 
     return (
         <>
-            <div className="flex min-h-screen flex-col bg-white w-full">
+            <div className="min-h-screen bg-gradient-to-br from-gray-50/80 via-white to-primary-50/20 relative overflow-hidden w-full max-w-full">
+                {/* Animated background elements */}
+                <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                    <div className="absolute top-1/4 left-1/4 w-32 md:w-64 h-32 md:h-64 bg-gradient-to-br from-primary-100/20 to-transparent rounded-full blur-3xl animate-gentle-pulse"></div>
+                    <div
+                        className="absolute bottom-1/3 right-1/3 w-40 md:w-80 h-40 md:h-80 bg-gradient-to-br from-primary-50/30 to-transparent rounded-full blur-3xl animate-gentle-pulse"
+                        style={{ animationDelay: "2s" }}
+                    ></div>
+                </div>
+
                 <CourseListHeader
                     fileId={instituteDetails?.institute_logo_file_id || ""}
                     instituteId={instituteDetails?.id}
                     type="courseDetailsPage"
                     courseId={searchParams.courseId || ""}
                 />
-                {/* Top Banner */}
-                <div className="relative min-h-[200px] sm:min-h-[250px] md:min-h-[300px]">
-                    {/* Transparent black overlay */}
-                    {form.watch("courseData").courseBannerMediaId ? (
-                        <div className="pointer-events-none absolute inset-0 z-10 bg-black/50" />
-                    ) : (
-                        <div className="pointer-events-none absolute inset-0 z-10 bg-black/10" />
-                    )}
-                    {!form.watch("courseData").courseBannerMediaId ? (
-                        <div className="absolute inset-0 z-0 bg-transparent" />
-                    ) : (
-                        <div className="absolute inset-0 z-0 opacity-70">
-                            <img
-                                src={
-                                    form.watch("courseData").courseBannerMediaId
-                                }
-                                alt="Course Banner"
-                                className="size-full object-cover"
-                                onError={(e) => {
-                                    e.currentTarget.style.display = "none";
-                                    e.currentTarget.parentElement?.classList.add(
-                                        "bg-primary-500"
-                                    );
-                                }}
-                            />
-                        </div>
-                    )}
-                    {/* Primary color overlay with 70% opacity */}
-                    <div
-                        className={`relative z-20 px-8 py-6 sm:py-8 md:py-12 ${
-                            !form.watch("courseData").courseBannerMediaId
-                                ? "text-black"
-                                : "text-white"
-                        }`}
-                    >
-                        <div className="flex flex-col lg:flex-row items-start justify-between gap-4 lg:gap-8">
-                            {/* Left side - Title and Description */}
-                            <div className="w-full lg:max-w-2xl">
-                                {!form.watch("courseData").title ? (
-                                    <div className="space-y-4">
-                                        <div className="h-6 sm:h-8 w-24 sm:w-32 animate-pulse rounded bg-white/20" />
-                                        <div className="h-8 sm:h-12 w-full sm:w-3/4 animate-pulse rounded bg-white/20" />
-                                        <div className="h-3 sm:h-4 w-full animate-pulse rounded bg-white/20" />
-                                        <div className="h-3 sm:h-4 w-2/3 animate-pulse rounded bg-white/20" />
-                                    </div>
-                                ) : (
-                                    <>
-                                        <div className="mb-3 sm:mb-4 flex flex-wrap gap-2">
-                                            {form
-                                                .getValues("courseData")
-                                                .tags.map((tag, index) => (
-                                                    <span
-                                                        key={index}
-                                                        className={`rounded-full px-2 sm:px-3 py-1 text-xs sm:text-sm ${
-                                                            !form.watch(
-                                                                "courseData"
-                                                            )
-                                                                .courseBannerMediaId
-                                                                ? "text-black bg-white"
-                                                                : "text-white bg-blue-500"
-                                                        }`}
-                                                    >
-                                                        {tag}
-                                                    </span>
-                                                ))}
-                                        </div>
-                                        <h1 className="mb-3 sm:mb-4 text-2xl sm:text-3xl md:text-4xl font-bold leading-tight">
-                                            {form.getValues("courseData").title}
-                                        </h1>
-                                        <p
-                                            className="text-base sm:text-lg opacity-90 leading-relaxed"
-                                            dangerouslySetInnerHTML={{
-                                                __html:
-                                                    form.getValues("courseData")
-                                                        .description || "",
-                                            }}
-                                        />
-                                    </>
-                                )}
-                            </div>
-
-                            {/* Right side - Video Player */}
-                            {form.watch("courseData").courseMediaId && (
-                                <div className="hidden lg:block w-full lg:w-auto mt-4 lg:mt-0">
-                                    <VideoPlayer
-                                        src={
-                                            form.watch("courseData")
-                                                .courseMediaId
-                                        }
-                                        className="!w-full sm:!w-[320px] md:!w-[370px] lg:!w-[370px]"
-                                    />
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </div>
-                {/* Main Content */}
-                <div className="px-12 py-6 sm:py-8">
-                    <div className="flex flex-col lg:flex-row gap-6 lg:gap-8">
+                {/* Course Header */}
+                <CourseHeader courseData={form.getValues("courseData")} />
+                {/* Main Content Container */}
+                <div className="relative z-10 w-full px-4 sm:px-6 lg:px-8 py-3 lg:py-4">
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 lg:gap-4">
                         {/* Left Column - Full width on mobile, 2/3 on larger screens */}
-                        <div className="w-full lg:w-2/3 lg:grow">
+                        <div className="lg:col-span-2 space-y-3 lg:space-y-4">
                             {/* Session and Level Selectors */}
-                            <div className=" px-0 pb-4 sm:pb-6">
-                                {/* Video Player for smaller screens - positioned above levels */}
-                                {form.watch("courseData").courseMediaId && (
-                                    <div className="mb-6 lg:hidden flex items-start">
-                                        <VideoPlayer
-                                            src={
-                                                form.watch("courseData")
-                                                    .courseMediaId
-                                            }
-                                            className="!w-full max-w-sm"
-                                        />
-                                    </div>
-                                )}
-
-                                <div className="flex flex-col sm:flex-row items-start gap-4 sm:gap-6">
-                                    {/* Session Dropdown Logic */}
-                                    {sessionOptions.length === 1 &&
-                                    sessionOptions[0].label ===
-                                        "default" ? null : sessionOptions.length ===
-                                      1 ? (
-                                        <div className="flex flex-col gap-2 w-full sm:w-auto">
-                                            <label className="text-sm font-medium">
-                                                {sessionOptions[0]?.label}
-                                            </label>
-                                        </div>
-                                    ) : sessionOptions.length > 1 ? (
-                                        <div className="flex flex-col gap-2 w-full sm:w-auto">
-                                            <label className="text-sm font-medium">
-                                                Session
-                                            </label>
-                                            <Select
-                                                value={selectedSession}
-                                                onValueChange={
-                                                    handleSessionChange
-                                                }
-                                            >
-                                                <SelectTrigger className="w-full sm:w-48">
-                                                    <SelectValue placeholder="Select Session" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    {sessionOptions.map(
-                                                        (option) => (
-                                                            <SelectItem
-                                                                key={option._id}
-                                                                value={
-                                                                    option.value
-                                                                }
-                                                            >
-                                                                {option.label}
-                                                            </SelectItem>
-                                                        )
-                                                    )}
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
-                                    ) : null}
-
-                                    {/* Level Dropdown Logic */}
-                                    {levelOptions.length === 1 &&
-                                    levelOptions[0].label ===
-                                        "default" ? null : levelOptions.length ===
-                                      1 ? (
-                                        <div className="flex flex-col gap-2 w-full sm:w-auto">
-                                            <label className="text-sm font-medium">
-                                                {/* {levelOptions[0]?.label} */}
-                                            </label>
-                                        </div>
-                                    ) : levelOptions.length > 1 ? (
-                                        <div className="flex flex-col gap-2 w-full sm:w-auto">
-                                            <label className="text-sm font-medium">
-                                                Level
-                                            </label>
-                                            <Select
-                                                value={selectedLevel}
-                                                onValueChange={
-                                                    handleLevelChange
-                                                }
-                                                disabled={!selectedSession}
-                                            >
-                                                <SelectTrigger className="w-full sm:w-48">
-                                                    <SelectValue placeholder="Select Level" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    {levelOptions.map(
-                                                        (option) => (
-                                                            <SelectItem
-                                                                key={option._id}
-                                                                value={
-                                                                    option.value
-                                                                }
-                                                            >
-                                                                {option.label}
-                                                            </SelectItem>
-                                                        )
-                                                    )}
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
-                                    ) : null}
-                                </div>
-                            </div>
-                            {/* Enroll Button Card - shown above CourseStructureDetails for smaller screens */}
-                            <div className="lg:hidden mb-6">
-                                <div className="w-full max-w-[350px] rounded-lg border bg-white p-4 sm:p-6 shadow-lg">
-                                    {/* Course Stats */}
-                                    <h2 className="mb-3 sm:mb-4 text-base sm:text-lg font-bold line-clamp-2">
-                                        {form.getValues("courseData").title}
-                                    </h2>
-
-                                    <div className="relative">
-                                        {/* Header */}
-                                        <div className="flex items-center space-x-2 mb-3 sm:mb-4">
-                                            <div className="p-1.5 bg-gradient-to-br from-primary-100 to-primary-200 rounded-lg shadow-sm">
-                                                <Steps
-                                                    size={16}
-                                                    className="text-primary-600"
-                                                    weight="duotone"
-                                                />
-                                            </div>
-                                            <h2 className="text-sm sm:text-base font-bold text-gray-900">
-                                                {getTerminology(
-                                                    ContentTerms.Course,
-                                                    SystemTerms.Course
-                                                ).toLocaleLowerCase()}{" "}
-                                                Overview
-                                            </h2>
-                                        </div>
-
-                                        {/* Course Stats */}
-                                        <div className="space-y-2 sm:space-y-3">
-                                            {/* Level Badge */}
-                                            {levelOptions.length > 0 &&
-                                                selectedLevel &&
-                                                levelOptions.find(
-                                                    (option) =>
-                                                        option.value ===
-                                                        selectedLevel
-                                                )?.label !== "default" && (
-                                                    <div className="flex items-center justify-between p-2 sm:p-2.5 bg-gradient-to-r from-primary-50 to-primary-100 rounded-lg border border-primary-200">
-                                                        <div className="flex items-center space-x-2">
-                                                            <Steps
-                                                                size={14}
-                                                                className="text-primary-600"
-                                                                weight="duotone"
-                                                            />
-                                                            <span className="text-xs font-medium text-primary-700">
-                                                                {getTerminology(
-                                                                    ContentTerms.Level,
-                                                                    SystemTerms.Level
-                                                                ).toLocaleLowerCase()}
-                                                            </span>
-                                                        </div>
-                                                        <span className="text-xs font-bold text-primary-800">
-                                                            {
-                                                                levelOptions.find(
-                                                                    (option) =>
-                                                                        option.value ===
-                                                                        selectedLevel
-                                                                )?.label
-                                                            }
-                                                        </span>
-                                                    </div>
-                                                )}
-
-                                            {/* Slide Counts */}
-                                            {slideCountQuery.isLoading ? (
-                                                <div className="space-y-2">
-                                                    {[1, 2, 3, 4, 5].map(
-                                                        (i) => (
-                                                            <div
-                                                                key={i}
-                                                                className="flex items-center justify-between p-2 sm:p-2.5 bg-gray-50 rounded-lg animate-pulse"
-                                                            >
-                                                                <div className="h-3 w-16 bg-gray-200 rounded"></div>
-                                                                <div className="h-3 w-6 bg-gray-200 rounded"></div>
-                                                            </div>
-                                                        )
-                                                    )}
-                                                </div>
-                                            ) : slideCountQuery.error ? (
-                                                <div className="p-2 sm:p-2.5 bg-red-50 border border-red-200 rounded-lg">
-                                                    <p className="text-xs text-red-600 font-medium">
-                                                        Error loading{" "}
-                                                        {getTerminology(
-                                                            ContentTerms.Slides,
-                                                            SystemTerms.Slides
-                                                        ).toLocaleLowerCase()}
-                                                        counts
-                                                    </p>
-                                                </div>
-                                            ) : (
-                                                <div className="space-y-2">
-                                                    {processedSlideCounts.map(
-                                                        (count: {
-                                                            source_type: string;
-                                                            slide_count: number;
-                                                            display_name: string;
-                                                        }) => (
-                                                            <div
-                                                                key={
-                                                                    count.source_type
-                                                                }
-                                                                className="flex items-center justify-between p-2 sm:p-2.5 bg-gray-50/80 rounded-lg hover:bg-gray-100/80 transition-all duration-300 group/item"
-                                                            >
-                                                                <div className="flex items-center space-x-2 min-w-0 flex-1">
-                                                                    {getSlideTypeIcon(
-                                                                        count.source_type
-                                                                    )}
-                                                                    <span className="text-xs font-medium text-gray-700 truncate">
-                                                                        {
-                                                                            count.display_name
-                                                                        }
-                                                                    </span>
-                                                                </div>
-                                                                <span className="text-xs font-bold text-gray-900 bg-white px-2 py-0.5 rounded-md shadow-sm flex-shrink-0 ml-2">
-                                                                    {
-                                                                        count.slide_count
-                                                                    }
-                                                                </span>
-                                                            </div>
-                                                        )
-                                                    )}
-                                                </div>
-                                            )}
-                                        </div>
-                                        <AuthModal
-                                            type="courseDetailsPage"
-                                            courseId={searchParams.courseId}
-                                            trigger={
-                                                <MyButton
-                                                    type="button"
-                                                    scale="large"
-                                                    buttonType="primary"
-                                                    layoutVariant="default"
-                                                    className="mt-3 sm:mt-4 !min-w-full !w-full"
-                                                >
-                                                    Enroll
-                                                </MyButton>
-                                            }
-                                        />
-                                    </div>
-                                </div>
-                            </div>
-                            <CourseStructureDetails
+                            <CourseSelectors
+                                courseData={form.getValues("courseData")}
+                                sessionOptions={sessionOptions}
+                                levelOptions={levelOptions}
                                 selectedSession={selectedSession}
                                 selectedLevel={selectedLevel}
-                                courseStructure={form.getValues(
-                                    "courseData.courseStructure"
-                                )}
-                                courseData={form.getValues()}
-                                packageSessionId={
-                                    packageSessionIdForCurrentLevel || ""
-                                }
-                                onModulesLoadingChange={
-                                    handleModulesLoadingChange
-                                }
+                                onSessionChange={handleSessionChange}
+                                onLevelChange={handleLevelChange}
+                            />
+                            
+                            {/* Course Overview - Mobile Only */}
+                            <CourseOverview
+                                overviewVisible={overviewVisible}
+                                courseOverviewShowSlidesData={courseOverviewShowSlidesData}
+                                levelOptions={levelOptions}
+                                selectedLevel={selectedLevel}
+                                slideCountQuery={slideCountQuery}
+                                processedSlideCounts={processedSlideCounts}
+                                getSlideTypeIcon={getSlideTypeIcon}
+                                            courseId={searchParams.courseId}
+                                variant="mobile"
+                            />
+                            
+                            {/* Course Content */}
+                            <CourseContent
+                                selectedSession={selectedSession}
+                                selectedLevel={selectedLevel}
+                                courseStructure={form.getValues("courseData.courseStructure")}
+                                courseData={form.getValues("courseData")}
+                                fullFormData={form.getValues()}
+                                packageSessionId={packageSessionIdForCurrentLevel || ""}
+                                selectedTab={selectedTab}
+                                showCourseContentPrefixes={showCourseContentPrefixes}
+                                filteredTabs={filteredTabs}
+                                onModulesLoadingChange={handleModulesLoadingChange}
                             />
 
-                            {/* What You'll Learn Section */}
-                            {extractTextFromHTML(
-                                form.getValues("courseData").whatYoullLearn
-                            ) && (
-                                <div className="mb-6 sm:mb-8">
-                                    <h2 className="mb-3 sm:mb-4 text-xl sm:text-2xl font-bold">
-                                        What you&apos;ll learn?
-                                    </h2>
-                                    <div className="rounded-lg">
-                                        <p
-                                            className="text-sm sm:text-base leading-relaxed"
-                                            dangerouslySetInnerHTML={{
-                                                __html:
-                                                    form.getValues("courseData")
-                                                        .whatYoullLearn || "",
-                                            }}
-                                        />
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* About Content Section */}
-                            {extractTextFromHTML(
-                                form.getValues("courseData").aboutTheCourse
-                            ) && (
-                                <div className="mb-6 sm:mb-8">
-                                    <h2 className="mb-3 sm:mb-4 text-xl sm:text-2xl font-bold">
-                                        About this course
-                                    </h2>
-                                    <div className="rounded-lg">
-                                        <p
-                                            className="text-sm sm:text-base leading-relaxed"
-                                            dangerouslySetInnerHTML={{
-                                                __html:
-                                                    form.getValues("courseData")
-                                                        .aboutTheCourse || "",
-                                            }}
-                                        />
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Who Should Join Section */}
-                            {extractTextFromHTML(
-                                form.getValues("courseData").whoShouldLearn
-                            ) && (
-                                <div className="mb-6 sm:mb-8">
-                                    <h2 className="mb-3 sm:mb-4 text-xl sm:text-2xl font-bold">
-                                        Who should join?
-                                    </h2>
-                                    <div className="rounded-lg">
-                                        <p
-                                            className="text-sm sm:text-base leading-relaxed"
-                                            dangerouslySetInnerHTML={{
-                                                __html:
-                                                    form.getValues("courseData")
-                                                        .whoShouldLearn || "",
-                                            }}
-                                        />
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Instructors Section */}
-                            {form.getValues("courseData").instructors &&
-                                form.getValues("courseData").instructors
-                                    .length > 0 && (
-                                    <div className="mb-6 sm:mb-8">
-                                        <h2 className="mb-3 sm:mb-4 text-xl sm:text-2xl font-bold">
-                                            Instructors
-                                        </h2>
-                                        <div className="space-y-3 sm:space-y-4">
-                                            {form
-                                                .getValues("courseData")
-                                                .instructors.map(
-                                                    (instructor, index) => (
-                                                        <div
-                                                            key={index}
-                                                            className="flex gap-3 sm:gap-4 rounded-lg bg-gray-50 p-3 sm:p-4"
-                                                        >
-                                                            <Avatar className="size-6 sm:size-8 flex-shrink-0">
-                                                                <AvatarImage
-                                                                    src=""
-                                                                    alt={
-                                                                        instructor.email
-                                                                    }
-                                                                />
-                                                                <AvatarFallback className="bg-[#3B82F6] text-xs font-medium text-white">
-                                                                    {getInitials(
-                                                                        instructor.email
-                                                                    )}
-                                                                </AvatarFallback>
-                                                            </Avatar>
-                                                            <h3 className="text-base sm:text-lg font-medium">
-                                                                {
-                                                                    instructor.name
-                                                                }
-                                                            </h3>
-                                                        </div>
-                                                    )
-                                                )}
-                                        </div>
-                                    </div>
-                                )}
-                        </div>
-
-                        {/* Right Column - Full width on mobile, 1/3 on larger screens */}
-                        <div className="hidden lg:block max-w-[350px] lg:w-1/3 lg:max-w-sm mb-12">
-                            <div className="sticky top-4 rounded-lg border bg-white p-4 sm:p-6 shadow-lg">
-                                {/* Course Stats */}
-                                <h2 className="mb-3 sm:mb-4 text-base sm:text-lg font-bold line-clamp-2">
-                                    {form.getValues("courseData").title}
-                                </h2>
-
-                                <div className="relative">
-                                    {/* Header */}
-                                    <div className="flex items-center space-x-2 mb-3 sm:mb-4">
-                                        <div className="p-1.5 bg-gradient-to-br from-primary-100 to-primary-200 rounded-lg shadow-sm">
-                                            <Steps
-                                                size={16}
-                                                className="text-primary-600"
-                                                weight="duotone"
-                                            />
-                                        </div>
-                                        <h2 className="text-sm sm:text-base font-bold text-gray-900">
-                                            {getTerminology(
-                                                ContentTerms.Course,
-                                                SystemTerms.Course
-                                            ).toLocaleLowerCase()}{" "}
-                                            Overview
-                                        </h2>
-                                    </div>
-
-                                    {/* Course Stats */}
-                                    <div className="space-y-2 sm:space-y-3">
-                                        {/* Level Badge */}
-                                        {levelOptions.length > 0 &&
-                                            selectedLevel &&
-                                            levelOptions.find(
-                                                (option) =>
-                                                    option.value ===
-                                                    selectedLevel
-                                            )?.label !== "default" && (
-                                                <div className="flex items-center justify-between p-2 sm:p-2.5 bg-gradient-to-r from-primary-50 to-primary-100 rounded-lg border border-primary-200">
-                                                    <div className="flex items-center space-x-2">
-                                                        <Steps
-                                                            size={14}
-                                                            className="text-primary-600"
-                                                            weight="duotone"
-                                                        />
-                                                        <span className="text-xs font-medium text-primary-700">
-                                                            {getTerminology(
-                                                                ContentTerms.Level,
-                                                                SystemTerms.Level
-                                                            ).toLocaleLowerCase()}
-                                                        </span>
-                                                    </div>
-                                                    <span className="text-xs font-bold text-primary-800">
-                                                        {
-                                                            levelOptions.find(
-                                                                (option) =>
-                                                                    option.value ===
-                                                                    selectedLevel
-                                                            )?.label
-                                                        }
-                                                    </span>
+                            {/* Ratings & Reviews - Mobile */}
+                            {ratingsAndReviewsVisible && packageSessionIdForCurrentLevel && (
+                                <div className="lg:hidden animate-fade-in-up" style={{ animationDelay: "1.0s" }}>
+                                    <CourseDetailsRatingsComponent
+                                        packageSessionId={packageSessionIdForCurrentLevel}
+                                        onRatingsLoadingChange={handleRatingsLoadingChange}
+                                    />
                                                 </div>
                                             )}
 
-                                        {/* Slide Counts */}
-                                        {slideCountQuery.isLoading ? (
-                                            <div className="space-y-2">
-                                                {[1, 2, 3, 4, 5].map((i) => (
-                                                    <div
-                                                        key={i}
-                                                        className="flex items-center justify-between p-2 sm:p-2.5 bg-gray-50 rounded-lg animate-pulse"
-                                                    >
-                                                        <div className="h-3 w-16 bg-gray-200 rounded"></div>
-                                                        <div className="h-3 w-6 bg-gray-200 rounded"></div>
                                                     </div>
-                                                ))}
-                                            </div>
-                                        ) : slideCountQuery.error ? (
-                                            <div className="p-2 sm:p-2.5 bg-red-50 border border-red-200 rounded-lg">
-                                                <p className="text-xs text-red-600 font-medium">
-                                                    Error loading{" "}
-                                                    {getTerminology(
-                                                        ContentTerms.Slides,
-                                                        SystemTerms.Slides
-                                                    ).toLocaleLowerCase()}
-                                                    counts
-                                                </p>
-                                            </div>
-                                        ) : (
-                                            <div className="space-y-2">
-                                                {processedSlideCounts.map(
-                                                    (count: {
-                                                        source_type: string;
-                                                        slide_count: number;
-                                                        display_name: string;
-                                                    }) => (
-                                                        <div
-                                                            key={
-                                                                count.source_type
-                                                            }
-                                                            className="flex items-center justify-between p-2 sm:p-2.5 bg-gray-50/80 rounded-lg hover:bg-gray-100/80 transition-all duration-300 group/item"
-                                                        >
-                                                            <div className="flex items-center space-x-2 min-w-0 flex-1">
-                                                                {getSlideTypeIcon(
-                                                                    count.source_type
-                                                                )}
-                                                                <span className="text-xs font-medium text-gray-700 truncate">
-                                                                    {
-                                                                        count.display_name
-                                                                    }
-                                                                </span>
-                                                            </div>
-                                                            <span className="text-xs font-bold text-gray-900 bg-white px-2 py-0.5 rounded-md shadow-sm flex-shrink-0 ml-2">
-                                                                {
-                                                                    count.slide_count
-                                                                }
-                                                            </span>
-                                                        </div>
-                                                    )
-                                                )}
-                                            </div>
-                                        )}
-                                    </div>
-                                    <AuthModal
-                                        type="courseDetailsPage"
+
+                        {/* Right Column - Full width on mobile, 1/3 on larger screens */}
+                        <div className="hidden lg:block">
+                            <CourseSidebar
+                            overviewVisible={overviewVisible}
+                            courseOverviewShowSlidesData={courseOverviewShowSlidesData}
+                            levelOptions={levelOptions}
+                            selectedLevel={selectedLevel}
+                            slideCountQuery={slideCountQuery}
+                            processedSlideCounts={processedSlideCounts}
+                            getSlideTypeIcon={getSlideTypeIcon}
+                            courseData={form.getValues("courseData")}
+                            selectedSession={selectedSession}
+                            onEnrollmentClick={() => {}}
                                         courseId={searchParams.courseId}
-                                        trigger={
-                                            <MyButton
-                                                type="button"
-                                                scale="large"
-                                                buttonType="primary"
-                                                layoutVariant="default"
-                                                className="mt-3 sm:mt-4 !min-w-full !w-full"
-                                            >
-                                                Enroll
-                                            </MyButton>
-                                        }
-                                    />
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <CourseDetailsRatingsComponent
-                        packageSessionId={packageSessionIdForCurrentLevel}
+                            ratingsAndReviewsVisible={ratingsAndReviewsVisible}
+                            packageSessionId={packageSessionIdForCurrentLevel || ""}
                         onRatingsLoadingChange={handleRatingsLoadingChange}
-                    />
+                                        />
+                                    </div>
+                                </div>
                 </div>
             </div>
         </>

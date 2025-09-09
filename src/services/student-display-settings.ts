@@ -232,16 +232,32 @@ function readCacheForInstitute(
 ): StudentDisplaySettingsData | null {
   if (!instituteId) return null;
   try {
-    const raw = localStorage.getItem(`${LS_KEY}:${instituteId}`);
-    if (!raw) return null;
+    const cacheKey = `${LS_KEY}:${instituteId}`;
+    const raw = localStorage.getItem(cacheKey);
+    if (!raw) {
+      console.log(`📦 [Settings Cache] No cache found for key: ${cacheKey}`);
+      return null;
+    }
     const parsed = JSON.parse(raw) as {
       ts: number;
       data: StudentDisplaySettingsData;
     };
-    return parsed?.ts && Date.now() - parsed.ts <= ONE_DAY_MS
-      ? parsed.data
-      : null;
-  } catch {
+    const isValid = parsed?.ts && Date.now() - parsed.ts <= ONE_DAY_MS;
+    
+    console.log(`📦 [Settings Cache] Cache read for ${instituteId}:`, {
+      cacheKey,
+      hasData: !!parsed?.data,
+      timestamp: parsed?.ts,
+      age: parsed?.ts ? Date.now() - parsed.ts : 'unknown',
+      isValid,
+      courseOverviewVisible: parsed?.data?.courseDetails?.courseOverview?.visible,
+      ratingsVisible: parsed?.data?.courseDetails?.ratingsAndReviewsVisible,
+      showCourseConfiguration: parsed?.data?.courseDetails?.showCourseConfiguration
+    });
+    
+    return isValid ? parsed.data : null;
+  } catch (error) {
+    console.warn(`📦 [Settings Cache] Error reading cache for ${instituteId}:`, error);
     return null;
   }
 }
@@ -252,48 +268,140 @@ async function writeCacheForInstitute(
 ): Promise<void> {
   if (!instituteId) return;
   try {
-    localStorage.setItem(
-      `${LS_KEY}:${instituteId}`,
-      JSON.stringify({ ts: Date.now(), data })
-    );
-  } catch {}
+    const cacheKey = `${LS_KEY}:${instituteId}`;
+    const cacheData = { ts: Date.now(), data };
+    
+    console.log(`💾 [Settings Cache] Writing cache for ${instituteId}:`, {
+      cacheKey,
+      courseOverviewVisible: data?.courseDetails?.courseOverview?.visible,
+      ratingsVisible: data?.courseDetails?.ratingsAndReviewsVisible,
+      showCourseConfiguration: data?.courseDetails?.showCourseConfiguration,
+      tabsCount: data?.courseDetails?.tabs?.length
+    });
+    
+    localStorage.setItem(cacheKey, JSON.stringify(cacheData));
+  } catch (error) {
+    console.warn(`💾 [Settings Cache] Error writing cache for ${instituteId}:`, error);
+  }
 }
 
 export async function getStudentDisplaySettings(
   forceRefresh = false,
   instituteId?: string
-): Promise<StudentDisplaySettingsData> {
+): Promise<StudentDisplaySettingsData & { _source?: string }> {
   const id = await getInstituteId();
   if (!instituteId) instituteId = id ?? "";
+  
+  console.log(`🔧 [Settings Service] getStudentDisplaySettings called`, {
+    forceRefresh,
+    instituteId,
+    timestamp: new Date().toISOString()
+  });
+
   // Try institute-aware cache first
   if (!forceRefresh) {
     const cached = readCacheForInstitute(instituteId);
-    if (cached) return mergeWithDefaults(cached);
+    if (cached) {
+      console.log(`📦 [Settings Service] Using cached settings for institute: ${instituteId}`, {
+        hasCourseDetails: !!cached.courseDetails,
+        courseDetailsTabs: cached.courseDetails?.tabs?.length || 0,
+        courseOverviewVisible: cached.courseDetails?.courseOverview?.visible,
+        ratingsVisible: cached.courseDetails?.ratingsAndReviewsVisible,
+        source: 'CACHE'
+      });
+      return { ...mergeWithDefaults(cached), _source: 'CACHE' };
+    }
   }
+  
   if (!instituteId) {
+    console.log(`⚠️ [Settings Service] No institute ID, using defaults`, {
+      source: 'DEFAULTS',
+      courseDetailsTabs: DEFAULT_STUDENT_DISPLAY_SETTINGS.courseDetails.tabs.length,
+      courseOverviewVisible: DEFAULT_STUDENT_DISPLAY_SETTINGS.courseDetails.courseOverview.visible
+    });
     const defaults = DEFAULT_STUDENT_DISPLAY_SETTINGS;
     await writeCacheForInstitute(null, defaults);
-    return defaults;
+    return { ...defaults, _source: 'DEFAULTS' };
   }
 
   try {
-    const res = await authenticatedAxiosInstance.get<{
-      data: StudentDisplaySettingsData | null;
-    }>(`${BASE_URL}/admin-core-service/institute/setting/v1/get`, {
-      params: { instituteId, settingKey: STUDENT_DISPLAY_SETTINGS_KEY },
+    const apiUrl = `${BASE_URL}/admin-core-service/institute/setting/v1/get`;
+    console.log(`🌐 [Settings Service] Making API call to: ${apiUrl}`, {
+      instituteId,
+      settingKey: STUDENT_DISPLAY_SETTINGS_KEY,
+      source: 'API'
     });
+
+    // Add timeout wrapper
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('API call timeout after 15 seconds')), 15000);
+    });
+
+    const apiPromise = authenticatedAxiosInstance.get<{
+      data: StudentDisplaySettingsData | null;
+    }>(apiUrl, {
+      params: { instituteId, settingKey: STUDENT_DISPLAY_SETTINGS_KEY },
+      timeout: 10000, // 10 second timeout
+    });
+
+    const res = await Promise.race([apiPromise, timeoutPromise]) as any;
+    
+    console.log(`✅ [Settings Service] API response received`, {
+      status: res.status,
+      statusText: res.statusText,
+      hasData: !!res.data?.data,
+      dataKeys: res.data?.data ? Object.keys(res.data.data) : [],
+      fullResponse: res.data,
+      courseDetails: res.data?.data?.courseDetails ? {
+        tabsCount: res.data.data.courseDetails.tabs?.length || 0,
+        defaultTab: res.data.data.courseDetails.defaultTab,
+        overviewVisible: res.data.data.courseDetails.courseOverview?.visible,
+        ratingsVisible: res.data.data.courseDetails.ratingsAndReviewsVisible,
+        showCourseConfiguration: res.data.data.courseDetails.showCourseConfiguration,
+        showCourseContentPrefixes: res.data.data.courseDetails.showCourseContentPrefixes
+      } : 'Not present',
+      source: 'API'
+    });
+
     const serverData = res.data?.data;
     const merged = mergeWithDefaults(
       serverData && Object.keys(serverData).length
         ? serverData
         : DEFAULT_STUDENT_DISPLAY_SETTINGS
     );
+    
+    console.log(`🔄 [Settings Service] Settings merged and cached`, {
+      instituteId,
+      finalCourseDetails: {
+        tabsCount: merged.courseDetails.tabs.length,
+        defaultTab: merged.courseDetails.defaultTab,
+        overviewVisible: merged.courseDetails.courseOverview.visible,
+        ratingsVisible: merged.courseDetails.ratingsAndReviewsVisible,
+        showCourseConfiguration: merged.courseDetails.showCourseConfiguration,
+        showCourseContentPrefixes: merged.courseDetails.showCourseContentPrefixes
+      },
+      source: 'API_MERGED'
+    });
+
     await writeCacheForInstitute(instituteId, merged);
-    return merged;
-  } catch {
+    return { ...merged, _source: 'API' };
+  } catch (error) {
+    console.error(`❌ [Settings Service] API call failed, using defaults`, {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      errorStack: error instanceof Error ? error.stack : undefined,
+      errorResponse: (error as any)?.response ? {
+        status: (error as any).response.status,
+        statusText: (error as any).response.statusText,
+        data: (error as any).response.data
+      } : undefined,
+      instituteId,
+      apiUrl,
+      settingKey: STUDENT_DISPLAY_SETTINGS_KEY,
+      source: 'DEFAULTS_FALLBACK'
+    });
     const defaults = DEFAULT_STUDENT_DISPLAY_SETTINGS;
     await writeCacheForInstitute(instituteId, defaults);
-    return defaults;
+    return { ...defaults, _source: 'DEFAULTS_FALLBACK' };
   }
 }
 
@@ -336,7 +444,10 @@ export function clearStudentDisplaySettingsCache(): void {
       const key = localStorage.key(i);
       if (key && key.startsWith(`${LS_KEY}:`)) keysToRemove.push(key);
     }
+    
+    console.log(`🗑️ [Settings Cache] Clearing cache keys:`, keysToRemove);
     keysToRemove.forEach((k) => localStorage.removeItem(k));
+    console.log(`🗑️ [Settings Cache] Cache cleared successfully`);
   } catch (error) {
     console.error("Error clearing student display settings cache:", error);
   }
@@ -367,3 +478,41 @@ function getStudentDisplaySettingsFromInsitituteDetails(
 }
 
 export { mergeWithDefaults };
+
+// Debug function to inspect cache state
+export function inspectStudentDisplaySettingsCache(instituteId?: string): void {
+  try {
+    const id = instituteId || 'current';
+    const cacheKey = `${LS_KEY}:${id}`;
+    const raw = localStorage.getItem(cacheKey);
+    
+    console.log(`🔍 [Settings Cache Debug] Inspecting cache for ${id}:`, {
+      cacheKey,
+      exists: !!raw,
+      rawData: raw ? JSON.parse(raw) : null
+    });
+    
+    // Also check all cache keys
+    const allKeys = Object.keys(localStorage).filter(key => key.startsWith(LS_KEY));
+    console.log(`🔍 [Settings Cache Debug] All cache keys:`, allKeys);
+    
+    allKeys.forEach(key => {
+      const data = localStorage.getItem(key);
+      if (data) {
+        try {
+          const parsed = JSON.parse(data);
+          console.log(`🔍 [Settings Cache Debug] Key ${key}:`, {
+            timestamp: parsed.ts,
+            age: Date.now() - parsed.ts,
+            courseOverviewVisible: parsed.data?.courseDetails?.courseOverview?.visible,
+            ratingsVisible: parsed.data?.courseDetails?.ratingsAndReviewsVisible
+          });
+        } catch (e) {
+          console.log(`🔍 [Settings Cache Debug] Key ${key}: Invalid JSON`);
+        }
+      }
+    });
+  } catch (error) {
+    console.error(`🔍 [Settings Cache Debug] Error inspecting cache:`, error);
+  }
+}

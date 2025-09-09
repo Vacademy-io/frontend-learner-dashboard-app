@@ -943,25 +943,70 @@ export const CourseDetailsPage = () => {
     const [overviewVisible, setOverviewVisible] = useState<boolean>(true);
 
     useEffect(() => {
-        getStudentDisplaySettings(false)
+        console.log(`🎯 [Study Library Course Details] Fetching settings...`, {
+            timestamp: new Date().toISOString(),
+            page: 'study-library/courses/course-details'
+        });
+
+        getStudentDisplaySettings(true) // Force refresh to get backend settings
             .then((settings) => {
+                const settingsSource = settings._source || 'UNKNOWN';
+                console.log(`📡 [Study Library Course Details] Settings received`, {
+                    hasSettings: !!settings,
+                    hasCourseDetails: !!settings?.courseDetails,
+                    courseDetailsKeys: settings?.courseDetails ? Object.keys(settings.courseDetails) : [],
+                    source: settingsSource,
+                    timestamp: new Date().toISOString()
+                });
+
                 const cd = settings?.courseDetails;
                 if (cd) {
                     const resolvedShowCourseConfiguration =
                         cd.showCourseConfiguration ?? true;
                     const resolvedOverviewVisible =
                         cd.courseOverview?.visible ?? true;
+                    
+                    console.log(`🎛️ [Study Library Course Details] Settings applied`, {
+                        showCourseConfiguration: resolvedShowCourseConfiguration,
+                        overviewVisible: resolvedOverviewVisible,
+                        tabsCount: cd.tabs?.length || 0,
+                        defaultTab: cd.defaultTab,
+                        ratingsVisible: cd.ratingsAndReviewsVisible,
+                        showCourseContentPrefixes: cd.showCourseContentPrefixes,
+                        courseOverviewShowSlidesData: cd.courseOverview?.showSlidesData,
+                        source: settingsSource
+                    });
+
                     setShowCourseConfiguration(resolvedShowCourseConfiguration);
                     setOverviewVisible(resolvedOverviewVisible);
+                } else {
+                    console.log(`⚠️ [Study Library Course Details] No course details in settings, using defaults`, {
+                        source: 'DEFAULTS'
+                    });
                 }
             })
-            .catch(() => {
+            .catch((error) => {
+                console.warn(`❌ [Study Library Course Details] Settings fetch failed, using defaults`, {
+                    error: error instanceof Error ? error.message : 'Unknown error',
+                    source: 'DEFAULTS_FALLBACK',
+                    timestamp: new Date().toISOString()
+                });
                 setShowCourseConfiguration(true);
                 setOverviewVisible(true);
             });
     }, []);
 
     const hasRightSidebar = true;
+
+    // Log component rendering with settings
+    useEffect(() => {
+        console.log("🎯 [Study Library Course Details] Rendering with settings:", {
+            showCourseConfiguration,
+            overviewVisible,
+            page: 'study-library/courses/course-details',
+            state: 'authenticated'
+        });
+    }, [showCourseConfiguration, overviewVisible]);
 
     // Function to update module statistics for depth 5 courses
     const updateModuleStats = (
