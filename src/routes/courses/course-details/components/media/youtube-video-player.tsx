@@ -1,5 +1,5 @@
 import React from 'react';
-import { isYouTubeUrl, convertToYouTubeEmbedUrl } from '../-utils/helper';
+import { isYouTubeUrl, convertToYouTubeEmbedUrl } from '../../-utils/helper';
 
 interface YouTubeVideoPlayerProps {
   url: string;

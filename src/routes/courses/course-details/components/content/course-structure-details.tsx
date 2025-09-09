@@ -1,5 +1,5 @@
 import { useNavHeadingStore } from "@/stores/layout-container/useNavHeadingStore";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { PullToRefreshWrapper } from "@/components/design-system/pull-to-refresh";
 import { fetchStudyLibraryDetails } from "@/services/study-library/getStudyLibraryDetails";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -31,11 +31,12 @@ import {
   tabs,
 } from "@/components/common/study-library/level-material/subject-material/-constants/constant";
 import { getIcon } from "@/components/common/study-library/level-material/subject-material/module-material/chapter-material/slide-material/chapter-sidebar-slides";
-import { getSubjectDetails } from "../-utils/helper";
-import { CourseDetailsFormValues } from "./course-details-schema";
+import { getSubjectDetails } from "../../-utils/helper";
+import { CourseDetailsFormValues } from "../../types/course-details-schema";
 import { ContentTerms, RoleTerms, SystemTerms } from "@/types/naming-settings";
 import { getTerminology } from "@/components/common/layout-container/sidebar/utils";
   import { getPublicUrlWithoutLogin } from "@/services/upload_file";
+import type { StudentCourseDetailsTabId } from "@/types/student-display-settings";
 
 export interface Chapter {
   id: string;
@@ -74,21 +75,43 @@ export const CourseStructureDetails = ({
   courseStructure,
   courseData,
   packageSessionId,
+  selectedTab: initialSelectedTab,
+  showCourseContentPrefixes: initialShowCourseContentPrefixes,
+  filteredTabs: initialFilteredTabs,
   onModulesLoadingChange,
+  isEnrolledInCourse,
+  enrolledSessions,
+  courseId,
 }: {
   selectedSession: string;
   selectedLevel: string;
   courseStructure: number;
   courseData: CourseDetailsFormValues;
   packageSessionId: string;
+  selectedTab: string;
+  showCourseContentPrefixes: boolean;
+  filteredTabs: Array<{ label: string; value: string }>;
   onModulesLoadingChange?: (loading: boolean) => void;
+  isEnrolledInCourse?: boolean;
+  enrolledSessions?: Array<any>;
+  courseId?: string;
 }) => {
   // courseStructure value: ${courseStructure}
   const { setNavHeading } = useNavHeadingStore();
 
   const [studyLibraryData, setStudyLibraryData] = useState<SubjectType[]>([]);
 
-  const [selectedTab, setSelectedTab] = useState<string>(TabType.OUTLINE);
+  const [selectedTab, setSelectedTab] = useState<string>(initialSelectedTab || TabType.OUTLINE);
+  
+  // Update selectedTab when prop changes
+  useEffect(() => {
+    if (initialSelectedTab && initialSelectedTab !== selectedTab) {
+      setSelectedTab(initialSelectedTab);
+    }
+  }, [initialSelectedTab, selectedTab]);
+  const [filteredTabs, setFilteredTabs] = useState<Array<{label: string; value: string}>>(initialFilteredTabs || []);
+  const [showContentPrefixes, setShowContentPrefixes] = useState<boolean>(initialShowCourseContentPrefixes ?? true);
+  
   const handleTabChange = (value: string) => setSelectedTab(value);
   const [subjectModulesMap, setSubjectModulesMap] = useState<SubjectModulesMap>(
     {}
@@ -112,6 +135,52 @@ export const CourseStructureDetails = ({
     handleLoadingChange(isLoading);
   }, [isLoading, handleLoadingChange]);
 
+  // Use tabs from parent component (already processed with settings)
+  useEffect(() => {
+    if (initialFilteredTabs && initialFilteredTabs.length > 0) {
+      setFilteredTabs(initialFilteredTabs);
+      
+      // Check if current selected tab is still visible in filtered tabs
+      const isCurrentTabValid = initialFilteredTabs.some(tab => tab.value === selectedTab);
+      
+      if (!isCurrentTabValid) {
+        // Current tab is not visible, need to select a new one
+        // Try to use the default tab from settings, or fall back to first visible tab
+        const defaultTabId = "OUTLINE"; // This should come from settings
+        const isDefaultVisible = initialFilteredTabs.some(tab => tab.value === defaultTabId);
+        const firstVisible = initialFilteredTabs[0]?.value || TabType.OUTLINE;
+        const resolvedDefault = isDefaultVisible ? defaultTabId : firstVisible;
+        
+        setSelectedTab(resolvedDefault);
+      }
+    } else {
+      // Fallback to default tabs
+      const defaultTabs = [
+        { label: "Outline", value: TabType.OUTLINE },
+        { label: "Content Structure", value: TabType.CONTENT_STRUCTURE },
+        { label: "Teachers", value: TabType.TEACHERS },
+        { label: "Assessment", value: TabType.ASSESSMENT },
+      ];
+      setFilteredTabs(defaultTabs);
+      setSelectedTab(TabType.OUTLINE);
+    }
+  }, [initialFilteredTabs, selectedTab]);
+
+  // Tab rendering with priority order (like study-library)
+  const renderTabs = useMemo(() => {
+    const priorityOrder = [TabType.OUTLINE, TabType.CONTENT_STRUCTURE, TabType.COURSE_DISCUSSION];
+    const byValue = new Map(filteredTabs.map((t) => [t.value, t]));
+    const prioritized = priorityOrder
+      .filter((v) => byValue.has(v))
+      .map((v) => byValue.get(v)!) as { label: string; value: string }[];
+    const rest = filteredTabs.filter(
+      (t) => !priorityOrder.includes(t.value as TabType)
+    );
+    const finalArr = [...prioritized, ...rest];
+
+    return finalArr;
+  }, [filteredTabs]);
+
   const getSlidesWithChapterId = async (chapterId: string) => {
     // Avoid duplicate fetch
     if (slidesMap[chapterId]) return;
@@ -120,7 +189,6 @@ export const CourseStructureDetails = ({
       const slides = await fetchSlidesByChapterId(chapterId);
       setSlidesMap((prev) => ({ ...prev, [chapterId]: slides }));
     } catch (err) {
-      console.log(err);
     }
   };
 
@@ -376,7 +444,6 @@ export const CourseStructureDetails = ({
         }
 
         if (Object.keys(finalUpdates).length > 0) {
-          console.log("[thumb] applying", finalUpdates);
           setThumbUrlById((prev) => ({ ...prev, ...finalUpdates }));
         }
       } catch (err) {
@@ -535,7 +602,7 @@ export const CourseStructureDetails = ({
                                       src={thumbUrlById[`module:${mod.module.id}`]}
                                       alt=""
                                       className="w-5 h-5 rounded-sm object-cover border border-neutral-200"
-                                      onLoad={() => console.log('[thumb] module img load', { id: mod.module.id })}
+                                      onLoad={() => {}}
                                       onError={(e) => {
                                         console.warn('[thumb] module img error', { id: mod.module.id, src: e.currentTarget.src });
                                         e.currentTarget.style.display = 'none';
@@ -588,7 +655,7 @@ export const CourseStructureDetails = ({
                                                 src={thumbUrlById[`chapter:${ch.id}`]}
                                                 alt=""
                                                 className="w-4 h-4 rounded-sm object-cover border border-neutral-200"
-                                                onLoad={() => console.log('[thumb] chapter img load', { id: ch.id })}
+                                                onLoad={() => {}}
                                                 onError={(e) => {
                                                   console.warn('[thumb] chapter img error', { id: ch.id, src: e.currentTarget.src });
                                                   e.currentTarget.style.display = 'none';
@@ -1042,12 +1109,13 @@ export const CourseStructureDetails = ({
           onValueChange={handleTabChange}
           className="w-full overflow-scroll"
         >
-          <TabsList className="h-auto border-b border-neutral-200/80 bg-transparent p-0">
-            {tabs.map((tab) => (
+          {renderTabs.length > 1 && (
+            <TabsList className="h-auto border-b border-neutral-200/80 bg-transparent p-0 flex flex-row flex-wrap items-center justify-start gap-2 overflow-x-auto w-full">
+              {renderTabs.map((tab) => (
               <TabsTrigger
                 key={tab.value}
                 value={tab.value}
-                className={`data-[state=active]:text-primary data-[state=active]:border-primary hover:text-primary -mb-px px-3 
+                  className={`inline-flex items-center data-[state=active]:text-primary data-[state=active]:border-primary hover:text-primary -mb-px px-3 whitespace-nowrap 
                                 py-2 text-sm font-medium transition-all duration-200 
                                 hover:bg-gradient-to-r hover:from-primary-50/60 hover:to-blue-50/40 focus-visible:ring-2 focus-visible:ring-primary-300 focus-visible:ring-offset-1
                                 data-[state=active]:rounded-t-lg data-[state=active]:border-b-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-white data-[state=active]:to-primary-50/30 data-[state=inactive]:text-neutral-500 data-[state=inactive]:hover:rounded-t-lg`}
@@ -1056,10 +1124,11 @@ export const CourseStructureDetails = ({
               </TabsTrigger>
             ))}
           </TabsList>
+          )}
           <TabsContent
             key={selectedTab}
             value={selectedTab}
-            className="mt-4 rounded-lg bg-white border border-neutral-200/60 p-4"
+            className={`${renderTabs.length > 1 ? 'mt-4' : ''} rounded-lg bg-white border border-neutral-200/60 p-4`}
           >
             {(selectedTab as TabType) === TabType.CONTENT_STRUCTURE
               ? tabContent[TabType.OUTLINE]

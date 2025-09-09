@@ -1,6 +1,6 @@
 import { Steps } from "@phosphor-icons/react";
-import { VideoPlayer } from "./course-details-video-player";
-import { CourseDetailsFormValues } from "./course-details-schema";
+import { VideoPlayer } from "../media/course-details-video-player";
+import { CourseDetailsFormValues } from "../../types/course-details-schema";
 
 type CourseData = CourseDetailsFormValues['courseData'];
 

@@ -1,6 +1,6 @@
 import { CourseStructureDetails } from "./course-structure-details";
 import { CourseContentSections } from "./course-content-sections";
-import { CourseDetailsFormValues } from "./course-details-schema";
+import { CourseDetailsFormValues } from "../../types/course-details-schema";
 
 type CourseData = CourseDetailsFormValues['courseData'];
 
@@ -22,6 +22,10 @@ interface CourseContentProps {
     showCourseContentPrefixes: boolean;
     filteredTabs: Array<{ label: string; value: string }>;
     onModulesLoadingChange: (loading: boolean) => void;
+    // Authentication props
+    isEnrolledInCourse: boolean;
+    enrolledSessions: Array<any>;
+    courseId: string;
 }
 
 export const CourseContent = ({
@@ -35,6 +39,9 @@ export const CourseContent = ({
     showCourseContentPrefixes,
     filteredTabs,
     onModulesLoadingChange,
+    isEnrolledInCourse,
+    enrolledSessions,
+    courseId,
 }: CourseContentProps) => {
     return (
         <div className="space-y-6">
@@ -49,14 +56,14 @@ export const CourseContent = ({
                 showCourseContentPrefixes={showCourseContentPrefixes}
                 filteredTabs={filteredTabs}
                 onModulesLoadingChange={onModulesLoadingChange}
+                isEnrolledInCourse={isEnrolledInCourse}
+                enrolledSessions={enrolledSessions}
+                courseId={courseId}
             />
 
             {/* Course Content Sections */}
             <CourseContentSections
                 courseData={courseData}
-                showCourseContentPrefixes={showCourseContentPrefixes}
-                filteredTabs={filteredTabs}
-                selectedTab={selectedTab}
             />
 
         </div>

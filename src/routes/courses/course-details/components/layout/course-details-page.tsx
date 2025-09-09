@@ -20,7 +20,7 @@ import { useForm } from "react-hook-form";
 import {
     CourseDetailsFormValues,
     courseDetailsSchema,
-} from "./course-details-schema";
+} from "../../types/course-details-schema";
 import {
     VideoSlide,
     DocumentSlide,
@@ -31,12 +31,12 @@ import { useQuery } from "@tanstack/react-query";
 import {
     getIdByLevelAndSession,
     transformApiDataToCourseData,
-} from "../-utils/helper";
-import { handleGetAllCourseDetails } from "../-services/get-course-details";
+} from "../../-utils/helper";
+import { handleGetAllCourseDetails } from "../../-services/get-course-details";
 import axios from "axios";
 import { urlInstituteDetails } from "@/constants/urls";
-import CourseListHeader from "../../-component/CourseListHeader";
-import { handleGetSlideCountDetails } from "../-services/get-slides-count";
+import CourseListHeader from "../../../-component/CourseListHeader";
+import { handleGetSlideCountDetails } from "../../-services/get-slides-count";
 import {
     BatchForSessionType,
     InstituteDetailsType,
@@ -44,19 +44,23 @@ import {
 import { CourseStructureResponse } from "@/types/institute-details/course-details-interface";
 import { getTerminology } from "@/components/common/layout-container/sidebar/utils";
 import { ContentTerms, SystemTerms } from "@/types/naming-settings";
-// import { getTokenFromStorage } from "@/lib/auth/sessionUtility";
-// import { TokenKey } from "@/constants/auth/tokens";
-// import { Preferences } from "@capacitor/preferences";
+import { getTokenFromStorage } from "@/lib/auth/sessionUtility";
+import { TokenKey } from "@/constants/auth/tokens";
+import { Preferences } from "@capacitor/preferences";
 import { getSubdomain } from "@/helpers/helper";
-import { handleGetInstituteIdWithLocalStorageCheck } from "../../-services/courses-services";
+import { handleGetInstituteIdWithLocalStorageCheck } from "../../../-services/courses-services";
 import { DashboardLoader } from "@/components/core/dashboard-loader";
 import { getStudentDisplaySettings, inspectStudentDisplaySettingsCache, clearStudentDisplaySettingsCache } from "@/services/student-display-settings";
+import { getPublicCourseDetailsSettings } from "../../-services/get-public-institute-settings";
+import { useEnrollmentStatus } from "@/hooks/use-enrollment-status";
 import { CourseHeader } from "./course-header";
-import { CourseSelectors } from "./course-selectors";
 import { CourseOverview } from "./course-overview";
-import { CourseContent } from "./course-content";
+import { CourseContent } from "../content/course-content";
 import { CourseSidebar } from "./course-sidebar";
-import { CourseDetailsRatingsComponent } from "./course-details-ratings-page";
+import { CourseEnrollment } from "./course-enrollment";
+import { CourseContentSections } from "../content/course-content-sections";
+import { VideoPlayer } from "../media/course-details-video-player";
+import { CourseDetailsRatingsComponent } from "../ratings/course-details-ratings-page";
 
 type SlideType = {
     id: string;
@@ -175,6 +179,17 @@ export const CourseDetailsPage = () => {
     const router = useRouter();
     const searchParams = router.state.location.search;
     const subdomain = getSubdomain(window.location.hostname);
+    
+    // Authentication state management
+    const [instituteId, setInstituteId] = useState<string | null>(null);
+    const [authToken, setAuthToken] = useState<string>("");
+    
+    // Use enrollment status hook for authentication state
+    const {
+        enrolledSessions,
+        addEnrolledSession,
+        isEnrolledInCourse,
+    } = useEnrollmentStatus(instituteId);
 
 
     // Loading state management
@@ -194,8 +209,28 @@ export const CourseDetailsPage = () => {
     const [showCourseContentPrefixes, setShowCourseContentPrefixes] = useState<boolean>(true);
     const [courseOverviewShowSlidesData, setCourseOverviewShowSlidesData] = useState<boolean>(true);
     const [ratingsAndReviewsVisible, setRatingsAndReviewsVisible] = useState<boolean>(true);
+    const [showCourseConfiguration, setShowCourseConfiguration] = useState<boolean>(true);
+    
     const [filteredTabs, setFilteredTabs] = useState<Array<{label: string; value: string}>>([]);
     const [selectedTab, setSelectedTab] = useState<string>("OUTLINE");
+    
+    // Additional state for course enrollment
+    const [hasRightSidebar, setHasRightSidebar] = useState<boolean>(true);
+    
+    // Make sidebar responsive - hidden on mobile, visible on desktop
+    useEffect(() => {
+        const checkScreenSize = () => {
+            setHasRightSidebar(window.innerWidth >= 1024); // lg breakpoint
+        };
+        
+        checkScreenSize();
+        window.addEventListener('resize', checkScreenSize);
+        
+        return () => window.removeEventListener('resize', checkScreenSize);
+    }, []);
+    const [paymentType, setPaymentType] = useState<string | null>(null);
+    const [certificateUrl, setCertificateUrl] = useState<string | null>(null);
+    const [enrollmentDialogOpen, setEnrollmentDialogOpen] = useState<boolean>(false);
 
     // Function to update loading states
     const updateLoadingState = useCallback(
@@ -216,6 +251,31 @@ export const CourseDetailsPage = () => {
             setIsLoading(false);
         }
     }, [isAllLoadingComplete]);
+
+    // Initialize authentication state
+    useEffect(() => {
+        const fetchInstituteAndUserId = async () => {
+            updateLoadingState("userData", true);
+            try {
+                const instituteResult = await Preferences.get({
+                    key: "InstituteId",
+                });
+                setInstituteId(instituteResult.value || null);
+
+                // Fetch authentication token
+                const token = await getTokenFromStorage(TokenKey.accessToken);
+                if (token) {
+                    setAuthToken(token);
+                }
+            } catch (error) {
+                console.error("Error fetching authentication data:", error);
+            } finally {
+                updateLoadingState("userData", false);
+            }
+        };
+
+        fetchInstituteAndUserId();
+    }, [updateLoadingState]);
 
 
 
@@ -244,12 +304,17 @@ export const CourseDetailsPage = () => {
         );
 
 
-    const instituteId = instituteIdFromApi;
-
     // Update institute ID loading state
     useEffect(() => {
         updateLoadingState("userData", isLoadingInstituteId);
     }, [isLoadingInstituteId, updateLoadingState]);
+
+    // Update instituteId state when data is available
+    useEffect(() => {
+        if (instituteIdFromApi) {
+            setInstituteId(instituteIdFromApi);
+        }
+    }, [instituteIdFromApi]);
 
     // Fetch settings when institute ID becomes available
     useEffect(() => {
@@ -264,7 +329,6 @@ export const CourseDetailsPage = () => {
                     effectiveInstituteId = instituteResult.value;
                     
                     if (effectiveInstituteId) {
-                        console.log(`🔄 [Course Details - Logout State] Using institute ID from Capacitor storage: ${effectiveInstituteId}`);
                     }
                 } catch (error) {
                     console.warn(`⚠️ [Course Details - Logout State] Failed to get institute ID from Capacitor:`, error);
@@ -272,11 +336,6 @@ export const CourseDetailsPage = () => {
             }
 
             if (!effectiveInstituteId) {
-                console.log(`⏳ [Course Details - Logout State] No institute ID available, using defaults...`, {
-                    timestamp: new Date().toISOString(),
-                    page: 'courses/course-details',
-                    state: 'logout'
-                });
                 // Set defaults when no institute ID is available
                 setOverviewVisible(true);
                 setShowCourseContentPrefixes(true);
@@ -292,15 +351,15 @@ export const CourseDetailsPage = () => {
                 return;
             }
 
-            console.log(`🎯 [Course Details - Logout State] Fetching settings with institute ID...`, {
-                effectiveInstituteId,
-                timestamp: new Date().toISOString(),
-                page: 'courses/course-details',
-                state: 'logout'
-            });
 
             // Debug: Inspect current cache
             inspectStudentDisplaySettingsCache(effectiveInstituteId);
+
+            // Check if user is authenticated (has token)
+            const hasAuthToken = authToken && authToken.trim() !== "";
+            
+            if (hasAuthToken) {
+                // User is authenticated, use the authenticated API
 
             // Track settings source by checking cache first - use the specific institute cache key
             const hasCachedSettings = localStorage.getItem(`STUDENT_DISPLAY_SETTINGS_CACHE_V1:${effectiveInstituteId}`) !== null;
@@ -310,35 +369,22 @@ export const CourseDetailsPage = () => {
                 // Use the actual source from the service
                 const settingsSource = settings._source || 'UNKNOWN';
                 
-                console.log(`🔍 [Course Details - Logout State] Settings source detection:`, {
-                    hasCachedSettings,
-                    hasSettings: !!settings,
-                    settingsKeys: settings ? Object.keys(settings) : [],
-                    effectiveInstituteId,
-                    actualSource: settingsSource
-                });
                 
-                console.log(`📡 [Course Details - Logout State] Settings received`, {
-                    settingsSource,
-                    effectiveInstituteId,
-                    hasCachedSettings,
-                    hasSettings: !!settings,
-                    hasCourseDetails: !!settings?.courseDetails,
-                    courseDetailsKeys: settings?.courseDetails ? Object.keys(settings.courseDetails) : [],
-                    timestamp: new Date().toISOString()
-                });
 
                 const cd = settings?.courseDetails;
                 if (cd) {
+                        // Match study-library pattern: overviewVisible only controls sidebar
                     const resolvedOverviewVisible = cd.courseOverview?.visible ?? true;
                     const resolvedShowCourseContentPrefixes = cd.showCourseContentPrefixes ?? true;
                     const resolvedCourseOverviewShowSlidesData = cd.courseOverview?.showSlidesData ?? true;
                     const resolvedRatingsAndReviewsVisible = cd.ratingsAndReviewsVisible ?? true;
+                        const resolvedShowCourseConfiguration = cd.showCourseConfiguration ?? true;
                     
                     setOverviewVisible(resolvedOverviewVisible);
                     setShowCourseContentPrefixes(resolvedShowCourseContentPrefixes);
                     setCourseOverviewShowSlidesData(resolvedCourseOverviewShowSlidesData);
                     setRatingsAndReviewsVisible(resolvedRatingsAndReviewsVisible);
+                    setShowCourseConfiguration(resolvedShowCourseConfiguration);
 
                     // Handle tabs configuration - match study-library logic
                     const tabsSetting = cd.tabs || [];
@@ -359,22 +405,20 @@ export const CourseDetailsPage = () => {
                         setSelectedTab(resolvedDefault);
                     }
 
-                    console.log(`🎛️ [Course Details - Logout State] Settings applied from ${settingsSource}:`, {
-                        effectiveInstituteId,
-                        overviewVisible: resolvedOverviewVisible,
-                        showCourseContentPrefixes: resolvedShowCourseContentPrefixes,
-                        showSlidesData: resolvedCourseOverviewShowSlidesData,
-                        ratingsVisible: resolvedRatingsAndReviewsVisible,
-                        tabs: ordered.map(t => t.value),
-                        defaultTab: cd.defaultTab || "OUTLINE",
-                        showCourseConfiguration: cd.showCourseConfiguration,
-                        source: settingsSource
-                    });
                 } else {
-                    console.log(`⚠️ [Course Details - Logout State] No course details in settings, using defaults`, {
-                        effectiveInstituteId,
-                        source: 'DEFAULTS'
-                    });
+                        // Set defaults
+                        setOverviewVisible(true);
+                        setShowCourseContentPrefixes(true);
+                        setCourseOverviewShowSlidesData(true);
+                        setRatingsAndReviewsVisible(true);
+                        setShowCourseConfiguration(true);
+                        setFilteredTabs([
+                            { label: "Outline", value: "OUTLINE" },
+                            { label: "Content Structure", value: "CONTENT_STRUCTURE" },
+                            { label: "Teachers", value: "TEACHERS" },
+                            { label: "Assessment", value: "ASSESSMENT" },
+                        ]);
+                        setSelectedTab("OUTLINE");
                 }
             })
             .catch((error) => {
@@ -396,10 +440,86 @@ export const CourseDetailsPage = () => {
                 ]);
                 setSelectedTab("OUTLINE");
             });
+            } else {
+                // User is not authenticated, use the public API
+                
+                try {
+                    const settings = await getPublicCourseDetailsSettings(effectiveInstituteId);
+                    
+
+                const cd = settings?.courseDetails;
+                if (cd) {
+                        // Match study-library pattern: overviewVisible only controls sidebar
+                    const resolvedOverviewVisible = cd.courseOverview?.visible ?? true;
+                    const resolvedShowCourseContentPrefixes = cd.showCourseContentPrefixes ?? true;
+                    const resolvedCourseOverviewShowSlidesData = cd.courseOverview?.showSlidesData ?? true;
+                    const resolvedRatingsAndReviewsVisible = cd.ratingsAndReviewsVisible ?? true;
+                        const resolvedShowCourseConfiguration = cd.showCourseConfiguration ?? true;
+                    
+                    setOverviewVisible(resolvedOverviewVisible);
+                    setShowCourseContentPrefixes(resolvedShowCourseContentPrefixes);
+                    setCourseOverviewShowSlidesData(resolvedCourseOverviewShowSlidesData);
+                    setRatingsAndReviewsVisible(resolvedRatingsAndReviewsVisible);
+                        setShowCourseConfiguration(resolvedShowCourseConfiguration);
+
+                    // Handle tabs configuration - match study-library logic
+                    const tabsSetting = cd.tabs || [];
+                    const ordered = tabsSetting
+                        .filter((t) => t.visible !== false)
+                        .sort((a, b) => (a.order || 0) - (b.order || 0))
+                        .map((t) => ({
+                            label: t.label || t.id,
+                            value: t.id,
+                        }));
+
+                    if (ordered.length) {
+                        setFilteredTabs(ordered);
+                        const defaultTabId = cd.defaultTab || "OUTLINE";
+                        const isDefaultVisible = ordered.some((t) => t.value === defaultTabId);
+                        const firstVisible = ordered[0]?.value || "OUTLINE";
+                        const resolvedDefault = isDefaultVisible ? defaultTabId : firstVisible;
+                        setSelectedTab(resolvedDefault);
+                    }
+
+                } else {
+                        // Set defaults
+                        setOverviewVisible(true);
+                        setShowCourseContentPrefixes(true);
+                        setCourseOverviewShowSlidesData(true);
+                        setRatingsAndReviewsVisible(true);
+                        setShowCourseConfiguration(true);
+                        setFilteredTabs([
+                            { label: "Outline", value: "OUTLINE" },
+                            { label: "Content Structure", value: "CONTENT_STRUCTURE" },
+                            { label: "Teachers", value: "TEACHERS" },
+                            { label: "Assessment", value: "ASSESSMENT" },
+                        ]);
+                        setSelectedTab("OUTLINE");
+                    }
+                } catch (error) {
+                    console.warn(`❌ [Course Details - Logout State] Public settings fetch failed, using defaults`, {
+                    error: error instanceof Error ? error.message : 'Unknown error',
+                    effectiveInstituteId,
+                    source: 'DEFAULTS_FALLBACK',
+                    timestamp: new Date().toISOString()
+                });
+                setOverviewVisible(true);
+                setShowCourseContentPrefixes(true);
+                setCourseOverviewShowSlidesData(true);
+                setRatingsAndReviewsVisible(true);
+                setFilteredTabs([
+                    { label: "Outline", value: "OUTLINE" },
+                    { label: "Content Structure", value: "CONTENT_STRUCTURE" },
+                    { label: "Teachers", value: "TEACHERS" },
+                    { label: "Assessment", value: "ASSESSMENTS" },
+                ]);
+                setSelectedTab("OUTLINE");
+                }
+            }
         };
 
         fetchSettingsWithFallback();
-    }, [instituteId]);
+    }, [instituteId, authToken]);
 
     const [
         packageSessionIdForCurrentLevel,
@@ -443,7 +563,6 @@ export const CourseDetailsPage = () => {
                     )
                 );
             } catch (error) {
-                console.log(error);
             } finally {
                 updateLoadingState("instituteDetails", false);
             }
@@ -829,152 +948,16 @@ export const CourseDetailsPage = () => {
     //     redirectToDashboardIfAuthenticated();
     // }, [navigate]);
 
-    // Single log for main component rendering (only when settings change)
-    useEffect(() => {
-        console.log("🎯 [Course Details - Logout State] Rendering with settings:", {
-            overviewVisible,
-            showCourseContentPrefixes,
-            courseOverviewShowSlidesData,
-            ratingsAndReviewsVisible,
-            selectedTab,
-            tabsCount: filteredTabs.length,
-            page: 'courses/course-details',
-            state: 'logout'
-        });
-    }, [overviewVisible, showCourseContentPrefixes, courseOverviewShowSlidesData, ratingsAndReviewsVisible, selectedTab, filteredTabs.length]);
 
-    // Debug: Expose cache functions to console for testing
-    useEffect(() => {
-        (window as unknown as { debugSettings: { clearCache: () => void; inspectCache: (id?: string) => void; refreshSettings: () => void; forceApiCall: () => void; testRawApiCall: () => void; compareSettings: () => void; testNetworkConnectivity: () => void } }).debugSettings = {
-            clearCache: clearStudentDisplaySettingsCache,
-            inspectCache: (id?: string) => inspectStudentDisplaySettingsCache(id || instituteId),
-            refreshSettings: () => {
-                console.log('🔄 [Debug] Refreshing settings...');
-                clearStudentDisplaySettingsCache();
-                window.location.reload();
-            },
-            forceApiCall: async () => {
-                console.log('🌐 [Debug] Forcing API call to get backend settings...');
-                try {
-                    const settings = await getStudentDisplaySettings(true, instituteId);
-                    console.log('🌐 [Debug] Backend API response:', {
-                        source: settings._source,
-                        courseOverviewVisible: settings.courseDetails?.courseOverview?.visible,
-                        ratingsVisible: settings.courseDetails?.ratingsAndReviewsVisible,
-                        showCourseConfiguration: settings.courseDetails?.showCourseConfiguration,
-                        fullSettings: settings
-                    });
-                } catch (error) {
-                    console.error('🌐 [Debug] API call failed:', error);
-                }
-            },
-            testRawApiCall: async () => {
-                console.log('🧪 [Debug] Testing raw API call...');
-                try {
-                    const { authenticatedAxiosInstance } = await import('@/lib/auth/axiosInstance');
-                    const { BASE_URL } = await import('@/constants/urls');
-                    const { STUDENT_DISPLAY_SETTINGS_KEY } = await import('@/types/student-display-settings');
-                    
-                    const apiUrl = `${BASE_URL}/admin-core-service/institute/setting/v1/get`;
-                    
-                    // Add timeout wrapper
-                    const timeoutPromise = new Promise((_, reject) => {
-                        setTimeout(() => reject(new Error('API call timeout after 5 seconds')), 5000);
-                    });
-                    
-                    const apiPromise = authenticatedAxiosInstance.get(apiUrl, {
-                        params: { 
-                            instituteId: instituteId, 
-                            settingKey: STUDENT_DISPLAY_SETTINGS_KEY 
-                        },
-                        timeout: 3000, // 3 second timeout
-                    });
-                    
-                    const response = await Promise.race([apiPromise, timeoutPromise]) as any;
-                    
-                    console.log('🧪 [Debug] Raw API response:', {
-                        status: response.status,
-                        statusText: response.statusText,
-                        data: response.data,
-                        headers: response.headers
-                    });
-                } catch (error) {
-                    console.error('🧪 [Debug] Raw API call failed:', {
-                        error: error instanceof Error ? error.message : 'Unknown error',
-                        errorStack: error instanceof Error ? error.stack : undefined,
-                        errorResponse: (error as any)?.response ? {
-                            status: (error as any).response.status,
-                            statusText: (error as any).response.statusText,
-                            data: (error as any).response.data
-                        } : undefined
-                    });
-                }
-            },
-            compareSettings: async () => {
-                console.log('🔍 [Debug] Comparing cached vs API settings...');
-                try {
-                    const cachedSettings = await getStudentDisplaySettings(false, instituteId);
-                    const apiSettings = await getStudentDisplaySettings(true, instituteId);
-                    
-                    console.log('🔍 [Debug] Settings comparison:', {
-                        cached: {
-                            source: cachedSettings._source,
-                            courseOverviewVisible: cachedSettings.courseDetails?.courseOverview?.visible,
-                            ratingsVisible: cachedSettings.courseDetails?.ratingsAndReviewsVisible,
-                            showCourseConfiguration: cachedSettings.courseDetails?.showCourseConfiguration
-                        },
-                        api: {
-                            source: apiSettings._source,
-                            courseOverviewVisible: apiSettings.courseDetails?.courseOverview?.visible,
-                            ratingsVisible: apiSettings.courseDetails?.ratingsAndReviewsVisible,
-                            showCourseConfiguration: apiSettings.courseDetails?.showCourseConfiguration
-                        },
-                        areDifferent: JSON.stringify(cachedSettings) !== JSON.stringify(apiSettings)
-                    });
-                } catch (error) {
-                    console.error('🔍 [Debug] Comparison failed:', error);
-                }
-            },
-            testNetworkConnectivity: async () => {
-                console.log('🌐 [Debug] Testing network connectivity...');
-                try {
-                    // Test basic connectivity
-                    const response = await fetch('https://httpbin.org/get', { 
-                        method: 'GET',
-                        mode: 'cors'
-                    });
-                    console.log('🌐 [Debug] Basic connectivity test:', {
-                        status: response.status,
-                        statusText: response.statusText,
-                        ok: response.ok
-                    });
-                    
-                    // Test backend domain
-                    const backendResponse = await fetch('https://backend-stage.vacademy.io/health', { 
-                        method: 'GET',
-                        mode: 'cors'
-                    });
-                    console.log('🌐 [Debug] Backend connectivity test:', {
-                        status: backendResponse.status,
-                        statusText: backendResponse.statusText,
-                        ok: backendResponse.ok
-                    });
-                } catch (error) {
-                    console.error('🌐 [Debug] Network connectivity test failed:', {
-                        error: error instanceof Error ? error.message : 'Unknown error',
-                        errorStack: error instanceof Error ? error.stack : undefined
-                    });
-                }
-            }
-        };
-        console.log('🛠️ [Debug] Settings debug functions available at window.debugSettings');
-    }, [instituteId]);
 
     // Show loading until essential APIs are complete
     // Note: packageSessionIdForCurrentLevel is not required for initial render
     if (isLoading || isLoadingInstituteId || !instituteId || !studyLibraryData) {
         return <DashboardLoader />;
     }
+
+    // Check if user is enrolled in the current course
+    const isUserEnrolledInCourse = isEnrolledInCourse(searchParams.courseId || "");
 
     return (
         <>
@@ -997,35 +980,51 @@ export const CourseDetailsPage = () => {
                 {/* Course Header */}
                 <CourseHeader courseData={form.getValues("courseData")} />
                 {/* Main Content Container */}
-                <div className="relative z-10 w-full px-4 sm:px-6 lg:px-8 py-3 lg:py-4">
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 lg:gap-4">
-                        {/* Left Column - Full width on mobile, 2/3 on larger screens */}
-                        <div className="lg:col-span-2 space-y-3 lg:space-y-4">
-                            {/* Session and Level Selectors */}
-                            <CourseSelectors
-                                courseData={form.getValues("courseData")}
-                                sessionOptions={sessionOptions}
-                                levelOptions={levelOptions}
+                <div className="relative z-10 w-full px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-4">
+                    <div
+                        className={`grid grid-cols-1 ${hasRightSidebar ? "lg:grid-cols-3" : ""} gap-3 lg:gap-4`}
+                    >
+                        {/* Left Column - Course Content (3/4) */}
+                        <div
+                            className={`${hasRightSidebar ? "lg:col-span-2" : ""} space-y-4 sm:space-y-5 lg:space-y-4`}
+                        >
+                            {/* Mobile Video Player - Always show on small screens when course has media */}
+                            {form.getValues("courseData")?.courseMediaId && (
+                                <div className="mb-6 lg:hidden">
+                                    <VideoPlayer
+                                        src={form.getValues("courseData").courseMediaId}
+                                        className="!w-full"
+                                    />
+                                </div>
+                            )}
+
+                            {/* Course Enrollment Configuration */}
+                            <CourseEnrollment
+                                showCourseConfiguration={showCourseConfiguration}
+                                selectedTab={selectedTab}
+                                sessionOptions={sessionOptions || []}
+                                levelOptions={levelOptions || []}
                                 selectedSession={selectedSession}
                                 selectedLevel={selectedLevel}
+                                enrolledSessions={enrolledSessions || []}
+                                courseId={searchParams.courseId || ""}
+                                hasRightSidebar={hasRightSidebar}
+                                paymentType={paymentType}
+                                certificateUrl={certificateUrl}
+                                courseData={form.getValues("courseData")}
                                 onSessionChange={handleSessionChange}
                                 onLevelChange={handleLevelChange}
+                                onEnrollmentClick={() => {
+                                    // Always open enrollment dialog - it will determine the correct payment type from API data
+                                    setEnrollmentDialogOpen(true);
+                                }}
                             />
                             
-                            {/* Course Overview - Mobile Only */}
-                            <CourseOverview
-                                overviewVisible={overviewVisible}
-                                courseOverviewShowSlidesData={courseOverviewShowSlidesData}
-                                levelOptions={levelOptions}
-                                selectedLevel={selectedLevel}
-                                slideCountQuery={slideCountQuery}
-                                processedSlideCounts={processedSlideCounts}
-                                getSlideTypeIcon={getSlideTypeIcon}
-                                            courseId={searchParams.courseId}
-                                variant="mobile"
-                            />
-                            
-                            {/* Course Content */}
+                            {/* Course Structure (always rendered; internal logic will adapt to enrollment/public) */}
+                            <div
+                                className="animate-fade-in-up"
+                                style={{ animationDelay: "0.2s" }}
+                            >
                             <CourseContent
                                 selectedSession={selectedSession}
                                 selectedLevel={selectedLevel}
@@ -1037,40 +1036,73 @@ export const CourseDetailsPage = () => {
                                 showCourseContentPrefixes={showCourseContentPrefixes}
                                 filteredTabs={filteredTabs}
                                 onModulesLoadingChange={handleModulesLoadingChange}
-                            />
+                                    isEnrolledInCourse={isUserEnrolledInCourse}
+                                    enrolledSessions={enrolledSessions || []}
+                                    courseId={searchParams.courseId || ""}
+                                />
+                            </div>
 
-                            {/* Ratings & Reviews - Mobile */}
-                            {ratingsAndReviewsVisible && packageSessionIdForCurrentLevel && (
-                                <div className="lg:hidden animate-fade-in-up" style={{ animationDelay: "1.0s" }}>
-                                    <CourseDetailsRatingsComponent
-                                        packageSessionId={packageSessionIdForCurrentLevel}
-                                        onRatingsLoadingChange={handleRatingsLoadingChange}
-                                    />
-                                                </div>
-                                            )}
+                            {/* Content Sections */}
+                            <CourseContentSections 
+                                courseData={form.getValues("courseData")} 
+                            />
 
                                                     </div>
 
-                        {/* Right Column - Full width on mobile, 1/3 on larger screens */}
-                        <div className="hidden lg:block">
+                        {/* Right Column - Course Stats Sidebar (1/4) */}
+                        <div className="hidden lg:block lg:col-span-1">
                             <CourseSidebar
-                            overviewVisible={overviewVisible}
-                            courseOverviewShowSlidesData={courseOverviewShowSlidesData}
+                            hasRightSidebar={hasRightSidebar}
                             levelOptions={levelOptions}
                             selectedLevel={selectedLevel}
                             slideCountQuery={slideCountQuery}
+                            overviewVisible={overviewVisible}
+                            courseOverviewShowSlidesData={courseOverviewShowSlidesData}
                             processedSlideCounts={processedSlideCounts}
                             getSlideTypeIcon={getSlideTypeIcon}
                             courseData={form.getValues("courseData")}
                             selectedSession={selectedSession}
-                            onEnrollmentClick={() => {}}
+                            onEnrollmentClick={() => {
+                                setEnrollmentDialogOpen(true);
+                            }}
                                         courseId={searchParams.courseId}
                             ratingsAndReviewsVisible={ratingsAndReviewsVisible}
                             packageSessionId={packageSessionIdForCurrentLevel || ""}
                         onRatingsLoadingChange={handleRatingsLoadingChange}
+                            isEnrolledInCourse={isUserEnrolledInCourse}
+                            enrolledSessions={enrolledSessions || []}
                                         />
                                     </div>
                                 </div>
+
+                        {/* Mobile Course Overview - Only on mobile when no sidebar */}
+                        <div className="lg:hidden mt-4 mb-4">
+                            <CourseOverview
+                                courseOverviewShowSlidesData={courseOverviewShowSlidesData}
+                                levelOptions={levelOptions}
+                                selectedLevel={selectedLevel}
+                                slideCountQuery={slideCountQuery}
+                                processedSlideCounts={processedSlideCounts}
+                                getSlideTypeIcon={getSlideTypeIcon}
+                                courseId={searchParams.courseId}
+                                variant="mobile"
+                            />
+                        </div>
+
+                    {/* Ratings Component - Only on mobile when no sidebar */}
+                    <div className="lg:hidden mt-4 mb-4">
+                        {ratingsAndReviewsVisible && packageSessionIdForCurrentLevel && (
+                        <div
+                            className="animate-fade-in-up"
+                            style={{ animationDelay: "0.8s" }}
+                        >
+                            <CourseDetailsRatingsComponent
+                                packageSessionId={packageSessionIdForCurrentLevel}
+                                onRatingsLoadingChange={handleRatingsLoadingChange}
+                            />
+                        </div>
+                        )}
+                    </div>
                 </div>
             </div>
         </>

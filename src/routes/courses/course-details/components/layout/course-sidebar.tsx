@@ -1,6 +1,6 @@
 import { CourseOverview } from "./course-overview";
-import { CourseDetailsRatingsComponent } from "./course-details-ratings-page";
-import { CourseDetailsFormValues } from "./course-details-schema";
+import { CourseDetailsRatingsComponent } from "../ratings/course-details-ratings-page";
+import { CourseDetailsFormValues } from "../../types/course-details-schema";
 
 type CourseData = CourseDetailsFormValues['courseData'];
 
@@ -62,7 +62,6 @@ export const CourseSidebar = ({
             <div className="sticky top-4 space-y-4">
                 {/* Course Overview */}
                 <CourseOverview
-                    overviewVisible={overviewVisible}
                     courseOverviewShowSlidesData={courseOverviewShowSlidesData}
                     levelOptions={levelOptions}
                     selectedLevel={selectedLevel}
@@ -71,6 +70,7 @@ export const CourseSidebar = ({
                     getSlideTypeIcon={getSlideTypeIcon}
                     courseId={courseId}
                     variant="desktop"
+                    overviewVisible={overviewVisible}
                 />
 
 

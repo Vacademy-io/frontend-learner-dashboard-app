@@ -17,7 +17,6 @@ interface SlideCount {
 }
 
 interface CourseOverviewProps {
-    overviewVisible: boolean;
     courseOverviewShowSlidesData: boolean;
     levelOptions: LevelOption[];
     selectedLevel: string;
@@ -29,10 +28,10 @@ interface CourseOverviewProps {
     getSlideTypeIcon: (sourceType: string) => JSX.Element;
     courseId?: string;
     variant?: 'mobile' | 'desktop' | 'both';
+    overviewVisible?: boolean;
 }
 
 export const CourseOverview = ({
-    overviewVisible,
     courseOverviewShowSlidesData,
     levelOptions,
     selectedLevel,
@@ -41,15 +40,14 @@ export const CourseOverview = ({
     getSlideTypeIcon,
     courseId,
     variant = 'both',
+    overviewVisible = true,
 }: CourseOverviewProps) => {
-    if (!overviewVisible) return null;
-
     return (
         <>
             {/* Mobile Overview Card */}
             {(variant === 'mobile' || variant === 'both') && (
-            <div className="lg:hidden mb-6">
-                <div className="w-full max-w-[350px] rounded-lg border bg-white p-4 sm:p-6 shadow-lg">
+            <div className="mb-6">
+                <div className="w-full rounded-lg border bg-white p-4 sm:p-6 shadow-lg">
                     <div className="relative">
                         {/* Header */}
                         <div className="flex items-center space-x-2 mb-3 sm:mb-4">
@@ -99,49 +97,53 @@ export const CourseOverview = ({
                                 )}
 
                             {/* Slide Counts */}
-                            {slideCountQuery.isLoading ? (
-                                <div className="space-y-2">
-                                    {[1, 2, 3, 4, 5].map((i) => (
-                                        <div
-                                            key={i}
-                                            className="flex items-center justify-between p-2 sm:p-2.5 bg-gray-50 rounded-lg animate-pulse"
-                                        >
-                                            <div className="h-3 w-16 bg-gray-200 rounded"></div>
-                                            <div className="h-3 w-6 bg-gray-200 rounded"></div>
+                            {overviewVisible && (
+                                <>
+                                    {slideCountQuery.isLoading ? (
+                                        <div className="space-y-2">
+                                            {[1, 2, 3, 4, 5].map((i) => (
+                                                <div
+                                                    key={i}
+                                                    className="flex items-center justify-between p-2 sm:p-2.5 bg-gray-50 rounded-lg animate-pulse"
+                                                >
+                                                    <div className="h-3 w-16 bg-gray-200 rounded"></div>
+                                                    <div className="h-3 w-6 bg-gray-200 rounded"></div>
+                                                </div>
+                                            ))}
                                         </div>
-                                    ))}
-                                </div>
-                            ) : slideCountQuery.error ? (
-                                <div className="p-2 sm:p-2.5 bg-red-50 border border-red-200 rounded-lg">
-                                    <p className="text-xs text-red-600 font-medium">
-                                        Error loading{" "}
-                                        {getTerminology(
-                                            ContentTerms.Slides,
-                                            SystemTerms.Slides
-                                        ).toLocaleLowerCase()}
-                                        counts
-                                    </p>
-                                </div>
-                            ) : courseOverviewShowSlidesData ? (
-                                <div className="space-y-2">
-                                    {processedSlideCounts.map((count) => (
-                                        <div
-                                            key={count.source_type}
-                                            className="flex items-center justify-between p-2 sm:p-2.5 bg-gray-50/80 rounded-lg hover:bg-gray-100/80 transition-all duration-300 group/item"
-                                        >
-                                            <div className="flex items-center space-x-2 min-w-0 flex-1">
-                                                {getSlideTypeIcon(count.source_type)}
-                                                <span className="text-xs font-medium text-gray-700 truncate">
-                                                    {count.display_name}
-                                                </span>
-                                            </div>
-                                            <span className="text-xs font-bold text-gray-900 ml-2">
-                                                {count.slide_count}
-                                            </span>
+                                    ) : slideCountQuery.error ? (
+                                        <div className="p-2 sm:p-2.5 bg-red-50 border border-red-200 rounded-lg">
+                                            <p className="text-xs text-red-600 font-medium">
+                                                Error loading{" "}
+                                                {getTerminology(
+                                                    ContentTerms.Slides,
+                                                    SystemTerms.Slides
+                                                ).toLocaleLowerCase()}
+                                                counts
+                                            </p>
                                         </div>
-                                    ))}
-                                </div>
-                            ) : null}
+                                    ) : courseOverviewShowSlidesData ? (
+                                        <div className="space-y-2">
+                                            {processedSlideCounts.map((count) => (
+                                                <div
+                                                    key={count.source_type}
+                                                    className="flex items-center justify-between p-2 sm:p-2.5 bg-gray-50/80 rounded-lg hover:bg-gray-100/80 transition-all duration-300 group/item"
+                                                >
+                                                    <div className="flex items-center space-x-2 min-w-0 flex-1">
+                                                        {getSlideTypeIcon(count.source_type)}
+                                                        <span className="text-xs font-medium text-gray-700 truncate">
+                                                            {count.display_name}
+                                                        </span>
+                                                    </div>
+                                                    <span className="text-xs font-bold text-gray-900 ml-2">
+                                                        {count.slide_count}
+                                                    </span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : null}
+                                </>
+                            )}
                         </div>
                         <AuthModal
                             type="courseDetailsPage"
@@ -221,49 +223,53 @@ export const CourseOverview = ({
                                 )}
 
                             {/* Slide Counts */}
-                            {slideCountQuery.isLoading ? (
-                                <div className="space-y-2">
-                                    {[1, 2, 3, 4, 5].map((i) => (
-                                        <div
-                                            key={i}
-                                            className="flex items-center justify-between p-2 sm:p-2.5 bg-gray-50 rounded-lg animate-pulse"
-                                        >
-                                            <div className="h-3 w-16 bg-gray-200 rounded"></div>
-                                            <div className="h-3 w-6 bg-gray-200 rounded"></div>
+                            {overviewVisible && (
+                                <>
+                                    {slideCountQuery.isLoading ? (
+                                        <div className="space-y-2">
+                                            {[1, 2, 3, 4, 5].map((i) => (
+                                                <div
+                                                    key={i}
+                                                    className="flex items-center justify-between p-2 sm:p-2.5 bg-gray-50 rounded-lg animate-pulse"
+                                                >
+                                                    <div className="h-3 w-16 bg-gray-200 rounded"></div>
+                                                    <div className="h-3 w-6 bg-gray-200 rounded"></div>
+                                                </div>
+                                            ))}
                                         </div>
-                                    ))}
-                                </div>
-                            ) : slideCountQuery.error ? (
-                                <div className="p-2 sm:p-2.5 bg-red-50 border border-red-200 rounded-lg">
-                                    <p className="text-xs text-red-600 font-medium">
-                                        Error loading{" "}
-                                        {getTerminology(
-                                            ContentTerms.Slides,
-                                            SystemTerms.Slides
-                                        ).toLocaleLowerCase()}
-                                        counts
-                                    </p>
-                                </div>
-                            ) : courseOverviewShowSlidesData ? (
-                                <div className="space-y-2">
-                                    {processedSlideCounts.map((count) => (
-                                        <div
-                                            key={count.source_type}
-                                            className="flex items-center justify-between p-2 sm:p-2.5 bg-gray-50/80 rounded-lg hover:bg-gray-100/80 transition-all duration-300 group/item"
-                                        >
-                                            <div className="flex items-center space-x-2 min-w-0 flex-1">
-                                                {getSlideTypeIcon(count.source_type)}
-                                                <span className="text-xs font-medium text-gray-700 truncate">
-                                                    {count.display_name}
-                                                </span>
-                                            </div>
-                                            <span className="text-xs font-bold text-gray-900 ml-2">
-                                                {count.slide_count}
-                                            </span>
+                                    ) : slideCountQuery.error ? (
+                                        <div className="p-2 sm:p-2.5 bg-red-50 border border-red-200 rounded-lg">
+                                            <p className="text-xs text-red-600 font-medium">
+                                                Error loading{" "}
+                                                {getTerminology(
+                                                    ContentTerms.Slides,
+                                                    SystemTerms.Slides
+                                                ).toLocaleLowerCase()}
+                                                counts
+                                            </p>
                                         </div>
-                                    ))}
-                                </div>
-                            ) : null}
+                                    ) : courseOverviewShowSlidesData ? (
+                                        <div className="space-y-2">
+                                            {processedSlideCounts.map((count) => (
+                                                <div
+                                                    key={count.source_type}
+                                                    className="flex items-center justify-between p-2 sm:p-2.5 bg-gray-50/80 rounded-lg hover:bg-gray-100/80 transition-all duration-300 group/item"
+                                                >
+                                                    <div className="flex items-center space-x-2 min-w-0 flex-1">
+                                                        {getSlideTypeIcon(count.source_type)}
+                                                        <span className="text-xs font-medium text-gray-700 truncate">
+                                                            {count.display_name}
+                                                        </span>
+                                                    </div>
+                                                    <span className="text-xs font-bold text-gray-900 ml-2">
+                                                        {count.slide_count}
+                                                    </span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : null}
+                                </>
+                            )}
                         </div>
                         <AuthModal
                             type="courseDetailsPage"

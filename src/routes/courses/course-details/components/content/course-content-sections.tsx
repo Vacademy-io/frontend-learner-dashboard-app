@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React from "react";
 import {
     BookOpen,
     File,
@@ -24,9 +24,6 @@ interface CourseData {
 
 interface CourseContentSectionsProps {
     courseData: CourseData;
-    showCourseContentPrefixes?: boolean;
-    filteredTabs?: Array<{label: string; value: string}>;
-    selectedTab?: string;
 }
 
 const getInitials = (email: string) => {
@@ -38,28 +35,7 @@ const getInitials = (email: string) => {
         .slice(0, 2);
 };
 
-export const CourseContentSections = ({ 
-    courseData, 
-    showCourseContentPrefixes = true, 
-    filteredTabs = [], 
-    selectedTab = "OUTLINE" 
-}: CourseContentSectionsProps) => {
-    // Check if specific sections should be shown based on tabs
-    const shouldShowTeachers = filteredTabs.some(tab => tab.value === "TEACHERS");
-    const shouldShowAssessment = filteredTabs.some(tab => tab.value === "ASSESSMENTS");
-    const shouldShowOutline = filteredTabs.some(tab => tab.value === "OUTLINE");
-    const shouldShowContentStructure = filteredTabs.some(tab => tab.value === "CONTENT_STRUCTURE");
-
-    // Single log for component rendering (only when props change)
-    useEffect(() => {
-        console.log("📋 [CourseContentSections] Rendering with:", {
-            showTeachers: shouldShowTeachers,
-            showAssessment: shouldShowAssessment,
-            showOutline: shouldShowOutline,
-            showContentStructure: shouldShowContentStructure,
-            showContentPrefixes: showCourseContentPrefixes
-        });
-    }, [shouldShowTeachers, shouldShowAssessment, shouldShowOutline, shouldShowContentStructure, showCourseContentPrefixes]);
+export const CourseContentSections = ({ courseData }: CourseContentSectionsProps) => {
 
     return (
         <div className="space-y-4">
@@ -158,7 +134,7 @@ export const CourseContentSections = ({
             )}
 
             {/* Instructors Section */}
-            {shouldShowTeachers && courseData.instructors && courseData.instructors.length > 0 && (
+            {courseData.instructors && courseData.instructors.length > 0 && (
                 <div
                     className="relative bg-white border border-gray-200 rounded-md shadow-sm hover:shadow-md transition-all duration-300 p-3 sm:p-4 group animate-fade-in-up"
                     style={{ animationDelay: "0.6s" }}

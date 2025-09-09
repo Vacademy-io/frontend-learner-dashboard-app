@@ -1,5 +1,5 @@
 import { getPublicUrlWithoutLogin } from "@/services/upload_file";
-import { CourseDetailsFormValues } from "../-components/course-details-schema";
+import { CourseDetailsFormValues } from "../types/course-details-schema";
 import { BatchForSessionType } from "@/types/institute-details/institute-details-interface";
 
 // Utility functions for YouTube URL handling
@@ -242,7 +242,6 @@ export function getIdByLevelAndSession(
             item.package_dto?.id === courseId
     );
 
-    console.log("match", match);
     return match?.id || "";
 }
 

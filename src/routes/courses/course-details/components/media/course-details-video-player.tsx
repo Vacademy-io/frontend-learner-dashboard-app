@@ -1,5 +1,5 @@
 import React from 'react';
-import { isYouTubeUrl } from '../-utils/helper';
+import { isYouTubeUrl } from '../../-utils/helper';
 import { YouTubeVideoPlayer } from './youtube-video-player';
 
 interface VideoPlayerProps {
@@ -22,7 +22,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
   // Otherwise, use the regular video element
   return (
-    <div className={`w-[500px] overflow-hidden rounded-lg shadow-xl ${className}`}>
+    <div className={`w-full overflow-hidden rounded-lg shadow-xl ${className}`}>
       <div className="relative aspect-video bg-black">
         <video
           src={src}

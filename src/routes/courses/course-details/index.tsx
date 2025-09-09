@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { CourseDetailsPage } from "./-components/course-details-page";
+import { CourseDetailsPage } from "./components/layout/course-details-page";
 interface CourseSearchParams {
     courseId: string;
 }
