@@ -67,8 +67,10 @@ const ReviewStep = ({
                 package_session_id={package_session_id}
               />
             ) : (
-              // @ts-expect-error : //TODO: create interface for this
-              <FreePlanReview plan={selectedPayment} />
+              <FreePlanReview
+                plan={selectedPayment}
+                package_session_id={package_session_id}
+              />
             )}
           </div>
         </CardContent>
@@ -358,10 +360,61 @@ const PaidPlanReview = ({
 
 const FreePlanReview = ({
   plan,
+  package_session_id,
 }: {
-  plan: (SelectedPayment & { duration: string; amount: number }) | null;
+  plan: SelectedPayment | null;
+  package_session_id: string;
 }) => {
+  const [couponVerified, setCouponVerified] = useState(false);
   if (!plan) return null;
+
+  // Check if referral option is available
+  const hasReferralOption =
+    plan.referral_option && plan.referral_option !== null;
+
+  // Parse the referral benefit from the nested tier structure
+  const getReferralBenefit = (): ReferralBenefit | null => {
+    if (!plan.referral_option?.referee_discount_json) return null;
+
+    const parsed = safeJsonParse(
+      plan.referral_option.referee_discount_json,
+      null
+    );
+
+    if (
+      !parsed ||
+      !parsed.tiers ||
+      !Array.isArray(parsed.tiers) ||
+      parsed.tiers.length === 0
+    ) {
+      console.error("No valid tiers found");
+      return null;
+    }
+
+    const firstTier = parsed.tiers[0];
+
+    if (
+      !firstTier.benefits ||
+      !Array.isArray(firstTier.benefits) ||
+      firstTier.benefits.length === 0
+    ) {
+      console.error("No valid benefits found");
+      return null;
+    }
+
+    const benefit = firstTier.benefits[0];
+
+    // Map the API format to our internal format
+    const mappedBenefit = {
+      benefitType: benefit.type,
+      benefitValue: benefit.value,
+      description: benefit.description,
+    };
+
+    return mappedBenefit;
+  };
+
+  const refereeDiscount: ReferralBenefit | null = getReferralBenefit();
   return (
     <div className="py-4 space-y-4">
       {/* Plan Details Section */}
@@ -378,10 +431,24 @@ const FreePlanReview = ({
 
           <div className="flex justify-between">
             <span className="text-gray-600">Validity:</span>
-            <div className="font-medium text-gray-900">{plan.duration}</div>
+            <div className="font-medium text-gray-900">
+              {plan.duration ||
+                (plan.validity_in_days
+                  ? `${plan.validity_in_days} days`
+                  : "Lifetime")}
+            </div>
           </div>
         </div>
       </div>
+
+      {/* Referral Code Section - Only show if referral option is available */}
+      {hasReferralOption && (
+        <ReferralCodeComponent
+          referralOptionId={plan.referral_option.id}
+          setCouponVerified={setCouponVerified}
+          package_session_id={package_session_id || ""}
+        />
+      )}
 
       <div className="bg-gray-50 rounded-lg p-4">
         <h3 className="font-semibold text-gray-900 mb-3 text-lg">Pricing</h3>
@@ -400,6 +467,26 @@ const FreePlanReview = ({
           </div>
         </div>
       </div>
+
+      {/* Additional Benefits Section - Only show if coupon is verified and there are non-pricing benefits */}
+      {couponVerified &&
+        refereeDiscount &&
+        !isPricingBenefit(refereeDiscount) && (
+          <div className="bg-green-50 rounded-lg p-4">
+            <h3 className="font-semibold text-gray-900 mb-3 text-lg">
+              Referral Benefits
+            </h3>
+
+            <div className="space-y-2">
+              <div className="flex items-start gap-2">
+                <CheckCircle className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
+                <span className="text-gray-900 font-medium">
+                  {formatNonPricingBenefits(refereeDiscount)}
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
     </div>
   );
 };
