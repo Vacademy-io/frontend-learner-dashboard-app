@@ -80,25 +80,7 @@
             errorDiv.textContent = message;
             document.querySelector('.container').appendChild(errorDiv);
             
-<<<<<<< HEAD
             // Auto-close after 3 seconds
-=======
-            if (!showRetry || retryCount >= maxRetries) {
-            setTimeout(() => {
-                window.close();
-                }, 5000);
-            }
-        }
-
-        // Retry mechanism
-        function retryProcessing() {
-            retryCount++;
-            document.querySelector('.error').remove();
-            document.querySelector('.spinner').style.display = 'block';
-            document.querySelector('.status').textContent = 'Retrying authentication...';
-            document.querySelector('.message').textContent = 'Please wait while we retry the process.';
-            
->>>>>>> 97d8837 (fixed already enrolled and trying to signup case ..)
             setTimeout(() => {
                 window.close();
             }, 3000);
@@ -106,7 +88,6 @@
 
         // Parse URL parameters
         function parseUrlParams() {
-<<<<<<< HEAD
             const urlParams = new URLSearchParams(window.location.search);
             const hashParams = new URLSearchParams(window.location.hash.substring(1));
             
@@ -117,40 +98,6 @@
                 error: urlParams.get('error') || hashParams.get('error'),
                 error_description: urlParams.get('error_description') || hashParams.get('error_description')
             };
-=======
-            try {
-            const urlParams = new URLSearchParams(window.location.search);
-            const hashParams = new URLSearchParams(window.location.hash.substring(1));
-            
-                const params = {
-                    // Traditional signup flow parameters
-                signupData: urlParams.get('signupData'),
-                state: urlParams.get('state'),
-                emailVerified: urlParams.get('emailVerified'),
-                    
-                    // Direct token flow parameters (for existing users)
-                    accessToken: urlParams.get('accessToken'),
-                    refreshToken: urlParams.get('refreshToken'),
-                    
-                    // Error parameters
-                error: urlParams.get('error') || hashParams.get('error'),
-                    error_description: urlParams.get('error_description') || hashParams.get('error_description'),
-                    
-                    // Additional parameters for debugging
-                    debug: urlParams.get('debug') === 'true'
-                };
-
-                // Log parameters for debugging (only in debug mode)
-                if (params.debug) {
-                    console.log('OAuth Popup Handler - Parsed Parameters:', params);
-                }
-
-                return params;
-            } catch (error) {
-                console.error('Error parsing URL parameters:', error);
-                return {};
-            }
->>>>>>> 97d8837 (fixed already enrolled and trying to signup case ..)
         }
 
         // Handle OAuth success
@@ -182,50 +129,19 @@
             showError(errorMessage);
         }
 
-<<<<<<< HEAD
         // Main execution
         try {
             const params = parseUrlParams();
             
             // Special case: error=true with signupData means "email not found" (new user) - this is SUCCESS for signup
             if (params.error === 'true' && params.signupData && params.state) {
-=======
-        // Main processing function with comprehensive error handling
-        function processOAuthResponse() {
-        try {
-            const params = parseUrlParams();
-            
-                // Priority 1: Handle direct token flow (existing user)
-                if (handleDirectTokenFlow(params)) {
-                    return; // Successfully handled direct token flow
-                }
-                
-                // Priority 2: Handle traditional signup flow (new user)
-                if (params.error === 'true' && params.signupData && params.state) {
-            // Special case: error=true with signupData means "email not found" (new user) - this is SUCCESS for signup
->>>>>>> 97d8837 (fixed already enrolled and trying to signup case ..)
                 handleOAuthSuccess(params);
             } else if (params.error && !params.signupData) {
                 // Real OAuth error (no user data)
                 handleOAuthError(params);
-<<<<<<< HEAD
                 } else {
                 // Normal OAuth success
                 handleOAuthSuccess(params);
-=======
-                } else if (params.signupData && params.state) {
-                    // Normal OAuth success with signup data
-                    handleOAuthSuccess(params);
-                } else {
-                    // No valid parameters found
-                    const errorMsg = 'Invalid OAuth response. Missing required parameters.';
-                    console.error(errorMsg, params);
-                    showError(errorMsg, true);
-            }
-        } catch (error) {
-                console.error('Unexpected error in OAuth processing:', error);
-                showError('An unexpected error occurred. Please try again.', true);
->>>>>>> 97d8837 (fixed already enrolled and trying to signup case ..)
             }
         } catch (error) {
             showError('An unexpected error occurred. Please try again.');
