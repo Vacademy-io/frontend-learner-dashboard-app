@@ -279,23 +279,33 @@ export function ModularDynamicSignupContainer({
 
       // Listen for OAuth completion message from popup
       const messageHandler = (event: MessageEvent) => {
+        // Validate origin for security
+        if (event.origin !== window.location.origin && event.origin !== '*') {
+          return;
+        }
+        
+        // Validate message structure
+        if (!event.data || typeof event.data !== 'object') {
+          return;
+        }
+        
         // Handle direct postMessage communication
         if (event.data.type === "oauth_success") {
           handleOAuthSuccess(event.data.data);
           window.removeEventListener("message", messageHandler);
           window.removeEventListener("storage", storageHandler);
         } else if (event.data.type === "oauth_error") {
-          toast.error(event.data.data.message || "OAuth authentication failed");
+          toast.error(event.data.data?.message || "OAuth authentication failed");
           window.removeEventListener("message", messageHandler);
           window.removeEventListener("storage", storageHandler);
         }
         // Handle localStorage fallback communication
         else if (event.data.type === "oauth_storage_fallback") {
           const fallbackData = event.data.data;
-          if (fallbackData.type === "oauth_success") {
+          if (fallbackData?.type === "oauth_success") {
             handleOAuthSuccess(fallbackData.data);
-          } else if (fallbackData.type === "oauth_error") {
-            toast.error(fallbackData.data.message || "OAuth authentication failed");
+          } else if (fallbackData?.type === "oauth_error") {
+            toast.error(fallbackData.data?.message || "OAuth authentication failed");
           }
           window.removeEventListener("message", messageHandler);
           window.removeEventListener("storage", storageHandler);
@@ -305,7 +315,7 @@ export function ModularDynamicSignupContainer({
           // Respond to ping to confirm we're alive
           if (event.source && event.source.postMessage) {
             try {
-              event.source.postMessage({ type: 'oauth_pong', timestamp: Date.now() }, '*');
+              event.source.postMessage({ type: 'oauth_pong', timestamp: Date.now() }, event.origin);
             } catch (error) {
               // Ignore ping response errors
             }
@@ -318,19 +328,25 @@ export function ModularDynamicSignupContainer({
         if (event.key === 'oauth_popup_result' && event.newValue) {
           try {
             const fallbackData = JSON.parse(event.newValue);
-            if (fallbackData.source === 'oauth_popup_handler') {
+            
+            // Validate fallback data structure
+            if (fallbackData?.source === 'oauth_popup_handler' && fallbackData?.type) {
               if (fallbackData.type === "oauth_success") {
                 handleOAuthSuccess(fallbackData.data);
               } else if (fallbackData.type === "oauth_error") {
-                toast.error(fallbackData.data.message || "OAuth authentication failed");
+                toast.error(fallbackData.data?.message || "OAuth authentication failed");
               }
+              
               // Clean up
               localStorage.removeItem('oauth_popup_result');
               window.removeEventListener("message", messageHandler);
               window.removeEventListener("storage", storageHandler);
             }
           } catch (error) {
-            // Invalid data in localStorage
+            // Log error for debugging but don't expose to user
+            console.error('Invalid OAuth fallback data:', error);
+            // Clean up invalid data
+            localStorage.removeItem('oauth_popup_result');
           }
         }
       };
