@@ -159,7 +159,6 @@ export function EmailLogin({
         // Generic error fallback
         toast.error("Failed to send OTP. Please try again.", {
           duration: 5000,
-          description: "Please check your internet connection and try again.",
         });
       }
     },

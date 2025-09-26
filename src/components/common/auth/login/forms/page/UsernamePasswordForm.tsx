@@ -125,15 +125,8 @@ export function UsernameLogin({
                                     );
                                 }
                             } catch (error) {
-                                console.error(
-                                    "Error fetching institute details:",
-                                    error
-                                );
                             }
                         } else {
-                            console.error(
-                                "Institute ID or User ID is undefined"
-                            );
                         }
 
                         if (instituteId && userId) {
@@ -146,9 +139,6 @@ export function UsernameLogin({
                                 toast.error("Failed to fetch details");
                             }
                         } else {
-                            console.error(
-                                "Institute ID or User ID is undefined"
-                            );
                         }
 
                         // Determine redirect URL based on type and courseId
@@ -180,7 +170,6 @@ export function UsernameLogin({
                         }
                     }
                 } catch (error) {
-                    console.error("Error processing decoded data:", error);
                 }
             } else {
                 form.reset();

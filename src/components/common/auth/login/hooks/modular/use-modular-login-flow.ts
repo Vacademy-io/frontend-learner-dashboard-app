@@ -36,7 +36,6 @@ export function useModularLoginFlow({ instituteId }: UseModularLoginFlowProps) {
         setSettings(mappedSettings);
         setError(null);
       } catch (err) {
-        console.error("Error mapping login settings:", err);
         setError("Failed to load login configuration");
         // Fallback to default settings
         setSettings(mapLoginSettings(null));

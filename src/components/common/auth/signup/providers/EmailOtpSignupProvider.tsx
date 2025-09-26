@@ -140,7 +140,6 @@ export function EmailOtpSignupProvider({
       setCurrentStep("final");
       toast.success("Email verified successfully!");
     } catch (error) {
-      console.error("Error verifying OTP:", error);
       toast.error("Invalid verification code");
     } finally {
       setIsSubmitting(false);
@@ -165,7 +164,6 @@ export function EmailOtpSignupProvider({
       toast.success("Account created successfully!");
       onSignupSuccess?.();
     } catch (error) {
-      console.error("Error creating account:", error);
       toast.error("Failed to create account");
     }
   };
@@ -178,7 +176,6 @@ export function EmailOtpSignupProvider({
       // For now, we'll let the registration process handle the actual enrollment check
       return false; // Allow registration, let the API handle enrollment conflicts
     } catch (error) {
-      console.error("Error checking enrollment:", error);
       // If there's an error checking enrollment, assume user is not enrolled
       // to avoid blocking legitimate registrations
       return false;
@@ -202,7 +199,6 @@ export function EmailOtpSignupProvider({
       setTimer(30);
       toast.success("Verification code resent!");
     } catch (error) {
-      console.error("Error resending OTP:", error);
       toast.error("Failed to resend verification code");
     } finally {
       setIsSubmitting(false);

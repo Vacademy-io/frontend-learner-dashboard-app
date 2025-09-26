@@ -5,6 +5,15 @@ import { ModularDynamicSignupContainer } from "@/components/common/auth/signup/c
 import { ModalForgotPasswordForm } from "@/components/common/auth/login/forms/modal/ModalForgotPasswordForm";
 import { Preferences } from "@capacitor/preferences";
 import { useSignupFlow } from "@/components/common/auth/signup/hooks/use-signup-flow";
+import { 
+  setTokenInStorage, 
+  getTokenFromStorage, 
+  getTokenDecodedData,
+  setAuthorizationCookie 
+} from "@/lib/auth/sessionUtility";
+import { TokenKey } from "@/constants/auth/tokens";
+import { fetchAndStoreStudentDetails } from "@/services/studentDetails";
+import { fetchAndStoreInstituteDetails } from "@/services/fetchAndStoreInstituteDetails";
 import { useModularLoginFlow } from "@/components/common/auth/login/hooks/modular/use-modular-login-flow";
 import { useDomainRouting } from "@/hooks/use-domain-routing";
 import { resolveInstituteIdFromLocalOrSubdomain } from "@/services/institute-resolver";
@@ -135,7 +144,6 @@ export const AuthModal = forwardRef<AuthModalRef, AuthModalProps>(({
                     }
                 }
             } catch (e) {
-                console.error("AuthModal: institute resolution failed", e);
             }
         })();
         return () => { cancelled = true; };
@@ -157,9 +165,19 @@ export const AuthModal = forwardRef<AuthModalRef, AuthModalProps>(({
             // Only accept messages from the same origin
             if (event.origin !== window.location.origin) return;
             
-            const { action, type: oauthType, courseId: oauthCourseId, instituteId, fromOAuth } = event.data;
+            const { action, type: oauthType, courseId: oauthCourseId, instituteId, fromOAuth, signupData } = event.data;
+            
             
             if (action === 'openSignupModal' && fromOAuth) {
+                
+                // Store signup data with institute ID in sessionStorage for the signup flow
+                if (signupData) {
+                    try {
+                        sessionStorage.setItem('oauth_signup_data', JSON.stringify(signupData));
+                    } catch (error) {
+                    }
+                }
+                
                 // Update the modal context with OAuth parameters
                 const newUrl = new URL(window.location.href);
                 if (oauthType) newUrl.searchParams.set('type', oauthType);
@@ -342,7 +360,6 @@ export const AuthModal = forwardRef<AuthModalRef, AuthModalProps>(({
                 handleInstituteSelect(effectiveId);
             }
         } catch (error) {
-            console.error("AuthModal: Error selecting institute on signup:", error);
         }
         setCurrentMode('signup');
     };
@@ -393,12 +410,6 @@ export const AuthModal = forwardRef<AuthModalRef, AuthModalProps>(({
             e.preventDefault();
             e.stopPropagation();
             
-            console.group("[AuthModal] Trigger Clicked");
-            console.log("Opening modal from trigger");
-            console.log("Current path:", window.location.pathname);
-            console.log("Type:", type);
-            console.log("CourseId:", courseId);
-            console.groupEnd();
             
             setInternalIsOpen(true);
             // Call the optional callback when modal opens, but delay it slightly
