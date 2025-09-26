@@ -135,6 +135,7 @@ export function OtpVerificationForm({
               toast.warning(
                 "You appear to be already enrolled. You can still proceed with signup if needed."
               );
+              console.error("Auto-login after OTP verification failed:", error);
             },
             true // shouldRedirectAfterLogin - will handle navigation automatically
           );
@@ -152,6 +153,7 @@ export function OtpVerificationForm({
       await onOtpVerified(email, fullNameToUse);
     } catch (error) {
       toast.error("Invalid OTP. Please try again.");
+      console.error("OTP verification error:", error);
     } finally {
       setIsVerifying(false);
     }
@@ -183,6 +185,7 @@ export function OtpVerificationForm({
       toast.success("OTP resent successfully");
     } catch (error) {
       toast.error("Failed to resend OTP. Please try again.");
+      console.error("Resend OTP error:", error);
     }
   };
 

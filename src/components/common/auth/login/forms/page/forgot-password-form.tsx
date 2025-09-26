@@ -78,7 +78,7 @@ export function ForgotPassword() {
           }
         }
       } catch (error) {
-        // Error initializing theme
+        console.error("Error initializing theme:", error);
       }
     };
 

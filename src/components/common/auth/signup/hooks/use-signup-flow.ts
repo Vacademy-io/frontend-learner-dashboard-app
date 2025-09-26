@@ -172,6 +172,7 @@ export const useSignupFlow = (isModalSignup?: boolean, type?: string, courseId?:
       // Post-registration handling is now managed by the unified hook
       // The hook will handle login and redirection automatically
     } catch (error) {
+      console.error("Registration failed:", error);
       toast.error("Registration failed. Please try again.");
     }
   }, [state.selectedInstitute, state.selectedRole, state.userData, registerUserUnified]);

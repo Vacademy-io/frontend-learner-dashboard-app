@@ -25,6 +25,7 @@ const SessionSelectionPage = () => {
     didRun.current = true;
 
     const checkAndFetch = async () => {
+      console.log("🚀 useEffect[checkAndFetch] running...");
 
       try {
         const selectedInstitute = await Preferences.get({
@@ -32,6 +33,8 @@ const SessionSelectionPage = () => {
         });
         const studentData = await Preferences.get({ key: "students" });
 
+        console.log("📌 selectedInstituteId:", selectedInstitute.value);
+        console.log("📌 students:", studentData.value);
 
         if (!selectedInstitute.value || !studentData.value) {
           console.warn("⚠️ Institute or student data missing.");
@@ -40,6 +43,7 @@ const SessionSelectionPage = () => {
         }
 
         const sessionListRaw = await Preferences.get({ key: "sessionList" });
+        console.log("📥 Raw sessionList from Preferences:", sessionListRaw);
 
         if (!sessionListRaw.value) {
           console.warn("⚠️ No sessionList found in Preferences.");
@@ -52,13 +56,18 @@ const SessionSelectionPage = () => {
         if (!Array.isArray(parsed) || parsed.length === 0) {
           console.warn("⚠️ Parsed session list is empty or invalid.");
         } else {
+          console.log(
+            `✅ Parsed ${parsed.length} session(s) from Preferences.`
+          );
         }
 
         setSessionList(parsed);
       } catch (error) {
+        console.error("❌ Error loading session list:", error);
         toast.error("Failed to load session list.");
       } finally {
         setLoading(false);
+        console.log("✅ Finished checkAndFetch. Loading set to false.");
       }
     };
 
@@ -66,8 +75,13 @@ const SessionSelectionPage = () => {
   }, []);
 
   useEffect(() => {
+    console.log(
+      "🧠 useEffect[sessionList] triggered. Length:",
+      sessionList.length
+    );
 
     if (sessionList.length === 1) {
+      console.log("✅ Only one session. Auto-selecting:", sessionList[0]);
       handleSessionSelect(sessionList[0]);
     } else if (sessionList.length > 0) {
       fetchImageUrls();
@@ -75,17 +89,26 @@ const SessionSelectionPage = () => {
   }, [sessionList]);
 
   const fetchImageUrls = async () => {
+    console.log("🌄 Fetching image URLs for sessions...");
 
     const urls: Record<string, string> = {};
 
     for (const session of sessionList) {
       const thumbnailId = session.package_dto?.thumbnail_file_id;
+      console.log(
+        `ℹ️ Processing session [${session.id}] with thumbnail ID: ${thumbnailId}`
+      );
 
       if (thumbnailId) {
         try {
           const url = await getPublicUrl(thumbnailId);
           urls[session.id] = url;
+          console.log(`✅ Image URL for ${session.id}: ${url}`);
         } catch (error) {
+          console.error(
+            `❌ Error fetching image for session ${session.id}:`,
+            error
+          );
         }
       } else {
         console.warn(`⚠️ No thumbnail_file_id found for session ${session.id}`);
@@ -93,13 +116,16 @@ const SessionSelectionPage = () => {
     }
 
     setImageUrls(urls);
+    console.log("✅ Image URLs updated in state:", urls);
   };
 
   const handleSessionSelect = async (selectedSession: Session) => {
+    console.log("🎯 handleSessionSelect: Selected session:", selectedSession);
     setSubmitting(true);
 
     try {
       const studentData = await Preferences.get({ key: "students" });
+      console.log("📌 studentData fetched:", studentData.value);
 
       if (!studentData.value) {
         throw new Error("No student data found!");
@@ -121,16 +147,26 @@ const SessionSelectionPage = () => {
         value: JSON.stringify(selectedStudent),
       });
 
+      console.log("✅ Student details saved to Preferences.");
+      console.log("➡️ Navigating to:", redirect);
 
       navigate({ to: redirect });
     } catch (error) {
+      console.error("❌ Error during session selection:", error);
       toast.error("Something went wrong while selecting session.");
     } finally {
       setSubmitting(false);
+      console.log("✅ Session selection finished. Submitting set to false.");
     }
   };
 
   if (loading || submitting) {
+    console.log(
+      "⏳ Showing loader. Loading:",
+      loading,
+      "Submitting:",
+      submitting
+    );
     return (
       <div className="fixed inset-0 flex items-center justify-center bg-white z-50">
         <DashboardLoader />
@@ -138,6 +174,10 @@ const SessionSelectionPage = () => {
     );
   }
 
+  console.log(
+    "🎉 Rendering session selection UI. Session count:",
+    sessionList.length
+  );
 
   return (
     <div className="min-h-screen w-full bg-gradient-to-br from-emerald-50 via-white to-teal-50 p-4">

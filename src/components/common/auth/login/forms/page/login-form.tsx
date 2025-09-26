@@ -191,6 +191,7 @@ export function LoginForm({
               setPrimaryColor(details?.institute_theme_code ?? "#E67E22");
             }
           } catch (error) {
+            console.error("Error fetching institute details:", error);
             toast.error("Failed to fetch institute details");
           }
 
@@ -210,6 +211,8 @@ export function LoginForm({
             settings?.postLoginRedirectRoute || "/dashboard";
 
           console.group("[Post-Login Redirect | Username/Password]");
+          console.log("Fetched settings:", settings);
+          console.log("Resolved redirectRoute:", redirectRoute);
           console.groupEnd();
 
           if (/^https?:\/\//.test(redirectRoute)) {
@@ -218,6 +221,10 @@ export function LoginForm({
             navigate({ to: redirectRoute as never });
           }
         } catch (e) {
+          console.error(
+            "[Post-Login Redirect] Falling back to /dashboard due to error:",
+            e
+          );
           navigate({ to: "/dashboard" });
         }
       }

@@ -92,6 +92,7 @@ export function GoogleSignupProvider({
         credentialsForm.setValue("fullName", mockProfile.name);
       }
     } catch (error) {
+      console.error("Google OAuth error:", error);
       toast.error("Failed to authenticate with Google");
       setCurrentStep("button");
     }
@@ -99,6 +100,7 @@ export function GoogleSignupProvider({
 
   const handleDirectRegistration = async (profile: GoogleProfile) => {
     try {
+      console.log('[GoogleSignupProvider] Starting direct registration for:', profile.email);
       
       // Use unified registration hook with settings
       await registerUserUnified({
@@ -111,9 +113,11 @@ export function GoogleSignupProvider({
         vendor_id: "google", // OAuth provider
       });
 
+      console.log('[GoogleSignupProvider] Direct registration completed successfully');
       // Success handling is now managed by the unified hook
       onSignupSuccess?.();
     } catch (error) {
+      console.error("Direct registration error:", error);
       toast.error("Failed to register user");
       setCurrentStep("button");
     }
@@ -124,6 +128,7 @@ export function GoogleSignupProvider({
       if (!googleProfile?.email)
         throw new Error("Missing Google profile data");
 
+      console.log('[GoogleSignupProvider] Credentials form submitted:', data);
       
       // Use unified registration hook with settings
       await registerUserUnified({
@@ -137,9 +142,11 @@ export function GoogleSignupProvider({
         vendor_id: "google", // OAuth provider
       });
 
+      console.log('[GoogleSignupProvider] Registration with credentials completed successfully');
       // Success handling is now managed by the unified hook
       onSignupSuccess?.();
     } catch (error) {
+      console.error("Registration error:", error);
       toast.error("Failed to register user");
     }
   };

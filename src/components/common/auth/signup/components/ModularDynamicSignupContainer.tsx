@@ -27,17 +27,6 @@ import {
 } from "../utils/enrollment-checker";
 import { Preferences } from "@capacitor/preferences";
 import { useTheme } from "@/providers/theme/theme-provider";
-import { 
-  setTokenInStorage, 
-  getTokenFromStorage, 
-  getTokenDecodedData,
-  setAuthorizationCookie 
-} from "@/lib/auth/sessionUtility";
-import { TokenKey } from "@/constants/auth/tokens";
-import { fetchAndStoreStudentDetails } from "@/services/studentDetails";
-import { fetchAndStoreInstituteDetails } from "@/services/fetchAndStoreInstituteDetails";
-import { useNavigate } from "@tanstack/react-router";
-import { getStudentDisplaySettings } from "@/services/student-display-settings";
 
 interface ModularDynamicSignupContainerProps {
   instituteId?: string;
@@ -63,7 +52,6 @@ export function ModularDynamicSignupContainer({
   onBackToProviders,
   className = "",
 }: ModularDynamicSignupContainerProps) {
-  const navigate = useNavigate();
   const { setPrimaryColor } = useTheme();
   const { registerUser: registerUserUnified } = useUnifiedRegistration();
   const [currentStep, setCurrentStep] = useState<SignupStep>("providers");
@@ -132,19 +120,7 @@ export function ModularDynamicSignupContainer({
   useEffect(() => {
     (async () => {
       try {
-        // Check for OAuth signup data with institute ID first
-        let oauthInstituteId = null;
-        try {
-          const oauthSignupData = sessionStorage.getItem('oauth_signup_data');
-          if (oauthSignupData) {
-            const parsedOAuthData = JSON.parse(oauthSignupData);
-            oauthInstituteId = parsedOAuthData.institute_id;
-          }
-        } catch (error) {
-        }
-        
         const storedInstitute =
-          oauthInstituteId ||
           instituteId ||
           (await Preferences.get({ key: "InstituteId" })).value ||
           "";
@@ -259,17 +235,6 @@ export function ModularDynamicSignupContainer({
 
   const handleOAuthSignUp = (provider: "google" | "github") => {
     try {
-      // Check for OAuth signup data with institute ID first
-      let oauthInstituteId = null;
-      try {
-        const oauthSignupData = sessionStorage.getItem('oauth_signup_data');
-        if (oauthSignupData) {
-          const parsedOAuthData = JSON.parse(oauthSignupData);
-          oauthInstituteId = parsedOAuthData.institute_id;
-        }
-      } catch (error) {
-      }
-      
       // Build state payload
       const currentPath = window.location.pathname;
       const currentSearch = window.location.search;
@@ -286,13 +251,10 @@ export function ModularDynamicSignupContainer({
         studyLibraryUrl = "/study-library/courses";
       }
 
-      // Use institute ID from OAuth signup data if available, otherwise fall back to prop
-      const finalInstituteId = oauthInstituteId || instituteId;
-
       const stateObj = {
         from: `${window.location.origin}/oauth-popup-handler.html`,
         account_type: "signup",
-        institute_id: finalInstituteId,
+        institute_id: instituteId,
         redirectTo: studyLibraryUrl,
         currentUrl,
         isModalSignup: true,
@@ -435,112 +397,9 @@ export function ModularDynamicSignupContainer({
     return enrollmentResult;
   };
 
-  // Handle existing user login with direct tokens
-  const handleExistingUserLogin = async (accessToken: string, refreshToken: string) => {
-    try {
-      
-      // Store tokens in storage
-      await setTokenInStorage(TokenKey.accessToken, accessToken);
-      await setTokenInStorage(TokenKey.refreshToken, refreshToken);
-      
-      // Also set tokens in cookies for cross-subdomain access
-      setAuthorizationCookie(TokenKey.accessToken, accessToken);
-      setAuthorizationCookie(TokenKey.refreshToken, refreshToken);
-      
-      // Decode token to get user information
-      const tokenData = getTokenDecodedData(accessToken);
-      
-      if (tokenData && tokenData.user && tokenData.email) {
-        
-        try {
-          // Store student details
-          await fetchAndStoreStudentDetails(instituteId!, tokenData.user);
-        } catch (error) {
-          console.warn('Failed to store student details:', error);
-          // Continue anyway - this is not critical for login
-        }
-        
-        try {
-          // Store institute details if instituteId is available
-          if (instituteId) {
-            await fetchAndStoreInstituteDetails(instituteId);
-          }
-        } catch (error) {
-          console.warn('Failed to store institute details:', error);
-          // Continue anyway - this is not critical for login
-        }
-        
-        // Show success message
-        toast.success("Welcome back! You're now signed in.");
-        
-        // Wait a moment for storage to complete and success message to show, then navigate
-        setTimeout(async () => {
-          try {
-            // Get post-login redirect route from settings (same as other login flows)
-            const settings = await getStudentDisplaySettings(true);
-            const redirectRoute = settings?.postLoginRedirectRoute || "/dashboard";
-            
-            
-            // Always navigate first, then call onSignupSuccess if provided
-            // Use the same navigation logic as other login flows
-            if (/^https?:\/\//.test(redirectRoute)) {
-              window.location.assign(redirectRoute);
-            } else {
-              // Special handling for courses page - redirect to study-library/courses
-              if (window.location.pathname === "/courses") {
-                window.location.href = "/study-library/courses";
-              } else {
-                window.location.href = redirectRoute;
-              }
-            }
-            
-            // Call onSignupSuccess after navigation (for modal closing, etc.)
-            if (onSignupSuccess) {
-              onSignupSuccess();
-            }
-          } catch (error) {
-            // Fallback navigation - always navigate first
-            // Special handling for courses page - redirect to study-library/courses
-            if (window.location.pathname === "/courses") {
-              window.location.href = "/study-library/courses";
-            } else {
-              window.location.href = "/dashboard";
-            }
-            
-            // Call onSignupSuccess after navigation (for modal closing, etc.)
-            if (onSignupSuccess) {
-              onSignupSuccess();
-            }
-          }
-        }, 500);
-      } else {
-        throw new Error('Invalid token data - missing user information');
-      }
-    } catch (error) {
-      toast.error("Failed to sign in. Please try again.");
-      
-      // Reset state and go back to providers
-      setCurrentStep("providers");
-      setSelectedProvider(null);
-      setOAuthData(null);
-    }
-  };
-
   const handleOAuthSuccess = async (oauthData: any) => {
     try {
-
-      // Check if this is a direct token flow (existing user)
-      if (oauthData.directTokenFlow && oauthData.accessToken && oauthData.refreshToken) {
-        await handleExistingUserLogin(oauthData.accessToken, oauthData.refreshToken);
-        return;
-      }
-
-      // Handle new user flow (traditional signup)
       const { signupData, state, emailVerified } = oauthData;
-
-      if (!signupData || !state) {
-        throw new Error('Missing required signup data');
-      }
 
       // Store OAuth data for later use
       setOAuthData({ signupData, state, emailVerified });
@@ -553,17 +412,16 @@ export function ModularDynamicSignupContainer({
         const enrollmentResult = await checkEnrollmentOnce(signupData.email);
 
         if (enrollmentResult?.isEnrolled) {
-          // Use institute ID from signup data if available, otherwise fall back to prop
-          const finalInstituteId = signupData.institute_id || instituteId!;
-          
           const autoLoginResult = await handleEnrolledUser(
             signupData.email,
-            finalInstituteId,
+            instituteId!,
             () => {
+              // Auto-login success - redirect to success step
               setCurrentStep("success");
               onSignupSuccess?.();
             },
             (error) => {
+              // Auto-login failed - show error and go back to providers
               setCurrentStep("providers");
               setSelectedProvider(null);
               setOAuthData(null);
@@ -629,15 +487,12 @@ export function ModularDynamicSignupContainer({
 
   const handleDirectRegistration = async (signupData: any) => {
     try {
-      // Use institute ID from signup data if available, otherwise fall back to prop
-      const finalInstituteId = signupData.institute_id || instituteId!;
-      
       // Use unified registration hook for OAuth signups with settings
       await registerUserUnified({
         username: signupData.username || signupData.email?.split("@")[0],
         email: signupData.email,
         full_name: signupData.name, // This should already be the full name from OAuth
-        instituteId: finalInstituteId,
+        instituteId: instituteId!,
         settings: effectiveSettings, // Pass settings for credential generation
         subject_id: signupData.sub, // OAuth subject ID (e.g., Google sub)
         vendor_id: signupData.provider, // OAuth provider (e.g., "google", "github")
@@ -1036,19 +891,13 @@ export function ModularDynamicSignupContainer({
                       ? oauthData.signupData.email
                       : emailForOtp;
 
-                  // Use institute ID from signup data if available, otherwise fall back to prop
-                  const finalInstituteId = 
-                    selectedProvider === "oauth" && oauthData?.signupData?.institute_id
-                      ? oauthData.signupData.institute_id
-                      : instituteId!;
-
                   // Use unified registration hook with settings
                   await registerUserUnified({
                     username: data.username,
                     email: email,
                     full_name: data.fullName || fullNameForOtp,
                     password: data.password,
-                    instituteId: finalInstituteId,
+                    instituteId: instituteId!,
                     settings: effectiveSettings, // Pass settings for credential generation
                     // Include OAuth fields if this is an OAuth flow
                     ...(selectedProvider === "oauth" &&

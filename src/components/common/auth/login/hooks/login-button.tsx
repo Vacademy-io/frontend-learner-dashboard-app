@@ -48,6 +48,7 @@ async function loginUser(
         await Storage.set({ key: TokenKey.refreshToken, value: tokenData.refreshToken });
         await Storage.set({ key: "instituteId", value: tokenData.instituteId });
     } catch (error) {
+        console.error("Error saving tokens to storage", error);
         // If we can't save tokens, the login is effectively failed.
         throw new Error("Failed to save session.");
     }

@@ -118,6 +118,7 @@ export function ModalUsernameLogin({
                                 }
                             }
                         } catch (error) {
+                            console.error("Error fetching details:", error);
                             toast.error("Failed to fetch details");
                         }
                     } else if (instituteId && !authorityKeys.includes(instituteId)) {
@@ -175,6 +176,7 @@ export function ModalUsernameLogin({
                                 }
                             }
                         } catch (error) {
+                            console.error("Error fetching details:", error);
                             toast.error("Failed to fetch details");
                         }
                     } else if (authorityKeys.length === 1) {
@@ -226,10 +228,12 @@ export function ModalUsernameLogin({
                                 }
                             }
                         } catch (error) {
+                            console.error("Error fetching details:", error);
                             toast.error("Failed to fetch details");
                         }
                     }
                 } catch (error) {
+                    console.error("Error processing decoded data:", error);
                 }
             } else {
                 form.reset();

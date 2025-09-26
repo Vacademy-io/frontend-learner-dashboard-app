@@ -50,14 +50,6 @@
             border-radius: 8px;
             margin-top: 20px;
         }
-        .success {
-            color: #059669;
-            background: #ecfdf5;
-            border: 1px solid #a7f3d0;
-            padding: 12px;
-            border-radius: 8px;
-            margin-top: 20px;
-        }
     </style>
 </head>
 <body>
@@ -68,284 +60,91 @@
     </div>
 
     <script>
-        // Enhanced error handling with retry mechanism
-        let retryCount = 0;
-        const maxRetries = 3;
-
-        // Function to send message to parent window with error handling
+        // Function to send message to parent window
         function sendToParent(type, data) {
-            try {
-                if (window.opener && !window.opener.closed) {
-                    window.opener.postMessage({ type, data }, '*');
-                    setTimeout(() => window.close(), 100);
-                } else {
-                    console.warn('Parent window not available for message passing');
-                    showError('Unable to communicate with parent window. Please close this tab and try again.');
-                }
-            } catch (error) {
-                console.error('Error sending message to parent:', error);
-                showError('Communication error. Please close this tab and try again.');
+                if (window.opener) {
+                window.opener.postMessage({ type, data }, '*');
+                window.close();
             }
         }
 
-        // Enhanced error display with retry option
-        function showError(message, showRetry = false) {
+        // Function to show error
+        function showError(message) {
             document.querySelector('.spinner').style.display = 'none';
             document.querySelector('.status').textContent = 'Authentication Failed';
             document.querySelector('.message').textContent = message;
             
+            // Add error display
             const errorDiv = document.createElement('div');
             errorDiv.className = 'error';
-            errorDiv.innerHTML = `
-                <div>${message}</div>
-                ${showRetry && retryCount < maxRetries ? 
-                    `<button onclick="retryProcessing()" style="margin-top: 10px; padding: 8px 16px; background: #3b82f6; color: white; border: none; border-radius: 4px; cursor: pointer;">
-                        Retry (${retryCount + 1}/${maxRetries})
-                    </button>` : ''
-                }
-            `;
+            errorDiv.textContent = message;
             document.querySelector('.container').appendChild(errorDiv);
             
-            if (!showRetry || retryCount >= maxRetries) {
-                setTimeout(() => {
-                    window.close();
-                }, 5000);
-            }
-        }
-
-        // Retry mechanism
-        function retryProcessing() {
-            retryCount++;
-            document.querySelector('.error').remove();
-            document.querySelector('.spinner').style.display = 'block';
-            document.querySelector('.status').textContent = 'Retrying authentication...';
-            document.querySelector('.message').textContent = 'Please wait while we retry the process.';
-            
+            // Auto-close after 3 seconds
             setTimeout(() => {
-                processOAuthResponse();
-            }, 1000);
+                window.close();
+            }, 3000);
         }
 
-        // Enhanced URL parameter parsing with validation
+        // Parse URL parameters
         function parseUrlParams() {
-            try {
-                const urlParams = new URLSearchParams(window.location.search);
-                const hashParams = new URLSearchParams(window.location.hash.substring(1));
-                
-                const params = {
-                    // Traditional signup flow parameters
-                    signupData: urlParams.get('signupData'),
-                    state: urlParams.get('state'),
-                    emailVerified: urlParams.get('emailVerified'),
-                    
-                    // Direct token flow parameters (for existing users)
-                    accessToken: urlParams.get('accessToken'),
-                    refreshToken: urlParams.get('refreshToken'),
-                    
-                    // Error parameters
-                    error: urlParams.get('error') || hashParams.get('error'),
-                    error_description: urlParams.get('error_description') || hashParams.get('error_description'),
-                    
-                    // Additional parameters for debugging
-                    debug: urlParams.get('debug') === 'true'
-                };
-
-                // Log parameters for debugging (only in debug mode)
-                if (params.debug) {
-                    console.log('OAuth Popup Handler - Parsed Parameters:', params);
-                }
-
-                return params;
-            } catch (error) {
-                console.error('Error parsing URL parameters:', error);
-                return {};
-            }
+            const urlParams = new URLSearchParams(window.location.search);
+            const hashParams = new URLSearchParams(window.location.hash.substring(1));
+            
+            return {
+                signupData: urlParams.get('signupData'),
+                state: urlParams.get('state'),
+                emailVerified: urlParams.get('emailVerified'),
+                error: urlParams.get('error') || hashParams.get('error'),
+                error_description: urlParams.get('error_description') || hashParams.get('error_description')
+            };
         }
 
-        // Validate token format
-        function validateTokens(accessToken, refreshToken) {
-            try {
-                // Basic JWT format validation
-                if (!accessToken || !refreshToken) return false;
-                
-                // Check if tokens have JWT structure (3 parts separated by dots)
-                const accessParts = accessToken.split('.');
-                const refreshParts = refreshToken.split('.');
-                
-                if (accessParts.length !== 3 || refreshParts.length !== 3) return false;
-                
-                // Try to decode the header to validate JWT structure
-                try {
-                    JSON.parse(atob(accessParts[0]));
-                    JSON.parse(atob(refreshParts[0]));
-                    return true;
-                } catch {
-                    return false;
-                }
-            } catch {
-                return false;
-            }
-        }
-
-        // Handle direct token flow (existing user)
-        function handleDirectTokenFlow(params) {
-            try {
-                if (!params.accessToken || !params.refreshToken) {
-                    return false;
-                }
-
-                // Validate token format
-                if (!validateTokens(params.accessToken, params.refreshToken)) {
-                    console.error('Invalid token format');
-                    return false;
-                }
-
-                // Send tokens directly to parent window
-                sendToParent('oauth_success', {
-                    accessToken: params.accessToken,
-                    refreshToken: params.refreshToken,
-                    directTokenFlow: true,
-                    isExistingUser: true,
-                    timestamp: Date.now()
-                });
-                return true;
-            } catch (error) {
-                console.error('Error handling direct token flow:', error);
-                return false;
-            }
-        }
-
-        // Handle traditional signup flow (new user)
+        // Handle OAuth success
         function handleOAuthSuccess(params) {
             try {
-                // Decode base64 parameters with error handling
-                let signupData = null;
-                let state = null;
-
-                try {
-                    signupData = params.signupData ? JSON.parse(atob(params.signupData)) : null;
-                } catch (error) {
-                    console.error('Error decoding signupData:', error);
-                    throw new Error('Invalid signup data format');
-                }
-
-                try {
-                    state = params.state ? JSON.parse(atob(params.state)) : null;
-                } catch (error) {
-                    console.error('Error decoding state:', error);
-                    throw new Error('Invalid state format');
-                }
+                // Decode base64 parameters
+                const signupData = params.signupData ? JSON.parse(atob(params.signupData)) : null;
+                const state = params.state ? JSON.parse(atob(params.state)) : null;
                 
                 if (!signupData || !state) {
-                    throw new Error('Missing required OAuth response data');
-                }
-
-                // Validate signup data structure
-                if (!signupData.email && !signupData.name) {
-                    throw new Error('Invalid signup data: missing email or name');
+                    throw new Error('Invalid OAuth response data');
                 }
 
                 // Send success data to parent window
                 sendToParent('oauth_success', {
                     signupData,
                     state,
-                    emailVerified: params.emailVerified === 'true',
-                    isExistingUser: false,
-                    timestamp: Date.now()
+                    emailVerified: params.emailVerified === 'true'
                 });
 
             } catch (error) {
-                console.error('Error handling OAuth success:', error);
-                throw error;
+                showError('Failed to process OAuth response. Please try again.');
             }
         }
 
-        // Handle OAuth error with detailed error messages
+        // Handle OAuth error
         function handleOAuthError(params) {
-            let errorMessage = 'OAuth authentication failed';
+            const errorMessage = params.error_description || params.error || 'OAuth authentication failed';
+            showError(errorMessage);
+        }
+
+        // Main execution
+        try {
+            const params = parseUrlParams();
             
-            if (params.error_description) {
-                errorMessage = params.error_description;
-            } else if (params.error) {
-                switch (params.error) {
-                    case 'access_denied':
-                        errorMessage = 'Access was denied. Please try again and grant the necessary permissions.';
-                        break;
-                    case 'invalid_request':
-                        errorMessage = 'Invalid request. Please try again.';
-                        break;
-                    case 'unauthorized_client':
-                        errorMessage = 'Unauthorized client. Please contact support.';
-                        break;
-                    case 'unsupported_response_type':
-                        errorMessage = 'Unsupported response type. Please contact support.';
-                        break;
-                    case 'invalid_scope':
-                        errorMessage = 'Invalid scope. Please contact support.';
-                        break;
-                    case 'server_error':
-                        errorMessage = 'Server error. Please try again later.';
-                        break;
-                    case 'temporarily_unavailable':
-                        errorMessage = 'Service temporarily unavailable. Please try again later.';
-                        break;
-                    default:
-                        errorMessage = `Authentication error: ${params.error}`;
-                }
-            }
-
-            // Send error to parent window
-            sendToParent('oauth_error', {
-                error: errorMessage,
-                errorCode: params.error,
-                timestamp: Date.now()
-            });
-        }
-
-        // Main processing function with comprehensive error handling
-        function processOAuthResponse() {
-            try {
-                const params = parseUrlParams();
-                
-                // Priority 1: Handle direct token flow (existing user)
-                if (handleDirectTokenFlow(params)) {
-                    return; // Successfully handled direct token flow
-                }
-                
-                // Priority 2: Handle traditional signup flow (new user)
-                if (params.error === 'true' && params.signupData && params.state) {
-                    // Special case: error=true with signupData means "email not found" (new user) - this is SUCCESS for signup
-                    handleOAuthSuccess(params);
-                } else if (params.error && !params.signupData) {
-                    // Real OAuth error (no user data)
-                    handleOAuthError(params);
-                } else if (params.signupData && params.state) {
-                    // Normal OAuth success with signup data
-                    handleOAuthSuccess(params);
+            // Special case: error=true with signupData means "email not found" (new user) - this is SUCCESS for signup
+            if (params.error === 'true' && params.signupData && params.state) {
+                handleOAuthSuccess(params);
+            } else if (params.error && !params.signupData) {
+                // Real OAuth error (no user data)
+                handleOAuthError(params);
                 } else {
-                    // No valid parameters found
-                    const errorMsg = 'Invalid OAuth response. Missing required parameters.';
-                    console.error(errorMsg, params);
-                    showError(errorMsg, true);
-                }
-            } catch (error) {
-                console.error('Unexpected error in OAuth processing:', error);
-                showError('An unexpected error occurred. Please try again.', true);
+                // Normal OAuth success
+                handleOAuthSuccess(params);
             }
-        }
-
-        // Initialize processing when page loads
-        document.addEventListener('DOMContentLoaded', function() {
-            // Add a small delay to ensure all resources are loaded
-            setTimeout(processOAuthResponse, 100);
-        });
-
-        // Fallback: process immediately if DOMContentLoaded already fired
-        if (document.readyState === 'loading') {
-            // DOM is still loading, wait for DOMContentLoaded
-        } else {
-            // DOM is already loaded, process immediately
-            setTimeout(processOAuthResponse, 100);
+        } catch (error) {
+            showError('An unexpected error occurred. Please try again.');
         }
     </script>
 </body>

@@ -104,6 +104,10 @@ export function ModularDynamicLoginContainer({
         if (success) {
           // OAuth login successful
           console.group("[Modal OAuth | Completion]");
+          console.log("OAuth completed successfully");
+          console.log("Redirect to:", redirectTo);
+          console.log("Backend route:", backendRoute);
+          console.log("Current URL:", currentUrl);
           console.groupEnd();
           
           // Handle dynamic redirection (same as signup flow)
@@ -128,9 +132,10 @@ export function ModularDynamicLoginContainer({
             }
           }
         } else if (error) {
-          // OAuth login failed - show error message as toast
+          // OAuth login failed - show detailed error message with longer duration
           toast.error(error || "OAuth login failed. Please try again.", {
-            duration: 5000,
+            duration: 5000, // Show for 5 seconds
+            description: "Please check your internet connection and try again."
           });
         }
       }
@@ -200,6 +205,7 @@ export function ModularDynamicLoginContainer({
       );
 
       if (!popup) {
+        console.error('[OAuth] Popup blocked');
         toast.error("Popup blocked! Please allow popups for this site.");
         return;
       }
@@ -234,6 +240,7 @@ export function ModularDynamicLoginContainer({
       const cleanUrl = `${urlObj.pathname}${safeParams.toString() ? '?' + safeParams.toString() : ''}`;
       return cleanUrl;
     } catch (error) {
+      console.error("Error cleaning URL:", error);
       // Return original URL if cleaning fails
       return url;
     }

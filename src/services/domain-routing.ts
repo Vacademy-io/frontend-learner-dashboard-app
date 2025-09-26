@@ -36,7 +36,10 @@ export const resolveDomainRouting = async (
   domain: string,
   subdomain: string
 ): Promise<DomainRoutingResponse | null> => {
+
   try {
+    // Resolving domain routing for: ${domain}:${subdomain}
+
     const response = await authenticatedAxiosInstance.get<DomainRoutingResponse>(
       `${BASE_URL}/admin-core-service/public/domain-routing/v1/resolve`,
       {
@@ -46,6 +49,8 @@ export const resolveDomainRouting = async (
     );
 
     const data = response.data;
+
+    // Successfully resolved domain routing
     return data;
   } catch (error: unknown) {
     // Type guard for axios error
@@ -56,6 +61,7 @@ export const resolveDomainRouting = async (
     };
 
     if (isAxiosError(error) && error.response?.status === 404) {
+      // No institute found for domain/subdomain: ${domain}:${subdomain}
       return null;
     }
 

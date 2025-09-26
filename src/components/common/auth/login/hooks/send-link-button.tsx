@@ -38,6 +38,8 @@ async function forgotPassword(email: string) {
         };
     }
 
+    console.log('[API] Final parsed response:', data);
+
     return forgotPasswordResponseSchema.parse(data);
 }
 
