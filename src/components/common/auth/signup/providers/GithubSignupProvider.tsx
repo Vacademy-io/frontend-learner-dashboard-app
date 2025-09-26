@@ -153,7 +153,6 @@ export function GithubSignupProvider({
         }
       }
     } catch (error) {
-      console.error("GitHub OAuth error:", error);
       toast.error("Failed to authenticate with GitHub");
       setCurrentStep("button");
     }
@@ -161,7 +160,6 @@ export function GithubSignupProvider({
 
   const handleDirectRegistration = async (profile: GithubProfile) => {
     try {
-      console.log('[GithubSignupProvider] Starting direct registration for:', profile.email);
       
       // Use unified registration hook with settings
       await registerUserUnified({
@@ -174,11 +172,9 @@ export function GithubSignupProvider({
         vendor_id: "github", // OAuth provider
       });
 
-      console.log('[GithubSignupProvider] Direct registration completed successfully');
       // Success handling is now managed by the unified hook
       onSignupSuccess?.();
     } catch (error) {
-      console.error("Direct registration error:", error);
       toast.error("Failed to register user");
       setCurrentStep("button");
     }
@@ -188,7 +184,6 @@ export function GithubSignupProvider({
     try {
       if (!githubProfile?.email) throw new Error("Missing email");
       
-      console.log('[GithubSignupProvider] Credentials form submitted:', data);
       
       // Use unified registration hook with settings
       await registerUserUnified({
@@ -202,11 +197,9 @@ export function GithubSignupProvider({
         vendor_id: "github", // OAuth provider
       });
 
-      console.log('[GithubSignupProvider] Registration with credentials completed successfully');
       // Success handling is now managed by the unified hook
       onSignupSuccess?.();
     } catch (error) {
-      console.error("Registration error:", error);
       toast.error("Failed to register user");
     }
   };
@@ -229,7 +222,6 @@ export function GithubSignupProvider({
       
       toast.success("Verification code sent to your email!");
     } catch (error) {
-      console.error("Error sending OTP:", error);
       toast.error("Failed to send verification code");
     }
   };
@@ -256,7 +248,6 @@ export function GithubSignupProvider({
         credentialsForm.setValue("fullName", profileWithEmail.name);
       }
     } catch (error) {
-      console.error("Error verifying OTP:", error);
       toast.error("Invalid verification code");
       setCurrentStep("otpVerification");
     }
@@ -269,7 +260,6 @@ export function GithubSignupProvider({
       startTimer();
       toast.success("Verification code resent!");
     } catch (error) {
-      console.error("Error resending OTP:", error);
       toast.error("Failed to resend verification code");
     }
   };

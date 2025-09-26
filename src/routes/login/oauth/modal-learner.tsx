@@ -13,6 +13,7 @@ import { useTheme } from "@/providers/theme/theme-provider";
 import { DashboardLoader } from "@/components/core/dashboard-loader";
 import { createFileRoute } from "@tanstack/react-router";
 import { getStudentDisplaySettings } from "@/services/student-display-settings";
+import { getCurrentDomainInfo, resolveDomainRouting } from "@/services/domain-routing";
 
 export const Route = createFileRoute("/login/oauth/modal-learner")({
   component: ModalOAuthRedirectHandler,
@@ -42,6 +43,9 @@ const handleModalOAuthCallback = async (
   const refreshToken = urlParams.get("refreshToken");
   const error = urlParams.get("error");
   const state = urlParams.get("state");
+  const signupData = urlParams.get("signupData");
+  const emailVerified = urlParams.get("emailVerified");
+  
    
   // Parse state to get redirect information
   let redirectTo = "/dashboard";
@@ -63,13 +67,14 @@ const handleModalOAuthCallback = async (
       
       const stateObj = JSON.parse(decodedState);
       
+      
       redirectTo = stateObj.redirectTo || "/dashboard";
       currentUrl = stateObj.currentUrl || "";
       type = stateObj.type || "";
       courseId = stateObj.courseId || "";
       instituteId = stateObj.instituteId || "";
+      
     } catch (parseError) {
-      // Error parsing state
     }
   }
 
@@ -80,26 +85,59 @@ const handleModalOAuthCallback = async (
     try {
       const modalData = JSON.parse(storedModalData);
       
+      
       // Use data from sessionStorage
       redirectTo = modalData.redirectTo || redirectTo;
       currentUrl = modalData.currentUrl || currentUrl;
       type = modalData.type || type;
       courseId = modalData.courseId || courseId;
       instituteId = modalData.instituteId || instituteId;
+      
     } catch (parseError) {
-      // Error parsing stored modal data
+    }
+  }
+
+  // If instituteId is still not available, try to get it from domain routing
+  if (!instituteId) {
+    try {
+      const domainInfo = await getCurrentDomainInfo();
+      if (domainInfo) {
+        const domainRouting = await resolveDomainRouting(domainInfo.domain, domainInfo.subdomain);
+        if (domainRouting) {
+          instituteId = domainRouting.instituteId;
+        }
+      }
+    } catch (error) {
     }
   }
 
   if (error) {
     // Check if we have signup data (user exists but needs to signup)
-    const signupData = urlParams.get("signupData");
-    const emailVerified = urlParams.get("emailVerified");
+    const signupDataParam = urlParams.get("signupData");
+    const emailVerifiedParam = urlParams.get("emailVerified");
     
-    if (signupData && emailVerified === "true") {
-      // User exists but needs to signup - this is not an error, it's a signup flow
+    
+    if (signupDataParam) {
+      try {
+        const decodedSignupData = JSON.parse(atob(signupDataParam));
+        
+        // Add institute ID to signup data if missing and we have it from state/sessionStorage
+        if (!decodedSignupData.institute_id && instituteId) {
+          decodedSignupData.institute_id = instituteId;
+          
+          // Re-encode the updated signup data
+          const updatedSignupData = btoa(JSON.stringify(decodedSignupData));
+          
+          // Update the URL parameter (for debugging/logging purposes)
+          const newUrl = new URL(window.location.href);
+          newUrl.searchParams.set('signupData', updatedSignupData);
+        }
+      } catch (error) {
+      }
+    }
+    
+    if (signupDataParam && emailVerifiedParam === "true") {
     } else {
-      // Genuine error - user doesn't exist
     }
     
     // For modal login, send error message and signup modal message to parent tab
@@ -109,7 +147,7 @@ const handleModalOAuthCallback = async (
         // First, send error message for user feedback
         const errorMessage = signupData && emailVerified === "true" 
           ? "Account not found. Please sign up to continue."
-          : "We couldn't find an account with these details. Please create an account before logging in.";
+          : "Account not found. Please sign up to continue.";
           
         window.opener.postMessage({
           action: 'oauth_complete',
@@ -119,12 +157,27 @@ const handleModalOAuthCallback = async (
         
         // Then send message to open signup modal after a short delay
         setTimeout(() => {
+          // Prepare signup data with institute ID if available
+          let signupDataWithInstituteId = null;
+          if (signupDataParam) {
+            try {
+              const decodedSignupData = JSON.parse(atob(signupDataParam));
+              // Add institute ID if missing
+              if (!decodedSignupData.institute_id && instituteId) {
+                decodedSignupData.institute_id = instituteId;
+              }
+              signupDataWithInstituteId = decodedSignupData;
+            } catch (error) {
+            }
+          }
+          
           const signupModalData = {
             action: 'openSignupModal',
             type: type || '',
             courseId: courseId || '',
             instituteId: instituteId || '',
-            fromOAuth: true
+            fromOAuth: true,
+            signupData: signupDataWithInstituteId // Include signup data with institute ID
           };
           
           window.opener.postMessage(signupModalData, window.location.origin);
@@ -154,6 +207,7 @@ const handleModalOAuthCallback = async (
   }
 
   if (accessToken && refreshToken) {
+    
     try {
       await setToStorage("accessToken", accessToken);
       await setToStorage("refreshToken", refreshToken);
@@ -199,10 +253,12 @@ const handleModalSuccessfulLogin = async (
   courseId?: string,
   instituteId?: string
 ) => {
+  
   try {
     const decodedData = getTokenDecodedData(accessToken);
     const authorities = decodedData?.authorities;
     const userId = decodedData?.user;
+
 
     const authorityKeys = authorities ? Object.keys(authorities) : [];
 
@@ -222,6 +278,7 @@ const handleModalSuccessfulLogin = async (
 
     // If instituteId is provided, check if user is enrolled in that institute
     if (instituteId) {
+      
       if (authorityKeys.includes(instituteId)) {
         // User is enrolled in the specified institute
         const details = await fetchAndStoreInstituteDetails(instituteId, userId);
