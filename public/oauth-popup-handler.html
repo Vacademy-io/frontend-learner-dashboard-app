@@ -146,6 +146,11 @@
         } catch (error) {
             showError('An unexpected error occurred. Please try again.');
         }
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', function() {
+            stopHeartbeat();
+        });
     </script>
 </body>
 </html>

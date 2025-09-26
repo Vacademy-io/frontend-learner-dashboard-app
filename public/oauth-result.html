@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OAuth Result</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f8fafc;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+        }
+        .container {
+            text-align: center;
+            max-width: 400px;
+        }
+        .spinner {
+            border: 3px solid #e2e8f0;
+            border-top: 3px solid #3b82f6;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .status {
+            color: #64748b;
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+        .message {
+            color: #475569;
+            font-size: 14px;
+        }
+        .success {
+            color: #059669;
+            background: #ecfdf5;
+            border: 1px solid #a7f3d0;
+            padding: 12px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+        .error {
+            color: #dc2626;
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            padding: 12px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="spinner"></div>
+        <div class="status">Processing OAuth result...</div>
+        <div class="message">Please wait while we complete your authentication.</div>
+    </div>
+
+    <script>
+        // Process OAuth result from URL parameters
+        function processOAuthResult() {
+            try {
+                const urlParams = new URLSearchParams(window.location.search);
+                const oauthResult = urlParams.get('oauth_result');
+                const timestamp = urlParams.get('timestamp');
+                
+                if (!oauthResult) {
+                    showError('No OAuth result found in URL parameters.');
+                    return;
+                }
+                
+                const resultData = JSON.parse(oauthResult);
+                
+                // Store result in localStorage for parent window to pick up
+                const fallbackData = {
+                    ...resultData,
+                    timestamp: timestamp ? parseInt(timestamp) : Date.now(),
+                    source: 'oauth_result_page',
+                    url: window.location.href
+                };
+                
+                localStorage.setItem('oauth_popup_result', JSON.stringify(fallbackData));
+                
+                // Try to communicate with parent window
+                if (window.opener && !window.opener.closed) {
+                    try {
+                        window.opener.postMessage({ 
+                            type: 'oauth_storage_fallback', 
+                            data: fallbackData 
+                        }, '*');
+                    } catch (error) {
+                        // PostMessage failed, but localStorage was set
+                    }
+                }
+                
+                // Show success message
+                showSuccess('Authentication completed successfully. You can close this tab.');
+                
+                // Auto-close after 3 seconds
+                setTimeout(() => {
+                    if (window.opener && !window.opener.closed) {
+                        window.close();
+                    }
+                }, 3000);
+                
+            } catch (error) {
+                showError('Failed to process OAuth result: ' + error.message);
+            }
+        }
+        
+        function showSuccess(message) {
+            document.querySelector('.spinner').style.display = 'none';
+            document.querySelector('.status').textContent = 'Success';
+            document.querySelector('.message').textContent = message;
+            
+            const successDiv = document.createElement('div');
+            successDiv.className = 'success';
+            successDiv.innerHTML = `<div>${message}</div>`;
+            document.querySelector('.container').appendChild(successDiv);
+        }
+        
+        function showError(message) {
+            document.querySelector('.spinner').style.display = 'none';
+            document.querySelector('.status').textContent = 'Error';
+            document.querySelector('.message').textContent = message;
+            
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'error';
+            errorDiv.innerHTML = `<div>${message}</div>`;
+            document.querySelector('.container').appendChild(errorDiv);
+        }
+        
+        // Process result when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(processOAuthResult, 100);
+        });
+        
+        // Fallback: process immediately if DOMContentLoaded already fired
+        if (document.readyState === 'loading') {
+            // DOM is still loading, wait for DOMContentLoaded
+        } else {
+            // DOM is already loaded, process immediately
+            setTimeout(processOAuthResult, 100);
+        }
+    </script>
+</body>
+</html>

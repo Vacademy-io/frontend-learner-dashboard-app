@@ -95,8 +95,8 @@ export function ModularDynamicLoginContainer({
   useEffect(() => {
     // Listen for OAuth completion message from popup
     const messageHandler = (event: MessageEvent) => {
-      // Only accept messages from the same origin
-      if (event.origin !== window.location.origin) return;
+      // Accept messages from same origin or wildcard (for production compatibility)
+      if (event.origin !== window.location.origin && event.origin !== '*') return;
       
       const { action, success, error, redirectTo, backendRoute, currentUrl } = event.data;
       
@@ -139,10 +139,72 @@ export function ModularDynamicLoginContainer({
           });
         }
       }
+      // Handle heartbeat pings
+      else if (event.data.type === "oauth_ping") {
+        // Respond to ping to confirm we're alive
+        if (event.source && event.source.postMessage) {
+          try {
+            event.source.postMessage({ type: 'oauth_pong', timestamp: Date.now() }, '*');
+          } catch (error) {
+            // Ignore ping response errors
+          }
+        }
+      }
+    };
+
+    // Handle localStorage fallback communication
+    const storageHandler = (event: StorageEvent) => {
+      if (event.key === 'oauth_modal_result' && event.newValue) {
+        try {
+          const fallbackData = JSON.parse(event.newValue);
+          if (fallbackData.source === 'modal_learner' && fallbackData.action === 'oauth_complete') {
+            const { success, error, redirectTo } = fallbackData;
+            
+            if (success) {
+              // Handle dynamic redirection (same as signup flow)
+              if (redirectTo) {
+                // Close modal first
+                if (onLoginSuccess) {
+                  onLoginSuccess();
+                }
+                
+                // Then redirect to the determined route
+                setTimeout(() => {
+                  if (/^https?:\/\//.test(redirectTo)) {
+                    window.location.assign(redirectTo);
+                  } else {
+                    window.location.href = redirectTo;
+                  }
+                }, 100);
+              } else {
+                // No redirect specified, just close modal
+                if (onLoginSuccess) {
+                  onLoginSuccess();
+                }
+              }
+            } else if (error) {
+              // OAuth login failed - show error message as toast
+              toast.error(error || "OAuth login failed. Please try again.", {
+                duration: 5000,
+              });
+            }
+            
+            // Clean up
+            localStorage.removeItem('oauth_modal_result');
+          }
+        } catch (error) {
+          // Invalid data in localStorage
+        }
+      }
     };
 
     window.addEventListener('message', messageHandler);
-    return () => window.removeEventListener('message', messageHandler);
+    window.addEventListener('storage', storageHandler);
+    
+    return () => {
+      window.removeEventListener('message', messageHandler);
+      window.removeEventListener('storage', storageHandler);
+    };
   }, [onLoginSuccess]);
 
   const handleOAuthLogin = (provider: "google" | "github") => {
