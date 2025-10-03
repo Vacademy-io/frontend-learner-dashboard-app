@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { getUserId } from "@/constants/getUserId";
 import { processHtmlString } from "@/lib/utils";
 import { MyButton } from "@/components/design-system/button";
+import { toast } from "@/hooks/use-toast";
 
 interface VideoQuestionProps {
     question: {
@@ -384,9 +385,20 @@ const VideoQuestionOverlay = ({
         },
         onSuccess: () => {
             console.log("Question answer submitted successfully");
+            toast({
+                title: "Answer submitted successfully!",
+                description: "Your answer has been recorded.",
+                duration: 3000,
+            });
         },
         onError: (error: Error) => {
             console.error("Error submitting question answer:", error);
+            toast({
+                title: "Submission failed",
+                description: "There was an error submitting your answer. Please try again.",
+                variant: "destructive",
+                duration: 5000,
+            });
         },
     });
 

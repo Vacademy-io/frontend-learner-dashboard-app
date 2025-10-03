@@ -14,6 +14,7 @@ import { getUserId } from "@/constants/getUserId";
 import { Textarea } from "@/components/ui/textarea";
 import { useRouter } from "@tanstack/react-router";
 import { getPackageSessionId } from "@/utils/study-library/get-list-from-stores/getPackageSessionId";
+import { toast } from "@/hooks/use-toast";
 
 interface Option {
     id: string;
@@ -176,105 +177,33 @@ const QuestionSlide = ({ questionData, onSubmit }: QuestionSlideProps) => {
         },
         onSuccess: () => {
             console.log("Question answer submitted successfully");
+            toast({
+                title: "Answer submitted successfully!",
+                description: "Your answer has been recorded.",
+                duration: 3000,
+            });
         },
         onError: (error: Error) => {
             console.error("Error submitting question answer:", error);
+            toast({
+                title: "Submission failed",
+                description: "There was an error submitting your answer. Please try again.",
+                variant: "destructive",
+                duration: 5000,
+            });
         },
     });
 
-    // Parse auto evaluation JSON to find correct answer
+    // Parse options_json for numeric type questions
     useEffect(() => {
         try {
-            if (questionData?.auto_evaluation_json) {
-                const evaluationData = JSON.parse(
-                    questionData.auto_evaluation_json
-                );
-
-                if (questionType === "MCQS" || questionType === "TRUE_FALSE") {
-                    // For multiple choice questions and true/false
-                    if (evaluationData.data?.correctOptionIds) {
-                        const correctId =
-                            evaluationData.data.correctOptionIds[0];
-                        setSelectedOptionsMap((prev) => ({
-                            ...prev,
-                            [slideId]: {
-                                id: correctId,
-                                name:
-                                    questionData.options.find(
-                                        (o) => o.id === correctId
-                                    )?.text.content || "",
-                            },
-                        }));
-                    } else {
-                        // If not specified, assume first option is correct (for demo)
-                        setSelectedOptionsMap((prev) => ({
-                            ...prev,
-                            [slideId]: {
-                                id: questionData.options[0]?.id,
-                                name:
-                                    questionData.options[0]?.text.content || "",
-                            },
-                        }));
-                    }
-                } else if (questionType === "MCQM") {
-                    // For multiple select questions
-                    if (evaluationData.data?.correctOptionIds) {
-                        setSelectedMultiOptionsMap((prev) => ({
-                            ...prev,
-                            [slideId]: evaluationData.data.correctOptionIds.map(
-                                (id: string) => ({
-                                    id,
-                                    name:
-                                        questionData.options.find(
-                                            (o) => o.id === id
-                                        )?.text.content || "",
-                                })
-                            ),
-                        }));
-                    }
-                } else if (
-                    questionType === "ONE_WORD" ||
-                    questionType === "NUMERIC"
-                ) {
-                    // For one-word or numeric questions
-                    if (evaluationData.data?.correctAnswer) {
-                        setInputValuesMap((prev) => ({
-                            ...prev,
-                            [slideId]: evaluationData.data.correctAnswer,
-                        }));
-                    }
-                }
-            } else if (
-                questionType === "MCQS" ||
-                questionType === "TRUE_FALSE"
-            ) {
-                // Default to first option if no evaluation data
-                setSelectedOptionsMap((prev) => ({
-                    ...prev,
-                    [slideId]: {
-                        id: questionData.options[0]?.id,
-                        name: questionData.options[0]?.text.content || "",
-                    },
-                }));
-            }
-
-            // Parse options_json for numeric type questions
             if (questionType === "NUMERIC" && questionData.options_json) {
                 const options = JSON.parse(questionData.options_json);
                 setIsDecimal(options.numeric_type === "DECIMAL");
                 setMaxDecimals(options.decimals || 0);
             }
         } catch (error) {
-            console.error("Error parsing JSON data:", error);
-            if (questionType === "MCQS" || questionType === "TRUE_FALSE") {
-                setSelectedOptionsMap((prev) => ({
-                    ...prev,
-                    [slideId]: {
-                        id: questionData.options[0]?.id,
-                        name: questionData.options[0]?.text.content || "",
-                    },
-                }));
-            }
+            console.error("Error parsing options JSON:", error);
         }
     }, [questionData, questionType]);
 
