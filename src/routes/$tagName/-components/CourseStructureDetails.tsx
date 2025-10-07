@@ -9,7 +9,6 @@ interface SubjectType {
   subject_order: number;
   description: string;
 }
-
 interface Chapter {
   id: string;
   chapter_name: string;
