@@ -75,7 +75,6 @@ function WaitingRoomComponent() {
           userSourceId: "",
           details: "Joined live class from waiting room",
         });
-        console.log(sessionDetails);
         if (
           sessionDetails.sessionStreamingServiceType ===
           SessionStreamingServiceType.EMBED
