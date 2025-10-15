@@ -1109,6 +1109,49 @@ export const CourseDetailsPage: React.FC<CourseDetailsPageProps> = ({
           }}
         />
       )}
+
+      {/* Mobile Action Buttons - Fixed at bottom for course details page */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200 p-4">
+        <div className="flex flex-col gap-3">
+          {/* Get Started Button */}
+          <button
+            onClick={() => {
+              console.log("[CourseDetailsPage] Mobile Get Started button clicked");
+              setShowLeadCollection(true);
+            }}
+            className="w-full px-4 py-2 text-white font-medium hover:opacity-90 rounded-md transition-colors"
+            style={{
+              backgroundColor: domainRouting.instituteThemeCode ? `hsl(var(--primary))` : '#3b82f6'
+            }}
+          >
+            Get Started
+          </button>
+          
+          {/* Login Text */}
+          <div className="text-center">
+            <span
+              onClick={() => navigate({ to: '/login' })}
+              className="cursor-pointer text-sm transition-colors"
+              onMouseEnter={(e) => {
+                e.currentTarget.style.opacity = '0.8';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.opacity = '1';
+              }}
+            >
+              <span className="text-black">Already have an account? </span>
+              <span 
+                className="underline"
+                style={{
+                  color: domainRouting.instituteThemeCode ? `hsl(var(--primary))` : '#3b82f6'
+                }}
+              >
+                Login
+              </span>
+            </span>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };

@@ -617,11 +617,6 @@ export const CourseStructureDetails: React.FC<CourseStructureDetailsProps> = ({
               </Button>
             </CollapsibleTrigger>
             <CollapsibleContent className="ml-4 mt-2">
-              {chapter.description && chapter.description.trim() !== '' && (
-                <div className="p-2 bg-gray-50 rounded text-sm text-gray-600 mb-2">
-                  {chapter.description}
-                </div>
-              )}
               {renderSlides(chapter.id)}
             </CollapsibleContent>
           </Collapsible>
@@ -813,11 +808,6 @@ export const CourseStructureDetails: React.FC<CourseStructureDetailsProps> = ({
               </Button>
             </CollapsibleTrigger>
             <CollapsibleContent className="ml-4 mt-2">
-              {chapter.description && chapter.description.trim() !== '' && (
-                <div className="p-2 bg-gray-50 rounded text-sm text-gray-600 mb-2">
-                  {chapter.description}
-                </div>
-              )}
               {renderSlides(chapter.id)}
             </CollapsibleContent>
           </Collapsible>

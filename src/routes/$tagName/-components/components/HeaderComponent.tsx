@@ -275,9 +275,15 @@ export const HeaderComponent: React.FC<HeaderProps & {
                     <button
                       key={`auth-${index}`}
                       onClick={() => {
-                        // Use absolute paths for login/signup
+                        // Handle different types of routes
                         if (link.route === 'login' || link.route === 'signup') {
-                          window.location.href = `/${link.route}`;
+                          navigate({ to: `/${link.route}` });
+                        } else if (link.route === 'getStarted' || link.label.toLowerCase().includes('get started')) {
+                          // Dispatch custom event to open lead collection
+                          const event = new CustomEvent('openLeadCollection', {
+                            detail: { source: 'mobileMenu' }
+                          });
+                          window.dispatchEvent(event);
                         } else {
                           navigate({ to: link.route });
                         }
