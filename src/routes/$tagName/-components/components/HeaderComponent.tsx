@@ -39,7 +39,7 @@ export const HeaderComponent: React.FC<HeaderProps & {
 
 
   return (
-    <header className="bg-white shadow-sm border-b w-full">
+    <header className="bg-white shadow-sm border-b w-full fixed top-0 left-0 right-0 z-50 md:relative">
       <div className="w-full px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-20">
           {/* Institute Logo and Name */}
@@ -66,7 +66,13 @@ export const HeaderComponent: React.FC<HeaderProps & {
                 <button
                   key={index}
                   onClick={() => {
-                    // For now, just log the route since routing won't work
+                    // Handle external links
+                    if (item.route.startsWith('http://') || item.route.startsWith('https://')) {
+                      window.open(item.route, '_blank');
+                    } else {
+                      // Handle internal routes
+                      navigate({ to: item.route });
+                    }
                   }}
                   className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium transition-colors"
                 >
@@ -90,35 +96,41 @@ export const HeaderComponent: React.FC<HeaderProps & {
               </button>
             )}
 
-            {/* Auth Links */}
-            {authLinks.map((link, index) => {
-              
-              return (
-                <button
-                  key={index}
-                  onClick={() => {
-                    // Use absolute paths for login/signup
-                    if (link.route === 'login' || link.route === 'signup') {
-                      window.location.href = `/${link.route}`;
-                    } else {
-                      navigate({ to: link.route });
-                    }
-                  }}
-                  className={`px-4 py-2 sm:px-6 sm:py-2.5 rounded-md text-sm sm:text-base font-semibold transition-colors min-w-[80px] ${
-                    index === 0
-                      ? "text-white shadow-sm"
-                      : "border-2 hover:bg-opacity-10"
-                  }`}
-                  style={{
-                    color: index === 0 ? 'white' : domainRouting.instituteThemeCode ? `hsl(var(--primary))` : '#2563eb',
-                    backgroundColor: index === 0 ? (domainRouting.instituteThemeCode ? `hsl(var(--primary))` : '#2563eb') : 'transparent',
-                    borderColor: index === 0 ? 'transparent' : (domainRouting.instituteThemeCode ? `hsl(var(--primary))` : '#2563eb')
-                  }}
-                >
-                  {link.label}
-                </button>
-              );
-            })}
+            {/* Auth Links - Hidden on mobile */}
+            <div className="hidden md:flex items-center space-x-2">
+              {authLinks.map((link, index) => {
+                
+                return (
+                  <button
+                    key={index}
+                    onClick={() => {
+                      // Use absolute paths for login/signup
+                      if (link.route === 'login' || link.route === 'signup') {
+                        window.location.href = `/${link.route}`;
+                      } else if (link.route === '' || link.route === 'get-started') {
+                        // Empty route or get-started should open lead collection
+                        console.log("[HeaderComponent] Get Started button clicked, opening lead collection");
+                        window.dispatchEvent(new CustomEvent('openLeadCollection'));
+                      } else {
+                        navigate({ to: link.route });
+                      }
+                    }}
+                    className={`px-4 py-2 sm:px-6 sm:py-2.5 rounded-md text-sm sm:text-base font-semibold transition-colors min-w-[80px] ${
+                      index === 0
+                        ? "text-white shadow-sm"
+                        : "border-2 hover:bg-opacity-10"
+                    }`}
+                    style={{
+                      color: index === 0 ? 'white' : domainRouting.instituteThemeCode ? `hsl(var(--primary))` : '#2563eb',
+                      backgroundColor: index === 0 ? (domainRouting.instituteThemeCode ? `hsl(var(--primary))` : '#2563eb') : 'transparent',
+                      borderColor: index === 0 ? 'transparent' : (domainRouting.instituteThemeCode ? `hsl(var(--primary))` : '#2563eb')
+                    }}
+                  >
+                    {link.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
 
@@ -132,6 +144,13 @@ export const HeaderComponent: React.FC<HeaderProps & {
                   key={index}
                   onClick={() => {
                     setIsMobileMenuOpen(false);
+                    // Handle external links
+                    if (item.route.startsWith('http://') || item.route.startsWith('https://')) {
+                      window.open(item.route, '_blank');
+                    } else {
+                      // Handle internal routes
+                      navigate({ to: item.route });
+                    }
                   }}
                   className="block w-full text-left px-3 py-2 rounded-md text-base font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-50"
                 >

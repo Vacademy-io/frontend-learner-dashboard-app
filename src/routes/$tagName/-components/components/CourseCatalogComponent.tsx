@@ -17,36 +17,69 @@ interface CourseImageProps {
 }
 
 const CourseImage: React.FC<CourseImageProps> = ({ previewImageUrl, alt, className }) => {
-  const [courseImageUrl, setCourseImageUrl] = useState<string | null>(null);
-  const [loadingImage, setLoadingImage] = useState(true);
+  // Check if this is a placeholder or invalid URL
+  const isPlaceholder = !previewImageUrl || 
+    previewImageUrl === null || 
+    previewImageUrl === undefined ||
+    previewImageUrl.includes('/api/placeholder/') || 
+    previewImageUrl.trim() === '' ||
+    previewImageUrl === 'null' ||
+    previewImageUrl === 'undefined';
+
+  // For placeholders, just render directly without any state or effects
+  if (isPlaceholder) {
+    return (
+      <div className="aspect-w-16 aspect-h-9">
+        <img
+          src="/api/placeholder/300/200"
+          alt={alt}
+          className={className}
+          loading="lazy"
+          style={{ 
+            opacity: 1, 
+            transition: 'opacity 0.3s ease'
+          }}
+        />
+      </div>
+    );
+  }
+
+  // For valid URLs, use the full component with state management
+  return <CourseImageWithState previewImageUrl={previewImageUrl} alt={alt} className={className} />;
+};
+
+// Separate component for handling actual image loading
+const CourseImageWithState: React.FC<CourseImageProps> = ({ previewImageUrl, alt, className }) => {
+  const [courseImageUrl, setCourseImageUrl] = useState<string>("/api/placeholder/300/200");
+  const [loadingImage, setLoadingImage] = useState(false);
+  const [imageError, setImageError] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
     const load = async () => {
       console.log("[CourseImage] Loading image with previewImageUrl:", previewImageUrl);
       
-      if (!previewImageUrl || previewImageUrl.includes('/api/placeholder/')) {
-        console.log("[CourseImage] Using placeholder - no valid previewImageUrl");
-        if (isMounted) {
-          setLoadingImage(false);
-          setCourseImageUrl("/api/placeholder/300/200");
-        }
-        return;
-      }
-
       setLoadingImage(true);
+      setImageError(false);
+      
       try {
         console.log("[CourseImage] Calling getPublicUrlWithoutLogin with:", previewImageUrl);
         const url = await getPublicUrlWithoutLogin(previewImageUrl);
         console.log("[CourseImage] Got URL from API:", url);
         if (isMounted) {
-          const next = url || null;
-          setCourseImageUrl((prev) => (prev === next ? prev : next));
+          if (url) {
+            setCourseImageUrl(url);
+            setImageError(false);
+          } else {
+            setImageError(true);
+            setCourseImageUrl("/api/placeholder/300/200");
+          }
         }
       } catch (error) {
         console.error("[CourseImage] Error getting public URL:", error);
         if (isMounted) {
-          setCourseImageUrl((prev) => (prev === null ? prev : null));
+          setImageError(true);
+          setCourseImageUrl("/api/placeholder/300/200");
         }
       } finally {
         if (isMounted) {
@@ -56,6 +89,7 @@ const CourseImage: React.FC<CourseImageProps> = ({ previewImageUrl, alt, classNa
     };
 
     load();
+    
     return () => {
       isMounted = false;
     };
@@ -63,13 +97,8 @@ const CourseImage: React.FC<CourseImageProps> = ({ previewImageUrl, alt, classNa
 
   return (
     <div className="aspect-w-16 aspect-h-9">
-      {loadingImage ? (
-        <div className="w-full h-full bg-gray-200 flex items-center justify-center">
-          <div className="text-gray-400 text-sm">Loading...</div>
-        </div>
-      ) : courseImageUrl ? (
         <img
-          src={courseImageUrl}
+        src={courseImageUrl || "/api/placeholder/300/200"}
           alt={alt}
           className={className}
           loading="lazy"
@@ -79,7 +108,6 @@ const CourseImage: React.FC<CourseImageProps> = ({ previewImageUrl, alt, classNa
             }
           }}
           onLoad={(e) => {
-            // Ensure the image is properly loaded
             e.currentTarget.style.opacity = '1';
           }}
           style={{ 
@@ -87,11 +115,6 @@ const CourseImage: React.FC<CourseImageProps> = ({ previewImageUrl, alt, classNa
             transition: 'opacity 0.3s ease'
           }}
         />
-      ) : (
-        <div className="w-full h-full bg-gray-200 flex items-center justify-center">
-          <div className="text-gray-400 text-sm">No Image</div>
-        </div>
-      )}
     </div>
   );
 };
@@ -99,6 +122,7 @@ const CourseImage: React.FC<CourseImageProps> = ({ previewImageUrl, alt, classNa
 interface CourseCatalogComponentProps extends CourseCatalogProps {
   instituteId: string;
   tagName: string;
+  globalSettings?: any;
 }
 
 interface Course {
@@ -204,6 +228,7 @@ export const CourseCatalogComponent: React.FC<CourseCatalogComponentProps> = ({
   render,
   instituteId,
   tagName,
+  globalSettings,
 }) => {
   const navigate = useNavigate();
   const [courses, setCourses] = useState<Course[]>([]);
@@ -454,7 +479,7 @@ export const CourseCatalogComponent: React.FC<CourseCatalogComponentProps> = ({
       enrollInviteId: course.enrollInviteId
     });
     
-    // Pass enroll_invite_id and banner image as search params so details page can use them
+    // Pass enroll_invite_id, banner image, and level as search params so details page can use them
     const searchParams = new URLSearchParams();
     if (course.enrollInviteId) {
       searchParams.set('enrollInviteId', course.enrollInviteId);
@@ -465,13 +490,17 @@ export const CourseCatalogComponent: React.FC<CourseCatalogComponentProps> = ({
     if (course.bannerImage) {
       searchParams.set('bannerImage', course.bannerImage);
     }
+    if (course.level) {
+      searchParams.set('level', course.level);
+    }
     
     navigate({ 
       to: `/${tagName}/${course.id}`,
       search: searchParams.toString() ? { 
         enrollInviteId: course.enrollInviteId, 
         packageSessionId: course.packageSessionId,
-        bannerImage: course.bannerImage
+        bannerImage: course.bannerImage,
+        level: course.level
       } : {}
     });
   };
@@ -698,10 +727,12 @@ export const CourseCatalogComponent: React.FC<CourseCatalogComponentProps> = ({
                     
                     {/* Course Info */}
                     <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
-                      {/* Price */}
+                      {/* Price - Only show if payment is enabled */}
+                      {globalSettings?.payment?.enabled !== false && (
                       <span className="text-xl sm:text-2xl font-bold text-primary-600">
                         {course.price === 0 ? "Free" : `$${course.price}`}
                       </span>
+                      )}
                       
                       {/* Badges */}
                       <div className="flex flex-wrap gap-2">
