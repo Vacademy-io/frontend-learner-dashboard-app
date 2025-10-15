@@ -1,5 +1,5 @@
 import React from "react";
-import { useNavigate } from "@tanstack/react-router";
+import { useNavigate, useLocation } from "@tanstack/react-router";
 import { HeaderProps } from "../../-types/course-catalogue-types";
 import { useDomainRouting } from "@/hooks/use-domain-routing";
 import { getPublicUrlWithoutLogin } from "@/services/upload_file";
@@ -16,6 +16,7 @@ export const HeaderComponent: React.FC<HeaderProps & {
   authLinks = [],
 }) => {
   const navigate = useNavigate();
+  const location = useLocation();
   const domainRouting = useDomainRouting();
   const [instituteLogoUrl, setInstituteLogoUrl] = useState<string | null>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -36,6 +37,88 @@ export const HeaderComponent: React.FC<HeaderProps & {
     loadInstituteLogo();
   }, [domainRouting.instituteLogoFileId]);
 
+  // Helper function to check if a navigation item is active
+  const isActiveRoute = (route: string, label: string) => {
+    const currentPath = location.pathname;
+    const pathSegments = currentPath.split('/').filter(Boolean);
+    const isOnTagNamePage = pathSegments.length === 1; // We're on /$tagName page
+    
+    // If we're on the tagName page, check which navigation item should be active
+    if (isOnTagNamePage) {
+      // If this is a "Courses" item, make it active when on the main page
+      if (label.toLowerCase() === 'courses') {
+        return true;
+      }
+      // If this is a "Home" item, don't make it active if "Courses" exists
+      if (label.toLowerCase() === 'home') {
+        // Check if there's a "Courses" item in the navigation
+        const hasCoursesItem = navigation.some(item => item.label.toLowerCase() === 'courses');
+        // Only highlight "Home" if there's no "Courses" item
+        return !hasCoursesItem;
+      }
+    }
+    
+    // Handle specific routes
+    if (route === 'homepage' || route === '/') {
+      if (label.toLowerCase() === 'home' && isOnTagNamePage) {
+        return true;
+      }
+      return false;
+    }
+    
+    if (route === 'courses' || route === '/courses') {
+      if (label.toLowerCase() === 'courses' && isOnTagNamePage) {
+        return true;
+      }
+      return false;
+    }
+    
+    // For other routes, check if current path matches
+    return currentPath === route || currentPath.startsWith(route);
+  };
+
+  // Helper function to handle navigation
+  const handleNavigation = (route: string, label: string) => {
+    // Handle external links
+    if (route.startsWith('http://') || route.startsWith('https://')) {
+      window.open(route, '_blank');
+      return;
+    }
+    
+    // Handle homepage route - always navigate to current tagName page
+    if (route === 'homepage' || route === '/') {
+      const currentPath = location.pathname;
+      const pathSegments = currentPath.split('/').filter(Boolean);
+      const tagName = pathSegments[0] || 'home'; // fallback to 'home' if no tagName
+      
+      // Always navigate to the tagName page, even if already there
+      // This allows switching between Home and Courses
+      console.log(`[HeaderComponent] Navigating to tagName page: /${tagName}`);
+      navigate({ to: `/${tagName}` });
+      return;
+    }
+    
+    // Handle courses route - navigate to current tagName page
+    if (route === 'courses' || route === '/courses') {
+      const currentPath = location.pathname;
+      const pathSegments = currentPath.split('/').filter(Boolean);
+      const tagName = pathSegments[0] || 'home'; // fallback to 'home' if no tagName
+      
+      // Always navigate to the tagName page, even if already there
+      console.log(`[HeaderComponent] Navigating to courses page: /${tagName}`);
+      navigate({ to: `/${tagName}` });
+      return;
+    }
+    
+    // For other routes, check if we're already on the target route
+    if (isActiveRoute(route, label)) {
+      console.log(`[HeaderComponent] Already on route ${route}, not navigating`);
+      return;
+    }
+    
+    // Navigate to the route
+    navigate({ to: route });
+  };
 
 
   return (
@@ -62,23 +145,22 @@ export const HeaderComponent: React.FC<HeaderProps & {
           {/* Navigation Menu */}
           {navigation.length > 0 && (
             <nav className="hidden md:flex items-center space-x-6">
-              {navigation.map((item, index) => (
-                <button
-                  key={index}
-                  onClick={() => {
-                    // Handle external links
-                    if (item.route.startsWith('http://') || item.route.startsWith('https://')) {
-                      window.open(item.route, '_blank');
-                    } else {
-                      // Handle internal routes
-                      navigate({ to: item.route });
-                    }
-                  }}
-                  className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium transition-colors"
-                >
-                  {item.label}
-                </button>
-              ))}
+              {navigation.map((item, index) => {
+                const isActive = isActiveRoute(item.route, item.label);
+                return (
+                  <button
+                    key={index}
+                    onClick={() => handleNavigation(item.route, item.label)}
+                    className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                      isActive 
+                        ? 'text-primary-600 border-b-2 border-primary-200' 
+                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                    }`}
+                  >
+                    {item.label}
+                  </button>
+                );
+              })}
             </nav>
           )}
 
@@ -139,24 +221,25 @@ export const HeaderComponent: React.FC<HeaderProps & {
           <div className="md:hidden border-t border-gray-200 bg-white">
             <div className="px-2 pt-2 pb-3 space-y-1">
               {/* Navigation Links */}
-              {navigation.map((item, index) => (
-                <button
-                  key={index}
-                  onClick={() => {
-                    setIsMobileMenuOpen(false);
-                    // Handle external links
-                    if (item.route.startsWith('http://') || item.route.startsWith('https://')) {
-                      window.open(item.route, '_blank');
-                    } else {
-                      // Handle internal routes
-                      navigate({ to: item.route });
-                    }
-                  }}
-                  className="block w-full text-left px-3 py-2 rounded-md text-base font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-50"
-                >
-                  {item.label}
-                </button>
-              ))}
+              {navigation.map((item, index) => {
+                const isActive = isActiveRoute(item.route, item.label);
+                return (
+                  <button
+                    key={index}
+                    onClick={() => {
+                      setIsMobileMenuOpen(false);
+                      handleNavigation(item.route, item.label);
+                    }}
+                    className={`block w-full text-left px-3 py-2 rounded-md text-base font-medium transition-colors ${
+                      isActive 
+                        ? 'text-primary-600 border-b-2 border-primary-200' 
+                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                    }`}
+                  >
+                    {item.label}
+                  </button>
+                );
+              })}
               
               {/* Auth Links */}
               {authLinks.length > 0 && (

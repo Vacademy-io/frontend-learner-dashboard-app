@@ -274,19 +274,8 @@ const HeroSectionPlaceholder: React.FC<any> = ({
               </div>
             )}
 
-            {/* Right Content - Always show placeholder image */}
-            {(right || courseData) && (
-              <div className="flex justify-center">
-                <img
-                  src="/api/placeholder/400/300"
-                  alt={heroImageAlt}
-                  className="max-w-full h-auto rounded-lg shadow-lg"
-                  onError={(e) => {
-                    e.currentTarget.src = "/api/placeholder/400/300";
-                  }}
-                />
-              </div>
-            )}
+            {/* Right Content - Don't render image if no valid image */}
+            {/* Note: This section is intentionally left empty to avoid showing placeholder images */}
           </div>
         ) : (
           /* Centered Layout */
@@ -486,15 +475,16 @@ const HeroSectionWithState: React.FC<any> = ({
               </div>
             )}
 
-            {/* Right Content */}
-            {(right || courseData) && heroImage && (
+            {/* Right Content - Only render if we have a valid image */}
+            {(right || courseData) && heroImage && !isHeroImagePlaceholder && (
               <div className="flex justify-center">
                   <img
-                  src={isHeroImagePlaceholder ? "/api/placeholder/400/300" : (resolvedImageUrl || heroImage)}
+                  src={resolvedImageUrl || heroImage}
                     alt={heroImageAlt}
                     className="max-w-full h-auto rounded-lg shadow-lg"
-                    onError={(e) => {
-                      e.currentTarget.src = "/api/placeholder/400/300";
+                    onError={() => {
+                      // Don't show placeholder on error, just hide the image
+                      console.log("[HeroSectionComponent] Image failed to load, hiding image section");
                     }}
                   />
               </div>

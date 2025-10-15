@@ -126,7 +126,7 @@ const TestimonialCard: React.FC<{ testimonial: Testimonial; hoverEffect: string 
           </blockquote>
           <div>
             <div className="font-semibold text-gray-900">{testimonial.name}</div>
-            <div className="text-sm text-gray-600">{testimonial.role}</div>
+            <div className="text-sm text-gray-600 whitespace-pre-line">{testimonial.role}</div>
           </div>
         </div>
       </div>

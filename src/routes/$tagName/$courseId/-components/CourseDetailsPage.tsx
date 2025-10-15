@@ -9,6 +9,7 @@ import { CourseCatalogueService } from "../../-services/course-catalogue-service
 import { CourseCatalogueData } from "../../-types/course-catalogue-types";
 import { CourseStructureDetails } from "../../-components/CourseStructureDetails"; // Course structure component
 import { EnrollmentPaymentDialog } from "../../-components/EnrollmentPaymentDialog";
+import { getBackendCourseDuration, formatMinutesHuman } from "@/utils/courseTime";
 
 
 interface CourseDetailsPageProps {
@@ -284,7 +285,7 @@ export const CourseDetailsPage: React.FC<CourseDetailsPageProps> = ({
           id: course.id || courseId,
           title: course.package_name || "Untitled Course",
           description: parseHtmlContent(course.course_html_description) || null,
-          duration: courseResponse.sessions?.[0]?.level_with_details?.[0]?.read_time_in_minutes ? `${courseResponse.sessions[0].level_with_details[0].read_time_in_minutes} minutes` : null,
+          duration: courseResponse.sessions?.[0]?.level_with_details?.[0]?.read_time_in_minutes ? getBackendCourseDuration(courseResponse.sessions[0].level_with_details[0].read_time_in_minutes) : null,
           instructor: courseResponse.sessions?.[0]?.level_with_details?.[0]?.instructors?.[0]?.full_name || null,
           price: finalPrice,
           type: "Course", // Generic type since it's not specified in the API

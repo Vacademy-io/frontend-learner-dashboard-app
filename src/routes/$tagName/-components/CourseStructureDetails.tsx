@@ -90,7 +90,6 @@ export const CourseStructureDetails: React.FC<CourseStructureDetailsProps> = ({
   const [openSubjects, setOpenSubjects] = useState<Set<string>>(new Set());
   const [openModules, setOpenModules] = useState<Set<string>>(new Set());
   const [openChapters, setOpenChapters] = useState<Set<string>>(new Set());
-  const [openSlides, setOpenSlides] = useState<Set<string>>(new Set());
 
   // Function to get slide icon and color based on slide type
   const getSlideIcon = (slide: Slide) => {
@@ -550,19 +549,13 @@ export const CourseStructureDetails: React.FC<CourseStructureDetailsProps> = ({
     const allSubjectIds = new Set(studyLibraryData.map(s => s.id));
     const allModuleIds = new Set<string>();
     const allChapterIds = new Set<string>();
-    const allSlideIds = new Set<string>();
 
-    // Collect all module, chapter, and slide IDs
+    // Collect all module and chapter IDs
     Object.values(subjectModulesMap).forEach(modules => {
       modules.forEach(module => {
         allModuleIds.add(module.module.id);
         module.chapters.forEach(chapter => {
           allChapterIds.add(chapter.id);
-          if (slidesMap[chapter.id]) {
-            slidesMap[chapter.id].forEach(slide => {
-              allSlideIds.add(slide.id);
-            });
-          }
         });
       });
     });
@@ -570,14 +563,12 @@ export const CourseStructureDetails: React.FC<CourseStructureDetailsProps> = ({
     setOpenSubjects(allSubjectIds);
     setOpenModules(allModuleIds);
     setOpenChapters(allChapterIds);
-    setOpenSlides(allSlideIds);
   };
 
   const collapseAll = () => {
     setOpenSubjects(new Set());
     setOpenModules(new Set());
     setOpenChapters(new Set());
-    setOpenSlides(new Set());
   };
 
   const isAllExpanded = 
@@ -612,15 +603,17 @@ export const CourseStructureDetails: React.FC<CourseStructureDetailsProps> = ({
             <CollapsibleTrigger asChild>
               <Button
                 variant="ghost"
-                className="w-full justify-start p-2 h-auto text-left border border-gray-200 rounded-lg"
+                className="w-full justify-start p-2 h-auto text-left border border-gray-200 rounded-lg overflow-hidden"
               >
-                <FileText size={16} className="mr-2 text-green-500" />
-                <span className="text-sm font-medium">{chapter.chapter_name || 'Unnamed Chapter'}</span>
-                {openChapters.has(chapter.id) ? (
-                  <CaretDown size={16} className="ml-auto" />
-                ) : (
-                  <CaretRight size={16} className="ml-auto" />
-                )}
+                <FileText size={16} className="mr-2 text-green-500 flex-shrink-0" />
+                <span className="text-sm font-medium break-words truncate flex-1 min-w-0">{chapter.chapter_name || 'Unnamed Chapter'}</span>
+                <div className="flex-shrink-0 ml-2">
+                  {openChapters.has(chapter.id) ? (
+                    <CaretDown size={16} />
+                  ) : (
+                    <CaretRight size={16} />
+                  )}
+                </div>
               </Button>
             </CollapsibleTrigger>
             <CollapsibleContent className="ml-4 mt-2">
@@ -660,34 +653,18 @@ export const CourseStructureDetails: React.FC<CourseStructureDetailsProps> = ({
         {slides.map((slide, index) => {
           const { Icon, color, label } = getSlideIcon(slide);
           return (
-            <Collapsible
+            <div
               key={`${slide.id}-${index}`}
-              open={openSlides.has(slide.id)}
-              onOpenChange={() => toggleOpenState(slide.id, setOpenSlides)}
+              className="flex items-center gap-2 p-2 border border-gray-200 rounded-lg hover:bg-gray-50 overflow-hidden"
             >
-              <CollapsibleTrigger asChild>
-                <Button
-                  variant="ghost"
-                  className="w-full justify-start p-2 h-auto text-left border border-gray-200 rounded-lg hover:bg-gray-50"
-                >
-                  <Icon size={16} className={`mr-2 ${color}`} />
-                  <div className="flex-1">
-                    <span className="text-sm font-medium">{slide.title}</span>
-                    <span className="text-xs text-gray-500 ml-2">({label})</span>
-                  </div>
-                  {openSlides.has(slide.id) ? (
-                    <CaretDown size={16} className="ml-auto" />
-                  ) : (
-                    <CaretRight size={16} className="ml-auto" />
-                  )}
-                </Button>
-              </CollapsibleTrigger>
-              <CollapsibleContent className="ml-4 mt-2">
-                <div className="p-2 bg-gray-50 rounded text-sm text-gray-600">
-                  {slide.description || 'No description available'}
+              <Icon size={16} className={`flex-shrink-0 ${color}`} />
+              <div className="flex-1 min-w-0 overflow-hidden">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="text-sm font-medium break-words truncate">{slide.title}</span>
+                  <span className="text-xs text-gray-500 whitespace-nowrap flex-shrink-0">({label})</span>
                 </div>
-              </CollapsibleContent>
-            </Collapsible>
+              </div>
+            </div>
           );
         })}
       </div>
@@ -710,15 +687,17 @@ export const CourseStructureDetails: React.FC<CourseStructureDetailsProps> = ({
             <CollapsibleTrigger asChild>
               <Button
                 variant="ghost"
-                className="w-full justify-start p-2 h-auto text-left border border-gray-200 rounded-lg"
+                className="w-full justify-start p-2 h-auto text-left border border-gray-200 rounded-lg overflow-hidden"
               >
-                <Folder size={16} className="mr-2 text-orange-500" />
-                <span className="text-sm font-medium">{moduleWithChapters.module?.module_name || 'Unnamed Module'}</span>
-                {openModules.has(moduleWithChapters.module?.id) ? (
-                  <CaretDown size={16} className="ml-auto" />
-                ) : (
-                  <CaretRight size={16} className="ml-auto" />
-                )}
+                <Folder size={16} className="mr-2 text-orange-500 flex-shrink-0" />
+                <span className="text-sm font-medium break-words truncate flex-1 min-w-0">{moduleWithChapters.module?.module_name || 'Unnamed Module'}</span>
+                <div className="flex-shrink-0 ml-2">
+                  {openModules.has(moduleWithChapters.module?.id) ? (
+                    <CaretDown size={16} />
+                  ) : (
+                    <CaretRight size={16} />
+                  )}
+                </div>
               </Button>
             </CollapsibleTrigger>
             <CollapsibleContent className="ml-4 mt-2">
@@ -771,12 +750,14 @@ export const CourseStructureDetails: React.FC<CourseStructureDetailsProps> = ({
           return (
             <div
               key={`${slide.id}-${index}`}
-              className="flex items-center gap-2 p-2 border border-gray-200 rounded-lg hover:bg-gray-50"
+              className="flex items-center gap-2 p-2 border border-gray-200 rounded-lg hover:bg-gray-50 overflow-hidden"
             >
-              <Icon size={16} className={color} />
-              <div className="flex-1">
-                <span className="text-sm font-medium">{slide.title}</span>
-                <span className="text-xs text-gray-500 ml-2">({label})</span>
+              <Icon size={16} className={`flex-shrink-0 ${color}`} />
+              <div className="flex-1 min-w-0 overflow-hidden">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="text-sm font-medium break-words truncate">{slide.title}</span>
+                  <span className="text-xs text-gray-500 whitespace-nowrap flex-shrink-0">({label})</span>
+                </div>
               </div>
             </div>
           );
@@ -814,15 +795,17 @@ export const CourseStructureDetails: React.FC<CourseStructureDetailsProps> = ({
             <CollapsibleTrigger asChild>
               <Button
                 variant="ghost"
-                className="w-full justify-start p-2 h-auto text-left border border-gray-200 rounded-lg"
+                className="w-full justify-start p-2 h-auto text-left border border-gray-200 rounded-lg overflow-hidden"
               >
-                <FileText size={16} className="mr-2 text-green-500" />
-                <span className="text-sm font-medium">{chapter.chapter_name || 'Unnamed Chapter'}</span>
-                {openChapters.has(chapter.id) ? (
-                  <CaretDown size={16} className="ml-auto" />
-                ) : (
-                  <CaretRight size={16} className="ml-auto" />
-                )}
+                <FileText size={16} className="mr-2 text-green-500 flex-shrink-0" />
+                <span className="text-sm font-medium break-words truncate flex-1 min-w-0">{chapter.chapter_name || 'Unnamed Chapter'}</span>
+                <div className="flex-shrink-0 ml-2">
+                  {openChapters.has(chapter.id) ? (
+                    <CaretDown size={16} />
+                  ) : (
+                    <CaretRight size={16} />
+                  )}
+                </div>
               </Button>
             </CollapsibleTrigger>
             <CollapsibleContent className="ml-4 mt-2">
@@ -866,15 +849,17 @@ export const CourseStructureDetails: React.FC<CourseStructureDetailsProps> = ({
             <CollapsibleTrigger asChild>
               <Button
                 variant="ghost"
-                className="w-full justify-start p-2 h-auto text-left border border-gray-200 rounded-lg"
+                className="w-full justify-start p-2 h-auto text-left border border-gray-200 rounded-lg overflow-hidden"
               >
-                <Folder size={16} className="mr-2 text-blue-500" />
-                <span className="text-sm font-medium">{moduleWithChapters.module?.module_name || 'Unnamed Module'}</span>
-                {openModules.has(moduleWithChapters.module?.id) ? (
-                  <CaretDown size={16} className="ml-auto" />
-                ) : (
-                  <CaretRight size={16} className="ml-auto" />
-                )}
+                <Folder size={16} className="mr-2 text-blue-500 flex-shrink-0" />
+                <span className="text-sm font-medium break-words truncate flex-1 min-w-0">{moduleWithChapters.module?.module_name || 'Unnamed Module'}</span>
+                <div className="flex-shrink-0 ml-2">
+                  {openModules.has(moduleWithChapters.module?.id) ? (
+                    <CaretDown size={16} />
+                  ) : (
+                    <CaretRight size={16} />
+                  )}
+                </div>
               </Button>
             </CollapsibleTrigger>
             <CollapsibleContent className="ml-4 mt-2">
@@ -914,18 +899,20 @@ export const CourseStructureDetails: React.FC<CourseStructureDetailsProps> = ({
             <CollapsibleTrigger asChild>
               <Button
                 variant="ghost"
-                className="w-full justify-start p-3 h-auto text-left border border-gray-200 rounded-lg"
+                className="w-full justify-start p-3 h-auto text-left border border-gray-200 rounded-lg overflow-hidden"
               >
-                <FolderOpen size={18} className="mr-3 text-purple-500" />
-                <div className="flex-1">
-                  <div className="font-medium text-gray-900">{subject.subject_name}</div>
-                  <div className="text-sm text-gray-500">{subject.description}</div>
+                <FolderOpen size={18} className="mr-3 text-purple-500 flex-shrink-0" />
+                <div className="flex-1 min-w-0 overflow-hidden">
+                  <div className="font-medium text-gray-900 break-words truncate">{subject.subject_name}</div>
+                  <div className="text-sm text-gray-500 break-words truncate">{subject.description}</div>
                 </div>
-                {openSubjects.has(subject.id) ? (
-                  <CaretDown size={16} className="ml-auto" />
-                ) : (
-                  <CaretRight size={16} className="ml-auto" />
-                )}
+                <div className="flex-shrink-0 ml-2">
+                  {openSubjects.has(subject.id) ? (
+                    <CaretDown size={16} />
+                  ) : (
+                    <CaretRight size={16} />
+                  )}
+                </div>
               </Button>
             </CollapsibleTrigger>
             <CollapsibleContent className="ml-4 mt-2">

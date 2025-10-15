@@ -26,22 +26,9 @@ const CourseImage: React.FC<CourseImageProps> = ({ previewImageUrl, alt, classNa
     previewImageUrl === 'null' ||
     previewImageUrl === 'undefined';
 
-  // For placeholders, just render directly without any state or effects
+  // Don't render anything if it's a placeholder or invalid URL
   if (isPlaceholder) {
-    return (
-      <div className="aspect-w-16 aspect-h-9">
-        <img
-          src="/api/placeholder/300/200"
-          alt={alt}
-          className={className}
-          loading="lazy"
-          style={{ 
-            opacity: 1, 
-            transition: 'opacity 0.3s ease'
-          }}
-        />
-      </div>
-    );
+    return null;
   }
 
   // For valid URLs, use the full component with state management
@@ -50,8 +37,8 @@ const CourseImage: React.FC<CourseImageProps> = ({ previewImageUrl, alt, classNa
 
 // Separate component for handling actual image loading
 const CourseImageWithState: React.FC<CourseImageProps> = ({ previewImageUrl, alt, className }) => {
-  const [courseImageUrl, setCourseImageUrl] = useState<string>("/api/placeholder/300/200");
-  const [loadingImage, setLoadingImage] = useState(false);
+  const [courseImageUrl, setCourseImageUrl] = useState<string>("");
+  const [loadingImage, setLoadingImage] = useState(true);
   const [imageError, setImageError] = useState(false);
 
   useEffect(() => {
@@ -72,14 +59,14 @@ const CourseImageWithState: React.FC<CourseImageProps> = ({ previewImageUrl, alt
             setImageError(false);
           } else {
             setImageError(true);
-            setCourseImageUrl("/api/placeholder/300/200");
+            setCourseImageUrl("");
           }
         }
       } catch (error) {
         console.error("[CourseImage] Error getting public URL:", error);
         if (isMounted) {
           setImageError(true);
-          setCourseImageUrl("/api/placeholder/300/200");
+          setCourseImageUrl("");
         }
       } finally {
         if (isMounted) {
@@ -95,17 +82,33 @@ const CourseImageWithState: React.FC<CourseImageProps> = ({ previewImageUrl, alt
     };
   }, [previewImageUrl]);
 
+  // Don't render anything if there's an error or no valid image
+  if (imageError || (!loadingImage && !courseImageUrl)) {
+    return null;
+  }
+
+  // Show loading placeholder while loading
+  if (loadingImage && !courseImageUrl) {
+    return (
+      <div className="aspect-w-16 aspect-h-9">
+        <div className="w-full h-full bg-gray-200 animate-pulse rounded-lg flex items-center justify-center">
+          <div className="text-gray-400 text-sm">Loading...</div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="aspect-w-16 aspect-h-9">
         <img
-        src={courseImageUrl || "/api/placeholder/300/200"}
+        src={courseImageUrl}
           alt={alt}
           className={className}
           loading="lazy"
-          onError={(e) => {
-            if (e.currentTarget) {
-              e.currentTarget.src = "/api/placeholder/300/200";
-            }
+          onError={() => {
+            // Don't show placeholder on error, just hide the component
+            setImageError(true);
+            setCourseImageUrl("");
           }}
           onLoad={(e) => {
             e.currentTarget.style.opacity = '1';

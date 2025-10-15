@@ -43,18 +43,27 @@ export const CourseCataloguePage: React.FC<CourseCataloguePageProps> = ({
         
         setCatalogueData(data);
         
-        // Check if intro page should be shown
+        // Check if intro page should be shown based on localStorage
+        const introPageSeenKey = `introPageSeen_${instituteId}_${tagName}`;
+        const hasSeenIntroPage = localStorage.getItem(introPageSeenKey) === 'true';
+        
         console.log("Checking intro page and lead collection:", {
           introPageEnabled: data.introPage?.enabled,
-          leadCollectionEnabled: data.globalSettings.leadCollection.enabled
+          leadCollectionEnabled: data.globalSettings.leadCollection.enabled,
+          hasSeenIntroPage,
+          introPageSeenKey
         });
         
-        if (data.introPage?.enabled) {
-          console.log("Setting showIntroPage to true");
+        if (data.introPage?.enabled && !hasSeenIntroPage) {
+          console.log("Setting showIntroPage to true - first time visit or cache cleared");
           setShowIntroPage(true);
+        } else if (data.introPage?.enabled && hasSeenIntroPage) {
+          console.log("Intro page already seen, skipping intro page");
+          // Mark intro as completed since user has already seen it
+          setIntroCompleted(true);
         } else if (data.globalSettings.leadCollection.enabled) {
-          // Only show lead collection if no intro page
-          console.log("Setting showLeadCollection to true (no intro page)");
+          // Only show lead collection if no intro page or intro already seen
+          console.log("Setting showLeadCollection to true (no intro page or intro already seen)");
           setShowLeadCollection(true);
         }
       } catch (err) {
@@ -128,6 +137,11 @@ export const CourseCataloguePage: React.FC<CourseCataloguePageProps> = ({
     setIntroCompleted(true);
     setShowIntroPage(false);
     
+    // Mark intro page as seen in localStorage
+    const introPageSeenKey = `introPageSeen_${instituteId}_${tagName}`;
+    localStorage.setItem(introPageSeenKey, 'true');
+    console.log(`[CourseCataloguePage] Marked intro page as seen: ${introPageSeenKey}`);
+    
     // Show lead collection if enabled and not already shown
     if (catalogueData?.globalSettings.leadCollection.enabled && !showLeadCollection) {
       setShowLeadCollection(true);
@@ -137,6 +151,11 @@ export const CourseCataloguePage: React.FC<CourseCataloguePageProps> = ({
   const handleIntroClose = () => {
     setShowIntroPage(false);
     setIntroCompleted(true);
+    
+    // Mark intro page as seen in localStorage even when closed
+    const introPageSeenKey = `introPageSeen_${instituteId}_${tagName}`;
+    localStorage.setItem(introPageSeenKey, 'true');
+    console.log(`[CourseCataloguePage] Marked intro page as seen (closed): ${introPageSeenKey}`);
   };
 
   if (isLoading) {
@@ -164,17 +183,18 @@ export const CourseCataloguePage: React.FC<CourseCataloguePageProps> = ({
     );
   }
 
+  // Debug logging
+  console.log("CourseCataloguePage render state:", {
+    isLoading,
+    error,
+    showIntroPage,
+    introCompleted,
+    showLeadCollection,
+    catalogueData: !!catalogueData
+  });
+
   return (
     <div className="min-h-screen bg-white w-full pb-20 md:pb-0 pt-20 md:pt-0">
-      {/* Debug Info */}
-      {console.log("CourseCataloguePage render state:", {
-        isLoading,
-        error,
-        showIntroPage,
-        introCompleted,
-        showLeadCollection,
-        catalogueData: !!catalogueData
-      })}
       {/* Intro Page - Show first if enabled and not completed */}
       {showIntroPage && catalogueData?.introPage && (
         <IntroPageComponent
@@ -255,7 +275,6 @@ export const CourseCataloguePage: React.FC<CourseCataloguePageProps> = ({
       )}
 
       {/* Lead Collection Modal - Show when requested and intro is completed or not active */}
-      {console.log("CourseCataloguePage - showLeadCollection:", showLeadCollection, "showIntroPage:", showIntroPage, "introCompleted:", introCompleted, "catalogueData:", !!catalogueData)}
       {showLeadCollection && catalogueData && (!showIntroPage || introCompleted) && (
         <LeadCollectionModal
           isOpen={showLeadCollection}
@@ -275,12 +294,6 @@ export const CourseCataloguePage: React.FC<CourseCataloguePageProps> = ({
 
 
       {/* Mobile Action Buttons - Fixed at bottom for catalogue page */}
-      {console.log("Mobile buttons condition check:", {
-        showIntroPage,
-        introCompleted,
-        catalogueData: !!catalogueData,
-        condition: (!showIntroPage || introCompleted) && catalogueData
-      })}
       {(!showIntroPage || introCompleted) && catalogueData && (
         <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200 p-4">
           <div className="flex flex-col gap-3">
