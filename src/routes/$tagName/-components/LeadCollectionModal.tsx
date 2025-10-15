@@ -69,6 +69,8 @@ export const LeadCollectionModal: React.FC<LeadCollectionModalProps> = ({
   const [emailOtp, setEmailOtp] = useState('');
   const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
   const [emailVerified, setEmailVerified] = useState(false);
+  const [showSuccessPopup, setShowSuccessPopup] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
 
   // Helper functions to extract level and package IDs from form data
   const getLevelIdFromFormData = (levelValue: string): string => {
@@ -335,11 +337,20 @@ export const LeadCollectionModal: React.FC<LeadCollectionModalProps> = ({
 
       console.log("Lead collection response:", response.data);
 
-      toast.success("Thank you for your interest! We'll be in touch soon.");
-      onSubmit();
-    } catch (error) {
+      // Show success popup instead of toast
+      setSuccessMessage("Thank you for your interest! We'll be in touch soon.");
+      setShowSuccessPopup(true);
+    } catch (error: any) {
       console.error("Error collecting lead data:", error);
-      toast.error("Failed to submit your information. Please try again.");
+      
+      // Check if it's a duplicate entry error
+      if (error.response?.data?.ex === "User entry already exists" || 
+          error.response?.data?.responseCode === "510 NOT_EXTENDED") {
+        setSuccessMessage("We already have your information. Thank you for your interest! We'll get back to you soon.");
+        setShowSuccessPopup(true);
+      } else {
+        toast.error("Failed to submit your information. Please try again.");
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -670,6 +681,35 @@ export const LeadCollectionModal: React.FC<LeadCollectionModalProps> = ({
           )}
         </div>
       </div>
+
+      {/* Success Popup */}
+      {showSuccessPopup && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
+            <div className="text-center">
+              <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 mb-4">
+                <svg className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">Request Sent</h3>
+              <p className="text-sm text-gray-600 mb-6">{successMessage}</p>
+              <button
+                onClick={() => {
+                  setShowSuccessPopup(false);
+                  onSubmit();
+                }}
+                className="w-full px-4 py-2 text-white rounded-md hover:opacity-90 transition-colors"
+                style={{
+                  backgroundColor: domainRouting.instituteThemeCode ? `hsl(var(--primary))` : '#3b82f6'
+                }}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -226,7 +226,7 @@ const HeroSectionPlaceholder: React.FC<any> = ({
 
   return (
     <section
-      className={`w-full min-h-[calc(100vh-5rem)] ${roundedEdges ? "rounded-lg" : ""} overflow-hidden flex items-center justify-center md:min-h-screen`}
+      className={`w-full min-h-[400px] ${roundedEdges ? "rounded-lg" : ""} overflow-hidden flex items-center justify-center`}
       style={{
         padding,
         backgroundColor: finalBackgroundColor,

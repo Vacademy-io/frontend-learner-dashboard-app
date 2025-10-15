@@ -20,6 +20,8 @@ export const HeaderComponent: React.FC<HeaderProps & {
   const domainRouting = useDomainRouting();
   const [instituteLogoUrl, setInstituteLogoUrl] = useState<string | null>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [mobileMenuRef, setMobileMenuRef] = useState<HTMLDivElement | null>(null);
+  const [hamburgerButtonRef, setHamburgerButtonRef] = useState<HTMLButtonElement | null>(null);
 
   // Load institute logo
   useEffect(() => {
@@ -36,6 +38,27 @@ export const HeaderComponent: React.FC<HeaderProps & {
 
     loadInstituteLogo();
   }, [domainRouting.instituteLogoFileId]);
+
+  // Handle outside click to close mobile menu
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (isMobileMenuOpen && mobileMenuRef && !mobileMenuRef.contains(event.target as Node)) {
+        // Don't close if clicking on the hamburger button
+        if (hamburgerButtonRef && hamburgerButtonRef.contains(event.target as Node)) {
+          return;
+        }
+        setIsMobileMenuOpen(false);
+      }
+    };
+
+    if (isMobileMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isMobileMenuOpen, mobileMenuRef, hamburgerButtonRef]);
 
   // Helper function to check if a navigation item is active
   const isActiveRoute = (route: string, label: string) => {
@@ -169,6 +192,7 @@ export const HeaderComponent: React.FC<HeaderProps & {
             {/* Mobile menu button */}
             {navigation.length > 0 && (
               <button
+                ref={setHamburgerButtonRef}
                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
                 className="md:hidden p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100"
               >
@@ -218,7 +242,10 @@ export const HeaderComponent: React.FC<HeaderProps & {
 
         {/* Mobile Navigation Menu */}
         {isMobileMenuOpen && (navigation.length > 0 || authLinks.length > 0) && (
-          <div className="md:hidden border-t border-gray-200 bg-white">
+          <div 
+            ref={setMobileMenuRef}
+            className="md:hidden border-t border-gray-200 bg-white"
+          >
             <div className="px-2 pt-2 pb-3 space-y-1">
               {/* Navigation Links */}
               {navigation.map((item, index) => {
