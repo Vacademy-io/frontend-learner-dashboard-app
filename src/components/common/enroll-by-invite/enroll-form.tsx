@@ -1,4 +1,7 @@
 import { Route } from "@/routes/learner-invitation-response";
+import { Preferences } from "@capacitor/preferences";
+import { applyTabBranding } from "@/utils/branding";
+import { useDomainRouting } from "@/hooks/use-domain-routing";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import {
   handleEnrollLearnerForPayment,
@@ -22,6 +25,12 @@ import { AssessmentCustomFieldOpenRegistration } from "@/types/assessment-open-r
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { MyButton } from "@/components/design-system/button";
+import {
+  ModernCard,
+  ModernCardHeader,
+  ModernCardTitle,
+} from "@/components/design-system/modern-card";
+import { InstituteBrandingComponent } from "@/components/common/institute-branding";
 
 // Import step components
 import {
@@ -42,6 +51,8 @@ import { useElements, useStripe, CardElement } from "@stripe/react-stripe-js";
 // SUBSCRIPTION, FREE, UPFRONT, DONATION
 
 const EnrollByInvite = () => {
+  // Ensure domain resolution runs on this public route to fetch fontFamily/tab branding from /resolve
+  useDomainRouting();
   const [paymentType, setPaymentType] = useState<string>("");
   const [orderId, setOrderId] = useState<string>("");
   const [paymentCompletionResponse, setPaymentCompletionResponse] =
@@ -54,6 +65,8 @@ const EnrollByInvite = () => {
   const [currentStep, setCurrentStep] = useState(0); // 0: Registration, 1: Payment Selection, 2: Review, 3: Payment Details, 4: Payment Pending, 5: Success
   const [isRegistrationCardVisible, setIsRegistrationCardVisible] =
     useState(false);
+  const [privacyPolicyUrl, setPrivacyPolicyUrl] = useState<string | null>(null);
+  const [termsAndConditionUrl, setTermsAndConditionUrl] = useState<string | null>(null);
   const [courseData, setCourseData] = useState<FinalCourseData>({
     aboutCourse: "",
     course: "",
@@ -181,6 +194,50 @@ const EnrollByInvite = () => {
       ...prev,
       registrationData: values,
     }));
+
+    // Detect single plan (non-donation)
+    const paymentOptionMeta =
+      inviteData?.package_session_to_payment_options?.[0]?.payment_option;
+    const plans = paymentOptionMeta?.payment_plans || [];
+    const hasSinglePlan = plans.length === 1;
+
+    // If there's exactly one plan, preselect and skip selection step
+    if (hasSinglePlan && paymentType !== "DONATION") {
+      if (!enrollmentData.selectedPayment) {
+        const onlyPlan = plans[0];
+        try {
+          const metadata = JSON.parse(
+            paymentOptionMeta?.payment_option_metadata_json || "{}"
+          );
+          const unit = metadata?.unit || "days";
+          const duration =
+            unit === "days"
+              ? `${onlyPlan.validity_in_days} days`
+              : `${Math.floor(onlyPlan.validity_in_days / 30)} months`;
+
+          // @ts-expect-error // TODO: strong type SelectedPayment mapping
+          const preselected: SelectedPayment = {
+            id: onlyPlan.id,
+            name: onlyPlan.name,
+            amount: onlyPlan.actual_price,
+            currency: onlyPlan.currency,
+            description: onlyPlan.description,
+            duration,
+            // include numeric pricing fields for summary calculations
+            actual_price: onlyPlan.actual_price,
+            elevated_price: onlyPlan.elevated_price,
+            validity_in_days: onlyPlan.validity_in_days,
+            referral_option: onlyPlan.referral_option,
+          };
+          setEnrollmentData((prev) => ({ ...prev, selectedPayment: preselected }));
+        } catch {
+          // ignore parse errors and continue normal flow
+        }
+      }
+      setCurrentStep(2);
+      return;
+    }
+
     // For FREE payments, go directly to review step (step 2)
     // For other payment types, go to payment selection step (step 1)
     setCurrentStep(paymentType === "FREE" ? 2 : 1);
@@ -214,6 +271,12 @@ const EnrollByInvite = () => {
       // If payment type is FREE and we're on registration step, skip payment selection
       if (currentStep === 0 && paymentType === "FREE") {
         setCurrentStep(2); // Skip to review step
+      } else if (
+        currentStep === 0 &&
+        paymentType !== "DONATION" &&
+        (inviteData?.package_session_to_payment_options?.[0]?.payment_option?.payment_plans?.length || 0) === 1
+      ) {
+        setCurrentStep(2); // Skip selection when only one plan
       } else if (currentStep === 2 && paymentType === "FREE") {
         setCurrentStep(5); // Skip payment steps and go directly to success
       } else {
@@ -229,6 +292,12 @@ const EnrollByInvite = () => {
         setCurrentStep(2);
       } else if (currentStep === 2 && paymentType === "FREE") {
         setCurrentStep(0);
+      } else if (
+        currentStep === 2 &&
+        paymentType !== "DONATION" &&
+        (inviteData?.package_session_to_payment_options?.[0]?.payment_option?.payment_plans?.length || 0) === 1
+      ) {
+        setCurrentStep(0); // Skip selection on back when only one plan
       } else {
         setCurrentStep(currentStep - 1);
       }
@@ -343,14 +412,14 @@ const EnrollByInvite = () => {
           paymentTypeValue === "ONE_TIME" ||
           paymentTypeValue === "DONATION"
         ) {
-          const defaultPaymentPlan =
-            inviteData?.package_session_to_payment_options[0]?.payment_option
-              ?.payment_plans?.[0];
+          const paymentOptionMeta =
+            inviteData?.package_session_to_payment_options[0]?.payment_option;
+          const plans = paymentOptionMeta?.payment_plans || [];
+          const defaultPaymentPlan = plans[0];
           if (defaultPaymentPlan) {
             // Get the unit from payment option metadata to format duration correctly
             const paymentOptionMetadata = JSON.parse(
-              inviteData?.package_session_to_payment_options[0]?.payment_option
-                ?.payment_option_metadata_json || "{}"
+              paymentOptionMeta?.payment_option_metadata_json || "{}"
             );
             const unit = paymentOptionMetadata?.unit || "days";
 
@@ -362,7 +431,7 @@ const EnrollByInvite = () => {
                   )} months`;
 
             // @ts-expect-error // TODO:fix this
-            const paymentOption: SelectedPayment = {
+            const preselectedPayment: SelectedPayment = {
               id: defaultPaymentPlan.id,
               name: defaultPaymentPlan.name,
               amount: defaultPaymentPlan.actual_price,
@@ -375,7 +444,7 @@ const EnrollByInvite = () => {
             };
             setEnrollmentData((prev) => ({
               ...prev,
-              selectedPayment: paymentOption,
+              selectedPayment: preselectedPayment,
             }));
           }
         }
@@ -537,6 +606,82 @@ const EnrollByInvite = () => {
     }
   }, [instituteData, setInstituteDetails]);
 
+  // Ensure branding is applied on invitation pages using public institute details
+  useEffect(() => {
+    const syncBranding = async () => {
+      try {
+        if (!instituteId || !instituteData) return;
+
+        // Persist minimal institute context for branding utilities
+        await Preferences.set({ key: "InstituteId", value: instituteId });
+
+        // Map public details to the structure expected elsewhere
+        const mappedDetails = {
+          id: instituteId,
+          institute_name: instituteData?.institute_name ?? instituteData?.name ?? "",
+          institute_logo_file_id: instituteData?.institute_logo_file_id ?? null,
+          institute_theme_code: instituteData?.institute_theme_code ?? (instituteData?.theme as string) ?? "primary",
+          institute_settings_json: instituteData?.setting ?? "",
+        } as unknown as {
+          id: string;
+          institute_name: string;
+          institute_logo_file_id: string | null;
+          institute_theme_code: string;
+          institute_settings_json: string;
+        };
+
+        await Preferences.set({
+          key: "InstituteDetails",
+          value: JSON.stringify(mappedDetails),
+        });
+
+        // Store learner branding subset used by applyTabBranding
+        const learnerKey = `LEARNER_${instituteId}`;
+        const learnerSettings = {
+          tabText: instituteData?.tabText ?? instituteData?.institute_name ?? null,
+          tabIconFileId: instituteData?.tabIconFileId ?? instituteData?.institute_logo_file_id ?? null,
+          fontFamily: instituteData?.fontFamily ?? null,
+          theme: instituteData?.institute_theme_code ?? null,
+          privacyPolicyUrl: null,
+          termsAndConditionUrl: null,
+          allowSignup: null,
+          allowGoogleAuth: null,
+          allowGithubAuth: null,
+          allowEmailOtpAuth: null,
+          allowUsernamePasswordAuth: null,
+        };
+        await Preferences.set({ key: learnerKey, value: JSON.stringify(learnerSettings) });
+
+        // Apply tab title, favicon, and font
+        await applyTabBranding(document.title);
+      } catch (e) {
+        // best-effort; do not block invitation flow
+        console.warn("[Invite] Branding sync failed", e);
+      }
+    };
+
+    void syncBranding();
+  }, [instituteId, instituteData]);
+
+  // Load policy URLs from per-institute learner settings stored by domain resolution
+  useEffect(() => {
+    const loadPolicyLinks = async () => {
+      try {
+        if (!instituteId) return;
+        const key = `LEARNER_${instituteId}`;
+        const stored = await Preferences.get({ key });
+        if (stored?.value) {
+          const parsed = JSON.parse(stored.value);
+          setPrivacyPolicyUrl(parsed?.privacyPolicyUrl || null);
+          setTermsAndConditionUrl(parsed?.termsAndConditionUrl || null);
+        }
+      } catch {
+        // ignore
+      }
+    };
+    void loadPolicyLinks();
+  }, [instituteId]);
+
   // Set up Intersection Observer to detect when registration card is visible
   useEffect(() => {
     const registrationCard = document.getElementById("registration-card");
@@ -568,38 +713,109 @@ const EnrollByInvite = () => {
       className={`w-full h-auto bg-gradient-to-br from-slate-50 to-blue-50 py-8 px-4 sm:px-6 lg:px-8 pb-24`}
     >
       <div className="md:max-w-[80%] mx-auto space-y-8">
-        {/* Course Information Card - Only show in registration step */}
-        {currentStep === 0 && (
-          <CourseInfoCard
-            courseData={courseData}
-            levelName={
-              getDetailsFromPackageSessionId({
-                packageSessionId:
-                  inviteData.package_session_to_payment_options[0]
-                    .package_session_id,
-              })?.level.level_name || "-"
-            }
-          />
-        )}
-
-        {/* Current Step Content */}
-        {renderCurrentStep()}
-
-        {/* Navigation Buttons - Show for steps 1-3, but skip step 1 for FREE payments */}
-        {currentStep > 0 &&
-          currentStep < 4 &&
-          !(currentStep === 1 && paymentType === "FREE") && (
-            <NavigationButtons
-              currentStep={currentStep}
-              selectedPayment={enrollmentData.selectedPayment}
-              onPrevious={handlePrevious}
-              onNext={handleNext}
-              onSubmitEnrollment={handleSubmitEnrollment}
-              loading={loading}
-              paymentType={paymentType}
-              donationAmountValid={donationAmountValid}
+        {/* Branded Header */}
+        <ModernCard
+          variant="glass"
+          padding="md"
+          rounded="lg"
+          className="border border-white/30 bg-white/80 backdrop-blur-md"
+        >
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+            <InstituteBrandingComponent
+              branding={{
+                instituteId: instituteId || null,
+                instituteName:
+                  instituteData?.institute_name ?? instituteData?.name ?? null,
+                instituteLogoFileId:
+                  instituteData?.institute_logo_file_id ?? null,
+                instituteThemeCode:
+                  (instituteData?.institute_theme_code as string) ||
+                  (instituteData?.theme as string) ||
+                  null,
+              }}
+              size="small"
+              showName={true}
+              className="justify-start"
             />
-          )}
+
+            <div className="text-center md:text-right w-full md:w-auto">
+              <ModernCardHeader className="p-0">
+                <ModernCardTitle size="md" className="truncate max-w-[40ch]">
+                  {courseData.course}
+                </ModernCardTitle>
+              </ModernCardHeader>
+            </div>
+          </div>
+
+          {/* Progress Bar (no text) */}
+          <div className="mt-3 w-full">
+            <div className="h-1.5 w-full rounded-full bg-slate-200 overflow-hidden">
+              <div
+                className="h-full bg-primary-600 transition-all duration-300"
+                style={{ width: `${Math.min(100, Math.max(0, Math.round((currentStep / 5) * 100)))}%` }}
+              />
+            </div>
+          </div>
+        </ModernCard>
+
+        {/* Main Grid Layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Left: Step Content */}
+          <div className="lg:col-span-2 space-y-6">
+            {renderCurrentStep()}
+
+            {/* Navigation Buttons - Show for steps 1-3, but skip step 1 for FREE payments */}
+            {currentStep > 0 &&
+              currentStep < 4 &&
+              !(currentStep === 1 && paymentType === "FREE") && (
+                <NavigationButtons
+                  currentStep={currentStep}
+                  selectedPayment={enrollmentData.selectedPayment}
+                  onPrevious={handlePrevious}
+                  onNext={handleNext}
+                  onSubmitEnrollment={handleSubmitEnrollment}
+                  loading={loading}
+                  paymentType={paymentType}
+                  donationAmountValid={donationAmountValid}
+                />
+              )}
+          </div>
+
+          {/* Right: Course Info Sidebar */}
+          <div className="lg:col-span-1 space-y-6 lg:sticky lg:top-6 self-start">
+            <CourseInfoCard
+              courseData={{ ...courseData, instituteLogo: "" }}
+              levelName={
+                getDetailsFromPackageSessionId({
+                  packageSessionId:
+                    inviteData.package_session_to_payment_options[0]
+                      .package_session_id,
+                })?.level.level_name || "-"
+              }
+            />
+          </div>
+        </div>
+
+        {/* Policy Links */}
+        <div className="flex items-center justify-center gap-4 text-sm text-gray-600">
+          <a
+            href={privacyPolicyUrl || "/privacy-policy"}
+            target={privacyPolicyUrl ? "_blank" : undefined}
+            rel={privacyPolicyUrl ? "noopener noreferrer" : undefined}
+            className="hover:underline"
+          >
+            Privacy Policy
+          </a>
+          <span className="text-gray-300">•</span>
+          <a
+            href={termsAndConditionUrl || "/terms-and-conditions"}
+            target={termsAndConditionUrl ? "_blank" : undefined}
+            rel={termsAndConditionUrl ? "noopener noreferrer" : undefined}
+            className="hover:underline"
+          >
+            Terms & Conditions
+          </a>
+        </div>
       </div>
 
       {/* Fixed bottom container with border - Only show in registration step and when registration card is not visible */}
