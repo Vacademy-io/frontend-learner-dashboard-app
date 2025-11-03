@@ -46,11 +46,18 @@ import {
   EnrollmentData,
   SelectedPayment,
 } from "./-components";
-import { useElements, useStripe, CardElement } from "@stripe/react-stripe-js";
+import {
+  getPaymentVendor,
+  PaymentVendor,
+} from "./-utils/payment-vendor-helper";
 
 // SUBSCRIPTION, FREE, UPFRONT, DONATION
 
-const EnrollByInvite = () => {
+interface EnrollByInviteProps {
+  vendor?: PaymentVendor;
+}
+
+const EnrollByInvite = ({ vendor: propVendor }: EnrollByInviteProps = {}) => {
   // Ensure domain resolution runs on this public route to fetch fontFamily/tab branding from /resolve
   useDomainRouting();
   const [paymentType, setPaymentType] = useState<string>("");
@@ -58,15 +65,33 @@ const EnrollByInvite = () => {
   const [paymentCompletionResponse, setPaymentCompletionResponse] =
     useState(null);
   const [donationAmountValid, setDonationAmountValid] = useState(false);
-  const stripe = useStripe();
-  const elements = useElements();
+  const [ewayEncryptedData, setEwayEncryptedData] = useState<{
+    encryptedNumber: string;
+    encryptedCVN: string;
+    cardData: {
+      name: string;
+      expiryMonth: string;
+      expiryYear: string;
+    };
+  } | null>(null);
+  const [stripePaymentProcessor, setStripePaymentProcessor] = useState<
+    | (() => Promise<{
+        success: boolean;
+        paymentMethodId?: string;
+        error?: string;
+      }>)
+    | null
+  >(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
   const [currentStep, setCurrentStep] = useState(0); // 0: Registration, 1: Payment Selection, 2: Review, 3: Payment Details, 4: Payment Pending, 5: Success
   const [isRegistrationCardVisible, setIsRegistrationCardVisible] =
     useState(false);
   const [privacyPolicyUrl, setPrivacyPolicyUrl] = useState<string | null>(null);
-  const [termsAndConditionUrl, setTermsAndConditionUrl] = useState<string | null>(null);
+  const [termsAndConditionUrl, setTermsAndConditionUrl] = useState<
+    string | null
+  >(null);
   const [courseData, setCourseData] = useState<FinalCourseData>({
     aboutCourse: "",
     course: "",
@@ -110,6 +135,9 @@ const EnrollByInvite = () => {
   const { data: inviteData, isLoading } = useSuspenseQuery(
     handleGetEnrollInviteData({ instituteId, inviteCode })
   );
+
+  // Determine payment vendor from invite data or prop
+  // const vendor = propVendor || getPaymentVendor(inviteData);
 
   const paymentOptions = getDefaultPlanFromPaymentsData(
     inviteData?.package_session_to_payment_options?.[0]?.payment_option
@@ -229,7 +257,10 @@ const EnrollByInvite = () => {
             validity_in_days: onlyPlan.validity_in_days,
             referral_option: onlyPlan.referral_option,
           };
-          setEnrollmentData((prev) => ({ ...prev, selectedPayment: preselected }));
+          setEnrollmentData((prev) => ({
+            ...prev,
+            selectedPayment: preselected,
+          }));
         } catch {
           // ignore parse errors and continue normal flow
         }
@@ -274,7 +305,8 @@ const EnrollByInvite = () => {
       } else if (
         currentStep === 0 &&
         paymentType !== "DONATION" &&
-        (inviteData?.package_session_to_payment_options?.[0]?.payment_option?.payment_plans?.length || 0) === 1
+        (inviteData?.package_session_to_payment_options?.[0]?.payment_option
+          ?.payment_plans?.length || 0) === 1
       ) {
         setCurrentStep(2); // Skip selection when only one plan
       } else if (currentStep === 2 && paymentType === "FREE") {
@@ -295,7 +327,8 @@ const EnrollByInvite = () => {
       } else if (
         currentStep === 2 &&
         paymentType !== "DONATION" &&
-        (inviteData?.package_session_to_payment_options?.[0]?.payment_option?.payment_plans?.length || 0) === 1
+        (inviteData?.package_session_to_payment_options?.[0]?.payment_option
+          ?.payment_plans?.length || 0) === 1
       ) {
         setCurrentStep(0); // Skip selection on back when only one plan
       } else {
@@ -324,6 +357,7 @@ const EnrollByInvite = () => {
             JSON.parse(instituteData?.setting)?.setting?.COURSE_SETTING?.data
               ?.permissions?.allowLearnersToCreateCourses || false,
           referRequest: referRequest,
+          paymentVendor: "STRIPE", // Default for FREE payments
         });
         setPaymentCompletionResponse(paymentResponse);
         setCurrentStep(5); // Go directly to success for FREE payments
@@ -337,31 +371,23 @@ const EnrollByInvite = () => {
       return;
     }
 
-    // For paid payments, process through Stripe
-    if (!stripe || !elements) return;
+    // Determine payment vendor
+    const vendor = getPaymentVendor(inviteData);
 
-    setLoading(true); // Start loading
-    setError(null);
+    // For EWAY payments
+    if (vendor === "EWAY") {
+      if (!ewayEncryptedData) {
+        setError("Please complete the payment form");
+        return;
+      }
 
-    const cardElement = elements.getElement(CardElement);
+      setLoading(true);
+      setError(null);
 
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-expect-error
-    const { error, paymentMethod } = await stripe.createPaymentMethod({
-      type: "card",
-      card: cardElement,
-    });
-
-    if (error) {
-      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-      // @ts-expect-error
-      setError(error.message);
-    } else {
       try {
         const paymentResponse = await handleEnrollLearnerForPayment({
           registrationData: form.getValues(),
           enrollmentData: enrollmentData,
-          paymentMethodId: paymentMethod.id,
           instituteId,
           enrollInviteId: inviteData?.id,
           payment_option_id:
@@ -373,6 +399,8 @@ const EnrollByInvite = () => {
             JSON.parse(instituteData?.setting)?.setting?.COURSE_SETTING?.data
               ?.permissions?.allowLearnersToCreateCourses || false,
           referRequest: referRequest,
+          ewayPaymentData: ewayEncryptedData,
+          paymentVendor: "EWAY",
         });
         setOrderId(paymentResponse?.payment_response?.order_id);
         setPaymentCompletionResponse(paymentResponse);
@@ -391,6 +419,66 @@ const EnrollByInvite = () => {
       } finally {
         setLoading(false);
       }
+      return;
+    }
+
+    if (
+      !stripePaymentProcessor ||
+      typeof stripePaymentProcessor !== "function"
+    ) {
+      setError("Stripe payment is not ready yet. Please wait and try again.");
+      console.error("Stripe payment processor not ready:", {
+        value: stripePaymentProcessor,
+        type: typeof stripePaymentProcessor,
+      });
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    // Process Stripe payment
+    const stripeResult = await stripePaymentProcessor();
+
+    if (!stripeResult.success || !stripeResult.paymentMethodId) {
+      setError(stripeResult.error || "Payment processing failed");
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const paymentResponse = await handleEnrollLearnerForPayment({
+        registrationData: form.getValues(),
+        enrollmentData: enrollmentData,
+        paymentMethodId: stripeResult.paymentMethodId,
+        instituteId,
+        enrollInviteId: inviteData?.id,
+        payment_option_id:
+          inviteData?.package_session_to_payment_options[0].payment_option.id,
+        package_session_id:
+          inviteData?.package_session_to_payment_options[0]?.package_session_id,
+        allowLearnersToCreateCourses:
+          JSON.parse(instituteData?.setting)?.setting?.COURSE_SETTING?.data
+            ?.permissions?.allowLearnersToCreateCourses || false,
+        referRequest: referRequest,
+        paymentVendor: "STRIPE",
+      });
+      setOrderId(paymentResponse?.payment_response?.order_id);
+      setPaymentCompletionResponse(paymentResponse);
+      setTimeout(() => {
+        if (
+          paymentResponse?.payment_response?.response_data?.paymentStatus ===
+          "PAID"
+        ) {
+          setCurrentStep(5);
+        } else setCurrentStep(4);
+      }, 100);
+    } catch (err) {
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-expect-error
+      setError(err?.response?.data?.ex);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -565,8 +653,23 @@ const EnrollByInvite = () => {
             refCode={ref || ""}
           />
         );
-      case 3:
-        return <PaymentInfoStep error={error} />;
+      case 3: {
+        const vendor = propVendor || getPaymentVendor(inviteData);
+        return (
+          <PaymentInfoStep
+            error={error}
+            vendor={vendor}
+            amount={enrollmentData.selectedPayment?.amount}
+            currency={enrollmentData.selectedPayment?.currency}
+            onEwayPaymentReady={setEwayEncryptedData}
+            onEwayError={setError}
+            onStripePaymentReady={(processor) => {
+              setStripePaymentProcessor(() => processor);
+            }}
+            isProcessing={loading}
+          />
+        );
+      }
       case 4:
         return (
           <PaymentPendingStep
@@ -618,9 +721,13 @@ const EnrollByInvite = () => {
         // Map public details to the structure expected elsewhere
         const mappedDetails = {
           id: instituteId,
-          institute_name: instituteData?.institute_name ?? instituteData?.name ?? "",
+          institute_name:
+            instituteData?.institute_name ?? instituteData?.name ?? "",
           institute_logo_file_id: instituteData?.institute_logo_file_id ?? null,
-          institute_theme_code: instituteData?.institute_theme_code ?? (instituteData?.theme as string) ?? "primary",
+          institute_theme_code:
+            instituteData?.institute_theme_code ??
+            (instituteData?.theme as string) ??
+            "primary",
           institute_settings_json: instituteData?.setting ?? "",
         } as unknown as {
           id: string;
@@ -638,8 +745,12 @@ const EnrollByInvite = () => {
         // Store learner branding subset used by applyTabBranding
         const learnerKey = `LEARNER_${instituteId}`;
         const learnerSettings = {
-          tabText: instituteData?.tabText ?? instituteData?.institute_name ?? null,
-          tabIconFileId: instituteData?.tabIconFileId ?? instituteData?.institute_logo_file_id ?? null,
+          tabText:
+            instituteData?.tabText ?? instituteData?.institute_name ?? null,
+          tabIconFileId:
+            instituteData?.tabIconFileId ??
+            instituteData?.institute_logo_file_id ??
+            null,
           fontFamily: instituteData?.fontFamily ?? null,
           theme: instituteData?.institute_theme_code ?? null,
           privacyPolicyUrl: null,
@@ -650,7 +761,10 @@ const EnrollByInvite = () => {
           allowEmailOtpAuth: null,
           allowUsernamePasswordAuth: null,
         };
-        await Preferences.set({ key: learnerKey, value: JSON.stringify(learnerSettings) });
+        await Preferences.set({
+          key: learnerKey,
+          value: JSON.stringify(learnerSettings),
+        });
 
         // Apply tab title, favicon, and font
         await applyTabBranding(document.title);
@@ -752,7 +866,12 @@ const EnrollByInvite = () => {
             <div className="h-1.5 w-full rounded-full bg-slate-200 overflow-hidden">
               <div
                 className="h-full bg-primary-600 transition-all duration-300"
-                style={{ width: `${Math.min(100, Math.max(0, Math.round((currentStep / 5) * 100)))}%` }}
+                style={{
+                  width: `${Math.min(
+                    100,
+                    Math.max(0, Math.round((currentStep / 5) * 100))
+                  )}%`,
+                }}
               />
             </div>
           </div>
