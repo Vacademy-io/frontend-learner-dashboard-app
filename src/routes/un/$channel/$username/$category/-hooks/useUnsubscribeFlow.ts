@@ -88,6 +88,7 @@ export const useUnsubscribeFlow = ({
   const hasTriggeredRef = useRef(false);
   const lastActionRef = useRef<PreferenceAction>("UNSUBSCRIBE");
   const [activeAction, setActiveAction] = useState<PreferenceAction>("UNSUBSCRIBE");
+  const [status, setStatus] = useState<"idle" | "pending" | "success" | "error">("idle");
 
   const mutation = useMutation<
     AnnouncementPreferenceUpdateResponse,
@@ -95,6 +96,8 @@ export const useUnsubscribeFlow = ({
     AnnouncementPreferenceUpdateRequest
   >({
     mutationFn: (request) => updateAnnouncementPreferences(request),
+    onSuccess: () => setStatus("success"),
+    onError: () => setStatus("error"),
   });
 
   const buildPayload = (
@@ -152,6 +155,7 @@ export const useUnsubscribeFlow = ({
     hasTriggeredRef.current = true;
     lastActionRef.current = "UNSUBSCRIBE";
     setActiveAction("UNSUBSCRIBE");
+    setStatus("pending");
     mutation.mutate(request);
   }, [
     category,
@@ -168,6 +172,7 @@ export const useUnsubscribeFlow = ({
     }
     lastActionRef.current = "UNSUBSCRIBE";
     setActiveAction("UNSUBSCRIBE");
+    setStatus("pending");
     mutation.mutate(payload);
   };
 
@@ -181,16 +186,11 @@ export const useUnsubscribeFlow = ({
     }
     lastActionRef.current = "RESUBSCRIBE";
     setActiveAction("RESUBSCRIBE");
+    setStatus("pending");
     mutation.mutate(request);
   };
 
-  const status: UseUnsubscribeFlowResult["status"] = mutation.isPending
-    ? "pending"
-    : mutation.isSuccess
-      ? "success"
-      : mutation.isError
-        ? "error"
-        : "idle";
+  const statusState = status;
 
   const successMessage =
     lastActionRef.current === "RESUBSCRIBE"
@@ -205,18 +205,18 @@ export const useUnsubscribeFlow = ({
     activeAction,
     formattedDate,
     supportEmail: SUPPORT_EMAIL,
-    status,
+    status: statusState,
     messages: {
       success: successMessage,
       error: getUnsubscribeErrorMessage(mutation.error),
     },
     retry,
     resubscribe,
-  mutationError: mutation.error,
+    mutationError: mutation.error,
     isPending: mutation.isPending,
     isError: mutation.isError,
     isSuccess: mutation.isSuccess,
-    unsubscribeDisabled: mutation.isPending && activeAction === "UNSUBSCRIBE",
+    unsubscribeDisabled: statusState === "pending" && activeAction === "UNSUBSCRIBE",
     unsubscribeResult: mutation.data,
   };
 };
