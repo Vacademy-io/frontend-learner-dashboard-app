@@ -149,7 +149,6 @@ authenticatedAxiosInstance.interceptors.request.use(
             .fmt`[Auth] Token refresh failed for request to '${requestUrl}'`,
           { error: err }
         );
-        console.log("error------------------>", err);
         // If token refresh fails, remove tokens and institute ID
         await removeTokensAndInstituteId();
 
