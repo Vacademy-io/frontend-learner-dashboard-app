@@ -305,7 +305,7 @@ const RegistrationStep = ({
       {(selectedPlan?.type === "SUBSCRIPTION" ||
         selectedPlan?.type === "ONE_TIME") &&
         courseData.includePaymentPlans && (
-          <Card className="mb-4 flex flex-col gap-0 mx-4 sm:mx-0">
+          <Card className="mb-4 flex flex-col gap-0">
             <div className="flex flex-col items-start gap-3 p-3 sm:p-4">
               <div className="flex items-center gap-3">
                 {getPaymentPlanIcon(selectedPlan?.type || "")}
@@ -339,7 +339,7 @@ const RegistrationStep = ({
         )}
       <Card
         id="registration-card"
-        className="overflow-hidden shadow-lg w-full mx-4 sm:mx-0"
+        className="overflow-hidden shadow-lg w-full"
       >
         <CardContent className="p-4 sm:p-5 md:p-6">
           <div className="flex items-start gap-2 sm:gap-3 mb-6">
@@ -603,7 +603,7 @@ const RegistrationStep = ({
       {courseData?.customHtml && (
         <Card
           id="registration-card"
-          className="overflow-hidden shadow-lg w-full mx-4 sm:mx-0"
+          className="overflow-hidden shadow-lg w-full"
         >
           <CardContent className="p-4 sm:p-5 md:p-6">
             <div className="flex items-start gap-2 sm:gap-3 mb-6">
