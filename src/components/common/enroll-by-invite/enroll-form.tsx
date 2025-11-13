@@ -11,7 +11,7 @@ import {
 } from "./-services/enroll-invite-services";
 import { DashboardLoader } from "@/components/core/dashboard-loader";
 import { GraduationCap } from "lucide-react";
-import { useEffect, useState, useRef,useMemo } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import {
   convertInviteCustomFields,
   getDefaultPlanFromPaymentsData,
@@ -270,10 +270,16 @@ const EnrollByInvite = ({ vendor: propVendor }: EnrollByInviteProps = {}) => {
     return (
       (courseData.description && courseData.description.trim() !== "") ||
       (courseData.aboutCourse && courseData.aboutCourse.trim() !== "") ||
-      (courseData.learningOutcome && courseData.learningOutcome.trim() !== "") ||
+      (courseData.learningOutcome &&
+        courseData.learningOutcome.trim() !== "") ||
       (courseData.tags && courseData.tags.length > 0)
     );
-  }, [courseData.description, courseData.aboutCourse, courseData.learningOutcome, courseData.tags]);
+  }, [
+    courseData.description,
+    courseData.aboutCourse,
+    courseData.learningOutcome,
+    courseData.tags,
+  ]);
 
   useEffect(() => {
     if (bundledPackageSessions.length > 0) {
@@ -301,10 +307,7 @@ const EnrollByInvite = ({ vendor: propVendor }: EnrollByInviteProps = {}) => {
     }
 
     return (
-      courseName ||
-      levelName ||
-      sessionName ||
-      `Course ${fallbackIndex + 1}`
+      courseName || levelName || sessionName || `Course ${fallbackIndex + 1}`
     );
   };
 
@@ -441,9 +444,10 @@ const EnrollByInvite = ({ vendor: propVendor }: EnrollByInviteProps = {}) => {
           enrollInviteId: inviteData?.id,
           payment_option_id:
             inviteData?.package_session_to_payment_options[0].payment_option.id,
-          package_session_id:
-            inviteData?.package_session_to_payment_options[0]
-              ?.package_session_id,
+          package_session_ids:
+            inviteData?.package_session_to_payment_options.map(
+              (ps: { package_session_id: string }) => ps?.package_session_id
+            ) || [""],
           allowLearnersToCreateCourses:
             JSON.parse(instituteData?.setting)?.setting?.COURSE_SETTING?.data
               ?.permissions?.allowLearnersToCreateCourses || false,
@@ -1083,7 +1087,8 @@ const EnrollByInvite = ({ vendor: propVendor }: EnrollByInviteProps = {}) => {
   // Helper to extract YouTube video ID from URL
   const getYouTubeVideoId = (url: string): string | null => {
     if (!url) return null;
-    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+    const regExp =
+      /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
     const match = url.match(regExp);
     return match && match[2].length === 11 ? match[2] : null;
   };
@@ -1099,7 +1104,9 @@ const EnrollByInvite = ({ vendor: propVendor }: EnrollByInviteProps = {}) => {
                 branding={{
                   instituteId: instituteId || null,
                   instituteName:
-                    instituteData?.institute_name ?? instituteData?.name ?? null,
+                    instituteData?.institute_name ??
+                    instituteData?.name ??
+                    null,
                   instituteLogoFileId:
                     instituteData?.institute_logo_file_id ?? null,
                   instituteThemeCode:
@@ -1117,25 +1124,31 @@ const EnrollByInvite = ({ vendor: propVendor }: EnrollByInviteProps = {}) => {
       )}
 
       {/* Hero Section with Banner and Course Media */}
-      <div 
+      <div
         className="relative w-full bg-cover bg-center flex items-center"
         style={{
-          backgroundImage: courseData.courseBanner 
+          backgroundImage: courseData.courseBanner
             ? `linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)), url(${courseData.courseBanner})`
-            : 'linear-gradient(to right, #667eea 0%, #764ba2 100%)',
-          minHeight: '500px'
+            : "linear-gradient(to right, #667eea 0%, #764ba2 100%)",
+          minHeight: "500px",
         }}
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 w-full">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
             {/* Left Side: Course Info and Enroll Button */}
-            <div className={`text-white flex flex-col ${courseData.description ? 'justify-start' : 'justify-center items-start'}`}>
+            <div
+              className={`text-white flex flex-col ${
+                courseData.description
+                  ? "justify-start"
+                  : "justify-center items-start"
+              }`}
+            >
               <h1 className="text-4xl md:text-5xl font-bold leading-tight">
                 {inviteData?.name || courseData.course}
               </h1>
-              
+
               {courseData.description && (
-                <div 
+                <div
                   className="text-lg text-gray-100 leading-relaxed mt-6 flex-grow"
                   dangerouslySetInnerHTML={{ __html: courseData.description }}
                 />
@@ -1143,14 +1156,15 @@ const EnrollByInvite = ({ vendor: propVendor }: EnrollByInviteProps = {}) => {
 
               {/* Enroll Button */}
               {currentStep === 0 && (
-                <div className={courseData.description ? 'mt-8' : 'mt-6'}>
+                <div className={courseData.description ? "mt-8" : "mt-6"}>
                   <MyButton
                     type="button"
                     buttonType="secondary"
                     scale="large"
                     layoutVariant="default"
                     onClick={() => {
-                      const registrationCard = document.getElementById("registration-card");
+                      const registrationCard =
+                        document.getElementById("registration-card");
                       if (registrationCard) {
                         registrationCard.scrollIntoView({
                           behavior: "smooth",
@@ -1168,20 +1182,26 @@ const EnrollByInvite = ({ vendor: propVendor }: EnrollByInviteProps = {}) => {
             </div>
 
             {/* Right Side: Course Media (YouTube Video) */}
-            {courseData.courseMedia && courseData.courseMediaId?.type === "youtube" && (
-              <div className="w-full">
-                <div className="relative rounded-lg overflow-hidden shadow-2xl" style={{ paddingBottom: '56.25%' }}>
-                  <iframe
-                    className="absolute top-0 left-0 w-full h-full"
-                    src={`https://www.youtube.com/embed/${getYouTubeVideoId(courseData.courseMediaId.id)}`}
-                    title={courseData.course}
-                    frameBorder="0"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    allowFullScreen
-                  />
+            {courseData.courseMedia &&
+              courseData.courseMediaId?.type === "youtube" && (
+                <div className="w-full">
+                  <div
+                    className="relative rounded-lg overflow-hidden shadow-2xl"
+                    style={{ paddingBottom: "56.25%" }}
+                  >
+                    <iframe
+                      className="absolute top-0 left-0 w-full h-full"
+                      src={`https://www.youtube.com/embed/${getYouTubeVideoId(
+                        courseData.courseMediaId.id
+                      )}`}
+                      title={courseData.course}
+                      frameBorder="0"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                    />
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
           </div>
         </div>
       </div>
@@ -1190,203 +1210,224 @@ const EnrollByInvite = ({ vendor: propVendor }: EnrollByInviteProps = {}) => {
       <div className="py-8 px-4 sm:px-6 lg:px-8">
         <div className="w-11/12 mx-auto space-y-8">
           {/* Main Grid Layout - Full width if no right section content */}
-          <div className={`grid grid-cols-1 ${hasRightSectionContent ? 'lg:grid-cols-3' : ''} gap-8`}>
-          {/* Left: Course Structure Preview & Step Content (Subscription Model) */}
-          <div className={`${hasRightSectionContent ? 'lg:col-span-2' : 'w-full'} space-y-4 sm:space-y-6`}>
-            {/* Course Structure Section - Above Subscription - Only show on step 0 */}
-           
+          <div
+            className={`grid grid-cols-1 ${
+              hasRightSectionContent ? "lg:grid-cols-3" : ""
+            } gap-8`}
+          >
+            {/* Left: Course Structure Preview & Step Content (Subscription Model) */}
+            <div
+              className={`${
+                hasRightSectionContent ? "lg:col-span-2" : "w-full"
+              } space-y-4 sm:space-y-6`}
+            >
+              {/* Course Structure Section - Above Subscription - Only show on step 0 */}
 
-            {/* Subscription/Registration Form */}
-            {renderCurrentStep()}
+              {/* Subscription/Registration Form */}
+              {renderCurrentStep()}
 
-             {currentStep === 0 && isBundledInvite && bundledPackageSessions.length > 0 && (
-              <ModernCard
-                variant="glass"
-                padding="lg"
-                rounded="lg"
-                className="border border-white/40 bg-white/90 backdrop-blur-md shadow-lg"
-              >
-                <ModernCardHeader className="p-0 mb-2 ">
-                  <ModernCardTitle size="md" className="text-neutral-800 text-xl sm:text-2xl">
-                    Course Structure Preview
-                  </ModernCardTitle>
-                </ModernCardHeader>
-                {/* <p className="text-xs sm:text-sm text-neutral-500 mb-3 sm:mb-4">
+              {currentStep === 0 &&
+                isBundledInvite &&
+                bundledPackageSessions.length > 0 && (
+                  <ModernCard
+                    variant="glass"
+                    padding="lg"
+                    rounded="lg"
+                    className="border border-white/40 bg-white/90 backdrop-blur-md shadow-lg"
+                  >
+                    <ModernCardHeader className="p-0 mb-2 ">
+                      <ModernCardTitle
+                        size="md"
+                        className="text-neutral-800 text-xl sm:text-2xl"
+                      >
+                        Course Structure Preview
+                      </ModernCardTitle>
+                    </ModernCardHeader>
+                    {/* <p className="text-xs sm:text-sm text-neutral-500 mb-3 sm:mb-4">
                   Review what&apos;s included in each bundled course before you enroll.
                 </p> */}
 
-                {bundledPackageSessions.length > 1 ? (
-                  <Tabs
-                    value={
-                      activePackageSessionId ??
-                      bundledPackageSessions[0]?.packageSessionId
-                    }
-                    onValueChange={setActivePackageSessionId}
-                  >
-                    <div className="bg-neutral-100/70 rounded-lg p-3 mb-4">
-                      {/* <h3 className="text-sm font-semibold text-neutral-700 mb-3 px-1">
+                    {bundledPackageSessions.length > 1 ? (
+                      <Tabs
+                        value={
+                          activePackageSessionId ??
+                          bundledPackageSessions[0]?.packageSessionId
+                        }
+                        onValueChange={setActivePackageSessionId}
+                      >
+                        <div className="bg-neutral-100/70 rounded-lg p-3 mb-4">
+                          {/* <h3 className="text-sm font-semibold text-neutral-700 mb-3 px-1">
                         Select a Course:
                       </h3> */}
-                      <TabsList className="flex flex-wrap w-full gap-2 bg-transparent p-0 h-auto">
-                        {bundledPackageSessions.map((session, index) => (
-                          <TabsTrigger
+                          <TabsList className="flex flex-wrap w-full gap-2 bg-transparent p-0 h-auto">
+                            {bundledPackageSessions.map((session, index) => (
+                              <TabsTrigger
+                                key={session.packageSessionId}
+                                value={session.packageSessionId}
+                                className="flex-1 min-w-[calc(50%-0.25rem)] sm:min-w-[calc(50%-0.5rem)] md:min-w-[calc(33.333%-0.5rem)] border-1 border-gray-300 rounded-md px-2 sm:px-3 py-2 sm:py-2.5 text-xs sm:text-sm font-medium text-neutral-700 bg-white transition-all duration-200 cursor-pointer hover:bg-primary-50 hover:border-primary-400 data-[state=active]:bg-gray-400 data-[state=active]:text-white data-[state=active]:border-gray-700 data-[state=active]:shadow-md"
+                              >
+                                {resolvePackageSessionLabel(
+                                  session.packageSessionId,
+                                  index
+                                )}
+                              </TabsTrigger>
+                            ))}
+                          </TabsList>
+                        </div>
+
+                        {bundledPackageSessions.map((session) => (
+                          <TabsContent
                             key={session.packageSessionId}
                             value={session.packageSessionId}
-                            className="flex-1 min-w-[calc(50%-0.25rem)] sm:min-w-[calc(50%-0.5rem)] md:min-w-[calc(33.333%-0.5rem)] border-1 border-gray-300 rounded-md px-2 sm:px-3 py-2 sm:py-2.5 text-xs sm:text-sm font-medium text-neutral-700 bg-white transition-all duration-200 cursor-pointer hover:bg-primary-50 hover:border-primary-400 data-[state=active]:bg-gray-400 data-[state=active]:text-white data-[state=active]:border-gray-700 data-[state=active]:shadow-md"
+                            className="focus-visible:outline-none focus-visible:ring-0"
                           >
-                            {resolvePackageSessionLabel(
-                              session.packageSessionId,
-                              index
+                            {activePackageSessionId ===
+                            session.packageSessionId ? (
+                              (() => {
+                                const sessionDetails =
+                                  getDetailsFromPackageSessionId({
+                                    packageSessionId: session.packageSessionId,
+                                  });
+                                const previewCourseId =
+                                  sessionDetails?.package_dto?.id ?? "";
+                                const previewLevelId =
+                                  sessionDetails?.level?.id ?? undefined;
+
+                                if (!previewCourseId) {
+                                  return (
+                                    <div className="rounded-lg border border-dashed border-neutral-200 p-3 sm:p-4 text-xs text-neutral-500">
+                                      Course structure will appear once the
+                                      institute shares the full course catalog.
+                                    </div>
+                                  );
+                                }
+
+                                return (
+                                  <div className="rounded-lg border border-neutral-100 bg-white/70 p-2 sm:p-3">
+                                    <CatalogCourseStructureDetails
+                                      key={session.packageSessionId}
+                                      courseDepth={5}
+                                      courseId={previewCourseId}
+                                      instituteId={instituteId ?? ""}
+                                      packageSessionId={
+                                        session.packageSessionId
+                                      }
+                                      levelId={previewLevelId}
+                                    />
+                                  </div>
+                                );
+                              })()
+                            ) : (
+                              <div className="rounded-lg border border-dashed border-neutral-200 p-3 sm:p-4 text-xs text-neutral-500">
+                                Select a course above to preview its structure.
+                              </div>
                             )}
-                          </TabsTrigger>
+                          </TabsContent>
                         ))}
-                      </TabsList>
-                    </div>
-
-                    {bundledPackageSessions.map((session) => (
-                      <TabsContent
-                        key={session.packageSessionId}
-                        value={session.packageSessionId}
-                        className="focus-visible:outline-none focus-visible:ring-0"
-                      >
-                        {activePackageSessionId === session.packageSessionId ? (
-                          (() => {
-                            const sessionDetails = getDetailsFromPackageSessionId({
-                              packageSessionId: session.packageSessionId,
-                            });
-                            const previewCourseId =
-                              sessionDetails?.package_dto?.id ?? "";
-                            const previewLevelId =
-                              sessionDetails?.level?.id ?? undefined;
-
-                            if (!previewCourseId) {
-                              return (
-                                <div className="rounded-lg border border-dashed border-neutral-200 p-3 sm:p-4 text-xs text-neutral-500">
-                                  Course structure will appear once the institute
-                                  shares the full course catalog.
-                                </div>
-                              );
-                            }
-
+                      </Tabs>
+                    ) : (
+                      <div>
+                        {(() => {
+                          const singleSessionId =
+                            bundledPackageSessions[0]?.packageSessionId ?? "";
+                          if (!singleSessionId) {
                             return (
-                              <div className="rounded-lg border border-neutral-100 bg-white/70 p-2 sm:p-3">
-                                <CatalogCourseStructureDetails
-                                  key={session.packageSessionId}
-                                  courseDepth={5}
-                                  courseId={previewCourseId}
-                                  instituteId={instituteId ?? ""}
-                                  packageSessionId={session.packageSessionId}
-                                  levelId={previewLevelId}
-                                />
+                              <div className="rounded-lg border border-dashed border-neutral-200 p-3 sm:p-4 text-xs text-neutral-500">
+                                Course structure preview will appear shortly.
                               </div>
                             );
-                          })()
-                        ) : (
-                          <div className="rounded-lg border border-dashed border-neutral-200 p-3 sm:p-4 text-xs text-neutral-500">
-                            Select a course above to preview its structure.
-                          </div>
-                        )}
-                      </TabsContent>
-                    ))}
-                  </Tabs>
-                ) : (
-                  <div>
-                    {(() => {
-                      const singleSessionId =
-                        bundledPackageSessions[0]?.packageSessionId ?? "";
-                      if (!singleSessionId) {
-                        return (
-                          <div className="rounded-lg border border-dashed border-neutral-200 p-3 sm:p-4 text-xs text-neutral-500">
-                            Course structure preview will appear shortly.
-                          </div>
-                        );
-                      }
-                      const sessionDetails = getDetailsFromPackageSessionId({
-                        packageSessionId: singleSessionId,
-                      });
-                      const previewCourseId =
-                        sessionDetails?.package_dto?.id ?? "";
-                      const previewLevelId = sessionDetails?.level?.id ?? undefined;
+                          }
+                          const sessionDetails = getDetailsFromPackageSessionId(
+                            {
+                              packageSessionId: singleSessionId,
+                            }
+                          );
+                          const previewCourseId =
+                            sessionDetails?.package_dto?.id ?? "";
+                          const previewLevelId =
+                            sessionDetails?.level?.id ?? undefined;
 
-                      if (!previewCourseId) {
-                        return (
-                          <div className="rounded-lg border border-dashed border-neutral-200 p-3 sm:p-4 text-xs text-neutral-500">
-                            Course structure will appear once the institute shares
-                            the full course catalog.
-                          </div>
-                        );
-                      }
+                          if (!previewCourseId) {
+                            return (
+                              <div className="rounded-lg border border-dashed border-neutral-200 p-3 sm:p-4 text-xs text-neutral-500">
+                                Course structure will appear once the institute
+                                shares the full course catalog.
+                              </div>
+                            );
+                          }
 
-                      return (
-                        <div className="rounded-lg border border-neutral-100 bg-white/70 p-2 sm:p-3">
-                          <CatalogCourseStructureDetails
-                            courseDepth={5}
-                            courseId={previewCourseId}
-                            instituteId={instituteId ?? ""}
-                            packageSessionId={singleSessionId}
-                            levelId={previewLevelId}
-                          />
-                        </div>
-                      );
-                    })()}
-                  </div>
+                          return (
+                            <div className="rounded-lg border border-neutral-100 bg-white/70 p-2 sm:p-3">
+                              <CatalogCourseStructureDetails
+                                courseDepth={5}
+                                courseId={previewCourseId}
+                                instituteId={instituteId ?? ""}
+                                packageSessionId={singleSessionId}
+                                levelId={previewLevelId}
+                              />
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    )}
+                  </ModernCard>
                 )}
-              </ModernCard>
-            )}
 
-            {/* Navigation Buttons - Show for steps 1-3, but skip step 1 for FREE payments */}
-            {currentStep > 0 &&
-              currentStep < 4 &&
-              !(currentStep === 1 && paymentType === "FREE") && (
-                <NavigationButtons
-                  currentStep={currentStep}
-                  selectedPayment={enrollmentData.selectedPayment}
-                  onPrevious={handlePrevious}
-                  onNext={handleNext}
-                  onSubmitEnrollment={handleSubmitEnrollment}
-                  loading={loading}
-                  paymentType={paymentType}
-                  donationAmountValid={donationAmountValid}
-                  paymentVendor={
-                    currentStep === 3 ? getPaymentVendor(inviteData) : undefined
-                  }
-                  isPaymentDataReady={
-                    currentStep === 3
-                      ? getPaymentVendor(inviteData) === "EWAY"
-                        ? !!ewayEncryptedData
-                        : getPaymentVendor(inviteData) === "STRIPE"
-                        ? !!stripePaymentProcessor
-                        : getPaymentVendor(inviteData) === "RAZORPAY"
-                        ? !!razorpayPaymentData
+              {/* Navigation Buttons - Show for steps 1-3, but skip step 1 for FREE payments */}
+              {currentStep > 0 &&
+                currentStep < 4 &&
+                !(currentStep === 1 && paymentType === "FREE") && (
+                  <NavigationButtons
+                    currentStep={currentStep}
+                    selectedPayment={enrollmentData.selectedPayment}
+                    onPrevious={handlePrevious}
+                    onNext={handleNext}
+                    onSubmitEnrollment={handleSubmitEnrollment}
+                    loading={loading}
+                    paymentType={paymentType}
+                    donationAmountValid={donationAmountValid}
+                    paymentVendor={
+                      currentStep === 3
+                        ? getPaymentVendor(inviteData)
+                        : undefined
+                    }
+                    isPaymentDataReady={
+                      currentStep === 3
+                        ? getPaymentVendor(inviteData) === "EWAY"
+                          ? !!ewayEncryptedData
+                          : getPaymentVendor(inviteData) === "STRIPE"
+                          ? !!stripePaymentProcessor
+                          : getPaymentVendor(inviteData) === "RAZORPAY"
+                          ? !!razorpayPaymentData
+                          : false
                         : false
-                      : false
+                    }
+                  />
+                )}
+            </div>
+
+            {/* Right: Course Info Sidebar - Only show if there's meaningful content */}
+            {hasRightSectionContent && (
+              <div className="lg:col-span-1 space-y-6 lg:sticky lg:top-6 self-start">
+                <CourseInfoCard
+                  courseData={{
+                    ...courseData,
+                    instituteLogo: "",
+                    course: inviteData?.name || courseData.course,
+                  }}
+                  levelName={
+                    getDetailsFromPackageSessionId({
+                      packageSessionId:
+                        activePackageSessionId ??
+                        inviteData?.package_session_to_payment_options?.[0]
+                          ?.package_session_id ??
+                        "",
+                    })?.level?.level_name || "-"
                   }
                 />
-              )}
+              </div>
+            )}
           </div>
-
-          {/* Right: Course Info Sidebar - Only show if there's meaningful content */}
-          {hasRightSectionContent && (
-            <div className="lg:col-span-1 space-y-6 lg:sticky lg:top-6 self-start">
-              <CourseInfoCard
-                courseData={{ 
-                  ...courseData, 
-                  instituteLogo: "",
-                  course: inviteData?.name || courseData.course 
-                }}
-                levelName={
-                  getDetailsFromPackageSessionId({
-                    packageSessionId:
-                      activePackageSessionId ??
-                      inviteData?.package_session_to_payment_options?.[0]
-                        ?.package_session_id ??
-                      "",
-                  })?.level?.level_name || "-"
-                }
-              />
-            </div>
-          )}
-        </div>
 
           {/* Policy Links */}
           <div className="flex items-center justify-center gap-4 text-sm text-gray-600 pb-8">
