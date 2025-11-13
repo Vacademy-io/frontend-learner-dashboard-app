@@ -1194,7 +1194,12 @@ const EnrollByInvite = ({ vendor: propVendor }: EnrollByInviteProps = {}) => {
           {/* Left: Course Structure Preview & Step Content (Subscription Model) */}
           <div className={`${hasRightSectionContent ? 'lg:col-span-2' : 'w-full'} space-y-4 sm:space-y-6`}>
             {/* Course Structure Section - Above Subscription - Only show on step 0 */}
-            {currentStep === 0 && isBundledInvite && bundledPackageSessions.length > 0 && (
+           
+
+            {/* Subscription/Registration Form */}
+            {renderCurrentStep()}
+
+             {currentStep === 0 && isBundledInvite && bundledPackageSessions.length > 0 && (
               <ModernCard
                 variant="glass"
                 padding="lg"
@@ -1206,9 +1211,9 @@ const EnrollByInvite = ({ vendor: propVendor }: EnrollByInviteProps = {}) => {
                     Course Structure Preview
                   </ModernCardTitle>
                 </ModernCardHeader>
-                <p className="text-xs sm:text-sm text-neutral-500 mb-3 sm:mb-4">
+                {/* <p className="text-xs sm:text-sm text-neutral-500 mb-3 sm:mb-4">
                   Review what&apos;s included in each bundled course before you enroll.
-                </p>
+                </p> */}
 
                 {bundledPackageSessions.length > 1 ? (
                   <Tabs
@@ -1328,9 +1333,6 @@ const EnrollByInvite = ({ vendor: propVendor }: EnrollByInviteProps = {}) => {
                 )}
               </ModernCard>
             )}
-
-            {/* Subscription/Registration Form */}
-            {renderCurrentStep()}
 
             {/* Navigation Buttons - Show for steps 1-3, but skip step 1 for FREE payments */}
             {currentStep > 0 &&

@@ -301,42 +301,6 @@ const RegistrationStep = ({
 
   return (
     <>
-      {/* Show selected plan in a card */}
-      {(selectedPlan?.type === "SUBSCRIPTION" ||
-        selectedPlan?.type === "ONE_TIME") &&
-        courseData.includePaymentPlans && (
-          <Card className="mb-4 flex flex-col gap-0">
-            <div className="flex flex-col items-start gap-3 p-3 sm:p-4">
-              <div className="flex items-center gap-3">
-                {getPaymentPlanIcon(selectedPlan?.type || "")}
-                <div className="flex flex-1 flex-col font-semibold">
-                  <span>{selectedPlan?.name}</span>
-                </div>
-              </div>
-              {selectedPlan?.type === "ONE_TIME" && (
-                <OneTimePlanSection
-                  payment_options={selectedPlan?.payment_options || []}
-                  currency={getCurrencySymbol(selectedPlan?.currency || "")}
-                  discount_json={selectedPlan?.discount_json || null}
-                  selectedPayment={null}
-                  onSelect={() => {}}
-                />
-              )}
-              {selectedPlan?.type === "SUBSCRIPTION" && (
-                <SubscriptionPlanSection
-                  payment_options={selectedPlan?.payment_options || []}
-                  currency={getCurrencySymbol(selectedPlan?.currency || "")}
-                  features={getAllUniqueFeatures(
-                    selectedPlan.payment_options || []
-                  )}
-                  discount_json={selectedPlan?.discount_json}
-                  selectedPayment={null}
-                  onSelect={() => {}}
-                />
-              )}
-            </div>
-          </Card>
-        )}
       <Card
         id="registration-card"
         className="overflow-hidden shadow-lg w-full"
@@ -617,6 +581,43 @@ const RegistrationStep = ({
           </CardContent>
         </Card>
       )}
+      {/* Show selected plan in a card */}
+      {(selectedPlan?.type === "SUBSCRIPTION" ||
+        selectedPlan?.type === "ONE_TIME") &&
+        courseData.includePaymentPlans && (
+          <Card className="mb-4 flex flex-col gap-0">
+            <div className="flex flex-col items-start gap-3 p-3 sm:p-4">
+              <div className="flex items-center gap-3">
+                {getPaymentPlanIcon(selectedPlan?.type || "")}
+                <div className="flex flex-1 flex-col font-semibold">
+                  <span>{selectedPlan?.name}</span>
+                </div>
+              </div>
+              {selectedPlan?.type === "ONE_TIME" && (
+                <OneTimePlanSection
+                  payment_options={selectedPlan?.payment_options || []}
+                  currency={getCurrencySymbol(selectedPlan?.currency || "")}
+                  discount_json={selectedPlan?.discount_json || null}
+                  selectedPayment={null}
+                  onSelect={() => {}}
+                />
+              )}
+              {selectedPlan?.type === "SUBSCRIPTION" && (
+                <SubscriptionPlanSection
+                  payment_options={selectedPlan?.payment_options || []}
+                  currency={getCurrencySymbol(selectedPlan?.currency || "")}
+                  features={getAllUniqueFeatures(
+                    selectedPlan.payment_options || []
+                  )}
+                  discount_json={selectedPlan?.discount_json}
+                  selectedPayment={null}
+                  onSelect={() => {}}
+                />
+              )}
+            </div>
+          </Card>
+        )}
+    
     </>
   );
 };
