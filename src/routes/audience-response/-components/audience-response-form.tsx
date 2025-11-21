@@ -238,10 +238,17 @@ const AudienceResponseForm = ({
     setLoading(true);
     try {
       // Build the payload using the helper function
+      // Pass formFields to maintain the order from GET API (sorted by field_order)
+      // This ensures custom_field_values in POST payload matches the order from GET API
+      const customFieldsOrder = formFields.map((field) => ({
+        id: field.id,
+        field_key: field.field_key,
+      }));
       const payload = handleSubmitAudienceLead(
         values,
         audienceId,
-        campaignData.id
+        campaignData.id,
+        customFieldsOrder
       );
 
       // console.log("Submitting audience lead with payload:", payload);

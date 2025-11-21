@@ -1,9 +1,5 @@
 import { GET_AUDIENCE_CAMPAIGN, SUBMIT_AUDIENCE_LEAD } from "@/constants/urls";
 import axios from "axios";
-import {
-  FieldRenderType,
-  getFieldRenderType,
-} from "@/components/common/enroll-by-invite/-utils/custom-field-helpers";
 import { isNullOrEmptyOrUndefined } from "@/lib/utils";
 
 export interface AudienceCampaignResponse {
@@ -154,41 +150,6 @@ const getFullNameFromFormValues = (
   return `${firstName} ${lastName}`.trim();
 };
 
-// Helper function to get keys that should be excluded from custom field values
-const getKeysToExcludeFromCustomFields = (
-  formValues: Record<string, { value: string; [key: string]: any }>
-): string[] => {
-  const keysToExclude: string[] = [];
-
-  Object.entries(formValues).forEach(([key, value]) => {
-    const lowerKey = key.toLowerCase();
-    const renderType =
-      value.render_type || getFieldRenderType(key, value.type || "text");
-
-    // Exclude email fields
-    if (renderType === FieldRenderType.EMAIL) {
-      keysToExclude.push(key);
-    }
-
-    // Exclude phone fields
-    if (renderType === FieldRenderType.PHONE) {
-      keysToExclude.push(key);
-    }
-
-    // Exclude name-related fields
-    if (
-      (lowerKey.includes("name") &&
-        (lowerKey.includes("full") ||
-          lowerKey.includes("first") ||
-          lowerKey.includes("last"))) ||
-      lowerKey === "name"
-    ) {
-      keysToExclude.push(key);
-    }
-  });
-
-  return keysToExclude;
-};
 
 export interface SubmitAudienceLeadRequest {
   audience_id: string;
@@ -234,32 +195,50 @@ export const submitAudienceLead = async (
   return response?.data;
 };
 
+export interface CustomFieldOrder {
+  id: string;
+  field_key: string;
+}
+
 export const handleSubmitAudienceLead = (
   formValues: Record<string, { value: string; id: string; [key: string]: any }>,
   audienceId: string,
-  campaignId: string
+  campaignId: string,
+  customFieldsOrder: CustomFieldOrder[] = []
 ): SubmitAudienceLeadRequest => {
-  // Extract user data from form values
+  // Extract user data from form values for user_dto
   const email = getEmailFromFormValues(formValues);
   const phoneNumber = getPhoneFromFormValues(formValues);
   const fullName = getFullNameFromFormValues(formValues);
 
-  // Get keys to exclude from custom field values
-  const keysToExclude = getKeysToExcludeFromCustomFields(formValues);
-
-  // Build custom_field_values object (key-value pairs keyed by unique field IDs)
+  // Build custom_field_values object using unique field IDs from custom_field.id
+  // Iterate in the same order as received from GET API to maintain order
+  // JavaScript objects maintain insertion order (ES2015+), so the order will be preserved
   const customFieldValues: Record<string, string> = {};
-  Object.entries(formValues).forEach(([key, field]) => {
-    if (!keysToExclude.includes(key) && field.value) {
-      const uniqueFieldId = field.id || key;
-      customFieldValues[uniqueFieldId] = String(field.value);
-    }
-  });
+  
+  if (customFieldsOrder.length > 0) {
+    // Use the ordered array to maintain the exact order from GET API response
+    // This ensures custom_field_values in POST payload matches the order from GET API
+    customFieldsOrder.forEach((field) => {
+      const formValue = formValues[field.field_key];
+      if (formValue && formValue.id && formValue.value !== undefined && formValue.value !== null && formValue.value !== "") {
+        // Use custom_field.id as the key to maintain the unique identifier
+        customFieldValues[formValue.id] = String(formValue.value);
+      }
+    });
+  } else {
+    // Fallback: if no order array provided, iterate over formValues (may not preserve order)
+    Object.entries(formValues).forEach(([, field]) => {
+      if (field.id && field.value !== undefined && field.value !== null && field.value !== "") {
+        customFieldValues[field.id] = String(field.value);
+      }
+    });
+  }
 
-  // Build user_dto
+  // Build user_dto - only username and email are required, others can be empty
   const userDto = {
     id: "",
-    username: email || fullName || "",
+    username: email || fullName || "", // Use email as username, fallback to full name
     email: email || "",
     full_name: fullName || "",
     address_line: "",
@@ -281,8 +260,8 @@ export const handleSubmitAudienceLead = (
     audience_id: audienceId,
     source_type: "AUDIENCE_CAMPAIGN",
     source_id: campaignId,
-    custom_field_values: customFieldValues,
-    user_dto: userDto,
+    custom_field_values: customFieldValues, // All custom fields with their unique IDs
+    user_dto: userDto, // Only username and email (and other standard fields)
   };
 
   return payload;
