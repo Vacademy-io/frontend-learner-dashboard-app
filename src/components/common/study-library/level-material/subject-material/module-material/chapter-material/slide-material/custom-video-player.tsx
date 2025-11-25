@@ -1037,7 +1037,7 @@ const CustomVideoPlayer = forwardRef<any, CustomVideoPlayerProps>(
                                     "integrate update video activity api now"
                                 );
                                 syncVideoTrackingData();
-                            }, 60 * 1000);
+                            }, 20 * 1000); // Sync every 20 seconds for faster progress updates
                         }
                     }
 
@@ -1226,7 +1226,7 @@ const CustomVideoPlayer = forwardRef<any, CustomVideoPlayerProps>(
                     updateIntervalRef.current = setInterval(() => {
                         console.log("integrate update video activity api now");
                         syncVideoTrackingData();
-                    }, 60 * 1000);
+                    }, 20 * 1000); // Sync every 20 seconds for faster progress updates
                 }
             }
 

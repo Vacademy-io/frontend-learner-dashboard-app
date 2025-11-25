@@ -447,7 +447,15 @@ export function DashboardComponent() {
       progress_marker: slide.progress_marker,
     });
     navigate({
-      to: `/study-library/courses/course-details/subjects/modules/chapters/slides?subjectId=${slide.subject_id}&moduleId=${slide.module_id}&chapterId=${slide.chapter_id}&slideId=${slide.slide_id}`,
+      to: "/study-library/courses/course-details/subjects/modules/chapters/slides",
+      search: {
+        courseId: slide.package_id,
+        sessionId: slide.package_id,
+        subjectId: slide.subject_id,
+        moduleId: slide.module_id,
+        chapterId: slide.chapter_id,
+        slideId: slide.slide_id,
+      },
     });
   };
 

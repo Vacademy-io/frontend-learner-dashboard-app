@@ -123,12 +123,18 @@ export const SubjectMaterial = () => {
     pathname: string,
     searchParamsObj: Record<string, string | undefined>
   ) => router.navigate({ to: pathname, search: searchParamsObj });
+  
+  // Get courseId from router search params to pass to slides
+  const { courseId } = router.state.location.search as { courseId?: string };
+  
   const handleSubjectNavigation = (subjectId: string) =>
     navigateTo(`${router.state.location.pathname}/modules`, {
+      courseId,
       subjectId,
     });
   const handleModuleNavigation = (subjectId: string, moduleId: string) =>
     navigateTo(`${router.state.location.pathname}/modules/chapters`, {
+      courseId,
       subjectId,
       moduleId,
     });
@@ -138,6 +144,8 @@ export const SubjectMaterial = () => {
     chapterId: string
   ) =>
     navigateTo(`${router.state.location.pathname}/modules/chapters/slides`, {
+      courseId,
+      sessionId: courseId,
       subjectId,
       moduleId,
       chapterId,
@@ -150,6 +158,8 @@ export const SubjectMaterial = () => {
   ) => {
     console.log(slideId);
     navigateTo(`${router.state.location.pathname}/modules/chapters/slides`, {
+      courseId,
+      sessionId: courseId,
       subjectId,
       moduleId,
       chapterId,

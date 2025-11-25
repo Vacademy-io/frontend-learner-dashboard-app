@@ -18,17 +18,20 @@ export const useVideoSync = () => {
   const addUpdateVideoActivity = useAddVideoActivity();
   const { activeItem } = useContentStore();
   const router = useRouter();
-  const { chapterId, moduleId, subjectId } = router.state.location.search;
+  const { chapterId, moduleId, subjectId, courseId, sessionId } = router.state.location.search;
   const [packageSessionId, setPackageSessionId] = useState<string | null>(null);
   const { refreshSlides } = useSlidesRefresh();
 
   useEffect(() => {
     const fetchPackageSessionId = async () => {
-      const id = await getPackageSessionId();
+      // IMPORTANT: In the study library flow, courseId IS the package session ID
+      // Priority: 1. sessionId (explicit) 2. courseId (from URL) 3. stored value (fallback)
+      const storedId = await getPackageSessionId();
+      const id = (sessionId as string) || (courseId as string) || storedId;
       setPackageSessionId(id);
     };
     fetchPackageSessionId();
-  }, []);
+  }, [courseId, sessionId]);
 
   const syncVideoTrackingData = async () => {
     try {

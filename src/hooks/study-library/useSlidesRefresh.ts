@@ -7,31 +7,39 @@ export const useSlidesRefresh = () => {
   const { chapterId } = router.state.location.search;
 
   const refreshSlides = async () => {
-    console.log("🔄 [useSlidesRefresh] Starting slides refresh process");
+    console.log("🔄 [useSlidesRefresh] Starting comprehensive refresh process");
     console.log("📋 [useSlidesRefresh] Chapter ID:", chapterId);
     
-    if (chapterId) {
-      try {
-        console.log("🗂️ [useSlidesRefresh] Invalidating query with key:", ["slides", chapterId]);
-        
-        // Invalidate and refetch the slides query
+    try {
+      // 1. Invalidate slides query for the current chapter
+      if (chapterId) {
+        console.log("🗂️ [useSlidesRefresh] Invalidating slides query:", ["slides", chapterId]);
         await queryClient.invalidateQueries({
           queryKey: ["slides", chapterId],
         });
-        
-        console.log("✅ [useSlidesRefresh] Query invalidation completed");
         
         // Force refetch to ensure data is updated immediately
         await queryClient.refetchQueries({
           queryKey: ["slides", chapterId],
         });
-        
-        console.log("✅ [useSlidesRefresh] Query refetch completed - slides data should be updated");
-      } catch (error) {
-        console.error("❌ [useSlidesRefresh] Failed to refresh slides data:", error);
+        console.log("✅ [useSlidesRefresh] Slides query refreshed");
       }
-    } else {
-      console.warn("⚠️ [useSlidesRefresh] No chapter ID available, skipping refresh");
+
+      // 2. Invalidate study library data to update subject/module/chapter percentages
+      console.log("🗂️ [useSlidesRefresh] Invalidating study library query");
+      await queryClient.invalidateQueries({
+        queryKey: ["GET_INIT_STUDY_LIBRARY"],
+      });
+      
+      // Force refetch study library to update left sidebar progress
+      await queryClient.refetchQueries({
+        queryKey: ["GET_INIT_STUDY_LIBRARY"],
+      });
+      console.log("✅ [useSlidesRefresh] Study library refreshed - sidebar progress updated");
+
+      console.log("✅ [useSlidesRefresh] Complete refresh finished - all progress data updated!");
+    } catch (error) {
+      console.error("❌ [useSlidesRefresh] Failed to refresh data:", error);
     }
   };
 

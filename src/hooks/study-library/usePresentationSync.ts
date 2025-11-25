@@ -14,7 +14,7 @@ export const usePresentationSync = () => {
     const addUpdateDocumentActivity = useAddDocumentActivity();
     const { activeItem } = useContentStore();
     const router = useRouter();
-    const { chapterId, moduleId, subjectId } = router.state.location.search;
+    const { chapterId, moduleId, subjectId, courseId, sessionId } = router.state.location.search;
 
     const { refreshSlides } = useSlidesRefresh();
 

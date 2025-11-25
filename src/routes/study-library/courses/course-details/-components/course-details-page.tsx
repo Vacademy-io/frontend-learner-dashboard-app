@@ -318,6 +318,7 @@ export const CourseDetailsPage = () => {
     // Even if some IDs are missing, the slides page should handle it gracefully
     const navigationParams = {
       courseId: searchParams.courseId,
+      sessionId: searchParams.courseId,
       subjectId: subjectId || "",
       moduleId: moduleId || "",
       chapterId: chapterId || "",

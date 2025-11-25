@@ -17,7 +17,7 @@ export const usePDFSync = () => {
     const addUpdateDocumentActivity = useAddDocumentActivity();
     const { activeItem } = useContentStore();
     const router = useRouter();
-    const { chapterId, moduleId, subjectId } = router.state.location.search;
+    const { chapterId, moduleId, subjectId, courseId, sessionId } = router.state.location.search;
 
     const { refreshSlides } = useSlidesRefresh();
 
@@ -28,7 +28,20 @@ export const usePDFSync = () => {
                 ? JSON.parse(userDetailsStr.value)
                 : null;
             const userId = userDetails?.user_id;
-            const packageSessionId = await getPackageSessionId();
+            
+            // IMPORTANT: In the study library flow, courseId IS the package session ID
+            // Priority: 1. sessionId (explicit) 2. courseId (from URL) 3. stored value (fallback)
+            const storedPackageSessionId = await getPackageSessionId();
+            const packageSessionId = (sessionId as string) || (courseId as string) || storedPackageSessionId;
+            
+            // Debug log to track packageSessionId resolution
+            console.log("📦 [usePdfSync] PackageSessionId resolution:", {
+                sessionId: sessionId as string,
+                courseId: courseId as string,
+                storedPackageSessionId,
+                finalPackageSessionId: packageSessionId,
+                allSearchParams: router.state.location.search
+            });
 
             if (!userId) {
                 throw new Error("User ID not found in storage");

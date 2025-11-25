@@ -61,6 +61,7 @@ export const DocViewer: React.FC<DocViewerProps> = ({
         }>
     >([]);
     const totalPagesReadRef = useRef<number>(0);
+    const page0TimerRef = useRef<NodeJS.Timeout | null>(null);
 
     // Verification state
     const [showVerification, setShowVerification] = useState(false);
@@ -307,6 +308,11 @@ export const DocViewer: React.FC<DocViewerProps> = ({
         return () => {
             console.log("Cleaning up timer for document:", documentId);
             stopTimer();
+            // Clean up page 0 timer on unmount
+            if (page0TimerRef.current) {
+                clearTimeout(page0TimerRef.current);
+                page0TimerRef.current = null;
+            }
         };
     }, [startTimer, stopTimer, documentId]);
 
@@ -439,6 +445,34 @@ export const DocViewer: React.FC<DocViewerProps> = ({
                     syncPDFTrackingData();
                 }, 60 * 1000);
             }
+            
+            // Start auto-completion timer for page 0 on initial load
+            if (currentPage === 0 && !page0TimerRef.current) {
+                console.log("📄 [DocViewer] Starting page 0 auto-completion timer on document load");
+                page0TimerRef.current = setTimeout(() => {
+                    const now = getEpochTimeInMillis();
+                    const duration = Math.round(
+                        (now - pageStartTime.current.getTime()) / 1000
+                    );
+                    
+                    // Only add if not already tracked
+                    const alreadyTracked = pageViews.current.some(v => v.page === 0);
+                    if (!alreadyTracked && duration >= 10) {
+                        console.log("📄 [DocViewer] Auto-completing page 0 after 10 seconds (initial load)");
+                        pageViews.current.push({
+                            id: uuidv4(),
+                            page: 0,
+                            duration: 10,
+                            start_time: new Date(pageStartTime.current).toISOString(),
+                            end_time: new Date(now).toISOString(),
+                            start_time_in_millis: pageStartTime.current.getTime(),
+                            end_time_in_millis: now,
+                        });
+                        // Trigger sync to update progress immediately
+                        syncPDFTrackingData();
+                    }
+                }, 10000); // 10 seconds
+            }
         }
     };
 
@@ -450,7 +484,10 @@ export const DocViewer: React.FC<DocViewerProps> = ({
                 (now - pageStartTime.current.getTime()) / 1000
             );
 
-            if (duration >= 10) {
+            // Calculate completion time based on formula: pageNumber * 10 seconds
+            const requiredDuration = currentPage * 10;
+
+            if (duration >= Math.max(10, requiredDuration)) {
                 pageViews.current.push({
                     id: uuidv4(),
                     page: currentPage,
@@ -462,12 +499,45 @@ export const DocViewer: React.FC<DocViewerProps> = ({
                 });
             }
 
+            // Clear page 0 timer when changing pages
+            if (page0TimerRef.current) {
+                clearTimeout(page0TimerRef.current);
+                page0TimerRef.current = null;
+            }
+
             setCurrentPage(page);
             setCurrentPdfPage(page);
             pageStartTime.current = new Date();
             handleUserActivity();
+            
+            // Start auto-completion timer for page 0
+            if (page === 0) {
+                page0TimerRef.current = setTimeout(() => {
+                    const now = getEpochTimeInMillis();
+                    const duration = Math.round(
+                        (now - pageStartTime.current.getTime()) / 1000
+                    );
+                    
+                    // Only add if not already tracked
+                    const alreadyTracked = pageViews.current.some(v => v.page === 0);
+                    if (!alreadyTracked && duration >= 10) {
+                        console.log("📄 [DocViewer] Auto-completing page 0 after 10 seconds");
+                        pageViews.current.push({
+                            id: uuidv4(),
+                            page: 0,
+                            duration: 10,
+                            start_time: new Date(pageStartTime.current).toISOString(),
+                            end_time: new Date(now).toISOString(),
+                            start_time_in_millis: pageStartTime.current.getTime(),
+                            end_time_in_millis: now,
+                        });
+                        // Trigger sync to update progress immediately
+                        syncPDFTrackingData();
+                    }
+                }, 10000); // 10 seconds
+            }
         },
-        [currentPage, handleUserActivity]
+        [currentPage, handleUserActivity, syncPDFTrackingData]
     );
 
     // Update activity tracking

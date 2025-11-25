@@ -1263,7 +1263,7 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({
         if (!updateIntervalRef.current) {
           updateIntervalRef.current = setInterval(() => {
             syncVideoTrackingData();
-          }, 60 * 1000);
+          }, 20 * 1000); // Sync every 20 seconds for faster progress updates
         }
       }
 

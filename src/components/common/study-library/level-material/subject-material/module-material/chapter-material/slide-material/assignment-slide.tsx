@@ -16,6 +16,7 @@ import { getUserId } from "@/constants/getUserId";
 import { MyInput } from "@/components/design-system/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useContentStore } from "@/stores/study-library/chapter-sidebar-store";
+import { getPackageSessionId } from "@/utils/study-library/get-list-from-stores/getPackageSessionId";
 // import { useContentStore } from "@/stores/study-library/chapter-sidebar-store";
 
 interface QuestionResponseMap {
@@ -247,6 +248,10 @@ const AssignmentSlide = ({
 
       const urlParams = new URLSearchParams(window.location.search);
       const slideId = urlParams.get("slideId") || "";
+      const chapterId = urlParams.get("chapterId") || "";
+      const moduleId = urlParams.get("moduleId") || "";
+      const subjectId = urlParams.get("subjectId") || "";
+      const packageSessionId = await getPackageSessionId();
       const userId = await getUserId();
       return authenticatedAxiosInstance.post(
         SUBMIT_ASSIGNMENT_SLIDE_ANSWERS,
@@ -254,6 +259,10 @@ const AssignmentSlide = ({
         {
           params: {
             slideId,
+            chapterId,
+            moduleId,
+            subjectId,
+            packageSessionId: packageSessionId || "",
             userId,
           },
         }

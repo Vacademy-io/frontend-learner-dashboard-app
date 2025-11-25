@@ -281,7 +281,20 @@ const CoursesPage: React.FC<CoursesPageProps> = ({
 
                             {/* Course Grid */}
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-2 gap-3 sm:gap-4">
-                                {courseData.content.map((course, index) => {
+                                {courseData.content
+                                    .filter((course) => {
+                                        // Additional safety filter: For PROGRESS tab, exclude 100% completed courses
+                                        if (selectedTab === "PROGRESS") {
+                                            return (course.percentage_completed || 0) < 100;
+                                        }
+                                        // For COMPLETED tab, show only 100% completed courses
+                                        if (selectedTab === "COMPLETED") {
+                                            return (course.percentage_completed || 0) === 100;
+                                        }
+                                        // For ALL tab, show everything
+                                        return true;
+                                    })
+                                    .map((course, index) => {
                                     return (
                                         <CourseCard
                                             key={`${course.id || "no-id"}-${index}`}

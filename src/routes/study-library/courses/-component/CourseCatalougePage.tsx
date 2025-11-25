@@ -155,9 +155,39 @@ const CourseCatalougePage: React.FC = () => {
             );
 
             const data = response.data as CoursePackageResponse;
+            
+            // Apply client-side filtering to ensure exact percentage matching
+            let filteredContent = data.content;
+            if (tabType === "PROGRESS") {
+                // PROGRESS tab: Show only courses with less than 100% completion
+                const before = data.content.length;
+                filteredContent = data.content.filter(course => (course.percentage_completed || 0) < 100);
+                const after = filteredContent.length;
+                if (import.meta.env.DEV && before !== after) {
+                    console.log(`🔍 [PROGRESS Tab] Filtered out ${before - after} completed courses (100%)`, {
+                        totalFromAPI: before,
+                        afterFiltering: after,
+                        removed: data.content.filter(c => (c.percentage_completed || 0) === 100).map(c => ({
+                            title: c.package_name,
+                            completion: c.percentage_completed
+                        }))
+                    });
+                }
+            } else if (tabType === "COMPLETED") {
+                // COMPLETED tab: Show only courses with exactly 100% completion
+                filteredContent = data.content.filter(course => (course.percentage_completed || 0) === 100);
+            }
+            
+            const filteredData = {
+                ...data,
+                content: filteredContent,
+                numberOfElements: filteredContent.length,
+                empty: filteredContent.length === 0,
+            };
+            
             if (tabType === "ALL") setAllCourses(data);
-            if (tabType === "PROGRESS") setProgressCourses(data);
-            if (tabType === "COMPLETED") setCompletedCourses(data);
+            if (tabType === "PROGRESS") setProgressCourses(filteredData);
+            if (tabType === "COMPLETED") setCompletedCourses(filteredData);
             if (import.meta.env.DEV) {
                 console.debug("[Catalog] fetch success", {
                     tabType,
