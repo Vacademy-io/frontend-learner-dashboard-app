@@ -107,7 +107,10 @@ export const DEFAULT_STUDENT_DISPLAY_SETTINGS: StudentDisplaySettingsData = {
     enabled: true,
     generationThresholdPercent: 80,
   },
+  chatbot: {
+    name: "Savir",
+    avatarUrl: "https://res.cloudinary.com/dwtmtd0oz/image/upload/t_chatbot/chatbot-avatar_xsyf0n",
+    visible: true,
+  },
   postLoginRedirectRoute: "/dashboard",
 };
-
-

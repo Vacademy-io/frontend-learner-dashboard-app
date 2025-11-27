@@ -143,6 +143,13 @@ export interface StudentCourseSettings {
   quiz: StudentCourseSettingsQuiz;
 }
 
+// Chatbot
+export interface StudentChatbotSettings {
+  name: string;
+  avatarUrl: string;
+  visible: boolean;
+}
+
 // Root
 export interface StudentDisplaySettingsData {
   sidebar: { visible: boolean; tabs: StudentSidebarTabConfig[] };
@@ -155,7 +162,6 @@ export interface StudentDisplaySettingsData {
   notifications: StudentNotificationSettings;
   certificates: StudentCertificateSettings;
   ui: StudentUISettings;
+  chatbot: StudentChatbotSettings;
   postLoginRedirectRoute: string;
 }
-
-

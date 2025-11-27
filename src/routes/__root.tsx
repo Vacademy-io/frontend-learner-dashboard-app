@@ -28,6 +28,7 @@ import {
   resolveDomainRouting,
   getCurrentDomainInfo,
 } from "@/services/domain-routing";
+import { ChatbotWidget } from "@/components/chatbot/ChatbotWidget";
 
 // Define public routes that don't require authentication
 const PUBLIC_ROUTES = [
@@ -348,6 +349,7 @@ const RootComponent = () => {
   return (
     <>
       <Outlet />
+      <ChatbotWidget />
     </>
   );
 };

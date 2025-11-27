@@ -218,6 +218,11 @@ function mergeWithDefaults(
         incoming?.certificates?.generationThresholdPercent ??
         d.certificates.generationThresholdPercent,
     },
+    chatbot: {
+      name: incoming?.chatbot?.name ?? d.chatbot.name,
+      avatarUrl: incoming?.chatbot?.avatarUrl ?? d.chatbot.avatarUrl,
+      visible: incoming?.chatbot?.visible ?? d.chatbot.visible,
+    },
     courseSettings: {
       quiz: {
         moveOnlyOnCorrectAnswer:
