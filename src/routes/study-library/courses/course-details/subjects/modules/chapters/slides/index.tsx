@@ -21,6 +21,19 @@ import { ModulesWithChaptersProvider } from "@/providers/study-library/modules-w
 import { useSlides, Slide } from "@/hooks/study-library/use-slides";
 import { useStudyLibraryStore } from "@/stores/study-library/use-study-library-store";
 import { useModulesWithChaptersStore } from "@/stores/study-library/use-modules-with-chapters-store";
+import { useDripConditionStore } from "@/stores/study-library/drip-conditions-store";
+import { useDripConditions } from "@/hooks/use-drip-conditions";
+import {
+  evaluateDripCondition,
+  type LearnerProgressData,
+} from "@/utils/drip-conditions";
+import {
+  shouldFilterItem,
+  isItemLocked,
+} from "@/components/drip-conditions/helpers";
+import { useQuery } from "@tanstack/react-query";
+import { GET_COURSE_DETAILS } from "@/constants/urls";
+import authenticatedAxiosInstance from "@/lib/auth/axiosInstance";
 import FeedbackPage from "@/components/common/study-library/level-material/subject-material/module-material/chapter-material/slide-material/FeedbackPage";
 import { MyButton } from "@/components/design-system/button";
 import { FiEdit } from "react-icons/fi";
@@ -63,10 +76,62 @@ function Slides() {
 
   const { open } = useSidebar();
   const navigate = useNavigate();
-  const { setItems, setActiveItem, activeItem } = useContentStore();
+  const { setItems, setActiveItem, activeItem, setSlideEvaluations } =
+    useContentStore();
   const { slides } = useSlides(chapterId || "");
   const { studyLibraryData } = useStudyLibraryStore();
   const { modulesWithChaptersData } = useModulesWithChaptersStore();
+
+  // Get drip conditions from store or fetch from API
+  const { getDripCondition, setDripCondition, isDrippingEnable } =
+    useDripConditionStore();
+  const storedDripCondition = courseId ? getDripCondition(courseId) : null;
+
+  // Fetch drip condition from API if not in store
+  const { data: courseDetails } = useQuery({
+    queryKey: ["course-details", courseId],
+    queryFn: async () => {
+      const response = await authenticatedAxiosInstance({
+        method: "GET",
+        url: GET_COURSE_DETAILS,
+        params: {
+          packageId: courseId,
+        },
+      });
+      return response.data;
+    },
+    enabled: !!courseId && !storedDripCondition, // Only fetch if not in store
+    staleTime: 3600000, // 1 hour
+  });
+
+  // Save fetched drip condition to store
+  useEffect(() => {
+    if (courseDetails?.drip_condition_json && courseId) {
+      const dripCondition =
+        courseDetails.drip_condition_json ||
+        courseDetails.dripConditionJson ||
+        courseDetails.drip_condition ||
+        courseDetails.dripCondition;
+
+      if (dripCondition) {
+        setDripCondition(courseId, dripCondition);
+      }
+    }
+  }, [courseDetails, courseId, setDripCondition]);
+
+  // Use stored or fetched drip condition
+  const dripConditionJson =
+    storedDripCondition ||
+    courseDetails?.drip_condition_json ||
+    courseDetails?.dripConditionJson ||
+    courseDetails?.drip_condition ||
+    courseDetails?.dripCondition ||
+    null;
+
+  const { condition: slideCondition } = useDripConditions(
+    dripConditionJson,
+    "slide"
+  );
 
   useEffect(() => {
     if (slides?.length) {
@@ -85,10 +150,43 @@ function Slides() {
         progress_marker: 0,
       };
 
-      const slidesWithFeedback = [...slides, feedbackSlide];
+      // Apply drip conditions to filter slides
+      let accessibleSlides = slides;
+      const evaluations: Record<string, any> = {};
+
+      if (slideCondition) {
+        // Evaluate drip conditions for each slide
+        accessibleSlides = slides.filter((slide, index) => {
+          const previousSlide = index > 0 ? slides[index - 1] : null;
+          const progressData: LearnerProgressData = {
+            percentageCompleted: slide.percentage_completed || 0,
+            previousItemId: previousSlide?.id,
+            previousItemCompletion: previousSlide?.percentage_completed || 0,
+            itemIndex: index,
+          };
+
+          const evaluation = isDrippingEnable
+            ? evaluateDripCondition(slideCondition, progressData)
+            : {
+                isAccessible: true,
+                isLocked: false,
+                isHidden: false,
+                unlockMessage: null,
+              };
+          evaluations[slide.id] = evaluation; // Store evaluation for this slide
+          const shouldHide = shouldFilterItem(evaluation);
+
+          return !shouldHide; // Keep slide if not hidden
+        });
+
+        // Store evaluations for all accessible slides
+        setSlideEvaluations(evaluations);
+      }
+
+      const slidesWithFeedback = [...accessibleSlides, feedbackSlide];
       setItems(slidesWithFeedback);
 
-      const completion = calculateOverallCompletion(slides);
+      const completion = calculateOverallCompletion(accessibleSlides);
 
       // Priority 1: If course is 100% completed
       if (completion === 100) {
@@ -112,6 +210,36 @@ function Slides() {
       if (slideId) {
         const targetSlide = slidesWithFeedback.find((s) => s.id === slideId);
         if (targetSlide) {
+          // Check if the target slide is locked
+          const slideIndex = accessibleSlides.findIndex(
+            (s) => s.id === slideId
+          );
+          if (slideIndex !== -1 && slideCondition) {
+            const previousSlide =
+              slideIndex > 0 ? accessibleSlides[slideIndex - 1] : null;
+            const progressData: LearnerProgressData = {
+              percentageCompleted: targetSlide.percentage_completed || 0,
+              previousItemId: previousSlide?.id,
+              previousItemCompletion: previousSlide?.percentage_completed || 0,
+              itemIndex: slideIndex,
+            };
+
+            const evaluation = isDrippingEnable
+              ? evaluateDripCondition(slideCondition, progressData)
+              : {
+                  isAccessible: true,
+                  isLocked: false,
+                  isHidden: false,
+                  unlockMessage: null,
+                };
+            const locked = isItemLocked(evaluation);
+
+            if (locked) {
+              setActiveItem(slidesWithFeedback[0]);
+              return;
+            }
+          }
+
           setActiveItem(targetSlide);
           return;
         }
@@ -120,7 +248,16 @@ function Slides() {
       // Priority 3: Default to first slide
       setActiveItem(slidesWithFeedback[0]);
     }
-  }, [slides, slideId, setActiveItem, setItems, courseId, chapterId]);
+  }, [
+    slides,
+    slideId,
+    setActiveItem,
+    setItems,
+    courseId,
+    chapterId,
+    slideCondition,
+    setSlideEvaluations,
+  ]);
 
   const handleSubjectRoute = useCallback(() => {
     navigate({
@@ -139,24 +276,50 @@ function Slides() {
   const gotoSlide = useCallback(
     (targetSlideId: string) => {
       const targetSlide = slides?.find((s: Slide) => s.id === targetSlideId);
-      if (targetSlide) {
-        setActiveItem(targetSlide);
-        navigate({
-          to: "/study-library/courses/course-details/subjects/modules/chapters/slides",
-          search: {
-            courseId,
-            subjectId,
-            moduleId,
-            chapterId,
-            slideId: targetSlideId,
-            sessionId,
-          },
-          replace: true,
-        });
+      if (!targetSlide) return;
+
+      // Check if target slide is locked
+      if (slideCondition) {
+        const slideIndex =
+          slides?.findIndex((s: Slide) => s.id === targetSlideId) || 0;
+        const previousSlide = slideIndex > 0 ? slides?.[slideIndex - 1] : null;
+        const progressData: LearnerProgressData = {
+          percentageCompleted: targetSlide.percentage_completed || 0,
+          previousItemId: previousSlide?.id,
+          previousItemCompletion: previousSlide?.percentage_completed || 0,
+          itemIndex: slideIndex,
+        };
+
+        const evaluation = isDrippingEnable
+          ? evaluateDripCondition(slideCondition, progressData)
+          : {
+              isAccessible: true,
+              isLocked: false,
+              isHidden: false,
+              unlockMessage: null,
+            };
+        if (isItemLocked(evaluation)) {
+          return; // Block navigation to locked slide
+        }
       }
+
+      setActiveItem(targetSlide);
+      navigate({
+        to: "/study-library/courses/course-details/subjects/modules/chapters/slides",
+        search: {
+          courseId,
+          subjectId,
+          moduleId,
+          chapterId,
+          slideId: targetSlideId,
+          sessionId,
+        },
+        replace: true,
+      });
     },
     [
       slides,
+      slideCondition,
       setActiveItem,
       navigate,
       courseId,
