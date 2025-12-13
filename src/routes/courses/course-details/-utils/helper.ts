@@ -321,5 +321,6 @@ export function convertToYouTubeEmbedUrl(url: string): string {
   const videoId = getYouTubeVideoId(url);
   if (!videoId) return url;
 
-  return `https://www.youtube.com/embed/${videoId}`;
+  // Add iOS-friendly parameters
+  return `https://www.youtube.com/embed/${videoId}?playsinline=1&enablejsapi=1&origin=${window.location.origin}`;
 }

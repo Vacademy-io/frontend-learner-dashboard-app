@@ -1,14 +1,22 @@
 import type { CapacitorConfig } from "@capacitor/cli";
+import { flavorConfig } from "./flavor.config";
+
+// Get flavor from environment variable (default to SSDC)
+const FLAVOR = process.env.VITE_FLAVOR || "io.vacademy.student.app";
+const currentFlavor = flavorConfig[FLAVOR];
+
+if (!currentFlavor) {
+  throw new Error(`Invalid flavor: ${FLAVOR}. Available flavors: ${Object.keys(flavorConfig).join(", ")}`);
+}
 
 const config: CapacitorConfig = {
   // server: {
-  //   url: "http://192.168.68.119:8100/",
+  //   url: "http://192.168.31.249:5173/",
   //   cleartext: true,
   // },
 
-  appId: "io.vacademy.student.app",
-  appName: "Vacademy Learner",
-  // appName: "SSDC Horizon",
+  appId: FLAVOR,
+  appName: currentFlavor.appName,
   webDir: "dist",
   plugins: {
     PrivacyScreen: {
@@ -19,6 +27,15 @@ const config: CapacitorConfig = {
       presentationOptions: ["badge", "sound", "alert"],
     },
   },
+  ios: {
+    contentInset: "always",
+    allowsLinkPreview: false,
+  },
+  // server: {
+  //   androidScheme: "https",
+  //   iosScheme: "capacitor",
+  //   allowNavigation: ["*"],
+  // },
 };
 
 export default config;

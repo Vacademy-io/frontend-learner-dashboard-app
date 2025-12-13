@@ -48,7 +48,7 @@ export function UsernameLogin({
     const [isLoading, setIsLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
     const { setInstituteId } = useInstituteFeatureStore();
-     
+
 
     const redirect = useRouterState({
         select: (s) =>
@@ -121,7 +121,7 @@ export function UsernameLogin({
                                 } else {
                                     setPrimaryColor(
                                         details?.institute_theme_code ??
-                                            "primary"
+                                        "primary"
                                     );
                                 }
                             } catch (error) {
@@ -153,14 +153,14 @@ export function UsernameLogin({
 
                         // Determine redirect URL based on type and courseId
                         let redirectUrl = "/dashboard";
-                        
+
                         if (type === "courseDetailsPage" && courseId) {
                             redirectUrl = `/study-library/courses/course-details?courseId=${courseId}&selectedTab=ALL`;
                         } else if (type === "courseDetailsPage") {
                             redirectUrl = "/study-library/courses";
                         }
-                        
-                                                                           // Redirect in same tab if login originated from course-related pages or if type is courseDetailsPage
+
+                        // Redirect in same tab if login originated from course-related pages or if type is courseDetailsPage
                         if (type === "courseDetailsPage" || (type && type !== "mainLogin")) {
                             // For course-related pages, redirect to the appropriate study library page
                             if (redirectUrl !== "/dashboard") {
@@ -220,23 +220,20 @@ export function UsernameLogin({
                             }) => (
                                 <FormItem>
                                     <FormControl>
-                                        <div className="relative">
+                                        <div className="flex flex-col gap-1">
+                                            <Label className="text-subtitle font-regular">
+                                                Username<span className="text-danger-600">*</span>
+                                            </Label>
                                             <MyInput
                                                 inputType="text"
                                                 inputPlaceholder="Enter your username"
                                                 input={value}
                                                 onChangeFunction={onChange}
-                                                error={
-                                                    form.formState.errors
-                                                        .username?.message
-                                                }
-                                                required
+                                                error={form.formState.errors.username?.message}
                                                 size="large"
-                                                label="Username"
                                                 {...field}
                                                 className="w-full transition-all duration-200 border-gray-200 focus:border-gray-300 focus:ring-0 focus-visible:ring-0 rounded-lg bg-gray-50/50 focus:bg-white hover:bg-white font-normal pr-10"
                                             />
-                                            <User className="absolute right-3 bottom-3 w-4 h-4 text-gray-400" />
                                         </div>
                                     </FormControl>
                                 </FormItem>
@@ -311,19 +308,19 @@ export function UsernameLogin({
                                                     </div>
                                                     {form.formState.errors
                                                         .password?.message && (
-                                                        <div className="flex items-center gap-1 pl-1 text-body font-regular text-danger-600">
-                                                            <VscError />
-                                                            <span className="mt-[3px]">
-                                                                {
-                                                                    form
-                                                                        .formState
-                                                                        .errors
-                                                                        .password
-                                                                        .message
-                                                                }
-                                                            </span>
-                                                        </div>
-                                                    )}
+                                                            <div className="flex items-center gap-1 pl-1 text-body font-regular text-danger-600">
+                                                                <VscError />
+                                                                <span className="mt-[3px]">
+                                                                    {
+                                                                        form
+                                                                            .formState
+                                                                            .errors
+                                                                            .password
+                                                                            .message
+                                                                    }
+                                                                </span>
+                                                            </div>
+                                                        )}
                                                 </div>
                                             </div>
                                         </div>
@@ -402,7 +399,7 @@ export function UsernameLogin({
                         <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gray-800 transition-all duration-200 group-hover:w-full"></span>
                     </motion.button>
                 )}
- 
+
                 {(() => {
                     try {
                         const raw = localStorage.getItem("InstituteId");

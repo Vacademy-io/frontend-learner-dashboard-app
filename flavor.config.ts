@@ -19,4 +19,9 @@ export const flavorConfig: FlavorConfigs = {
     domain: "vacademy.io",
     subdomain: "7cs",
   },
+  "com.sevencs.learner": {
+    appName:"the7cs",
+    domain: "vacademy.io",
+    subdomain: "7cs",
+  }
 };

@@ -970,7 +970,7 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({
       playsinline: 1, // Play inline on iOS
       loop: 0, // Don't loop the video
       color: "white", // Use white progress bar
-      hl: "en", // Set language to English
+      // hl: "en", // Set language to English
       start: 0, // Start from the beginning
       end: 0, // End at the natural end of the video
       // autohide: 1, // Hide controls after play begins

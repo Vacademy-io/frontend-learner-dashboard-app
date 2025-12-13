@@ -136,10 +136,19 @@
 				UIInterfaceOrientationLandscapeRight
 			</string>
 		</array>
-		<key>
-			UIViewControllerBasedStatusBarAppearance
-		</key>
-		<true />
+		<key>UIViewControllerBasedStatusBarAppearance</key>
+<true/>
+<key>NSAppTransportSecurity</key>
+<dict>
+    <key>NSAllowsArbitraryLoads</key>
+    <true/>
+    <key>NSAllowsArbitraryLoadsInWebContent</key>
+    <true/>
+    <key>NSAllowsLocalNetworking</key>
+    <true/>
+</dict>
+<key>UIRequiresPersistentWiFi</key>
+<true/>
 		<!-- Enable background remote notifications -->
 		<key>
 			UIBackgroundModes
