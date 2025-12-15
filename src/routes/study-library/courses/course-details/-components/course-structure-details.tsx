@@ -6,9 +6,7 @@ import { toTitleCase } from "@/lib/utils";
 import { useDripConditions } from "@/hooks/use-drip-conditions";
 import { LockedBadge } from "@/components/drip-conditions";
 import { useDripConditionStore } from "@/stores/study-library/drip-conditions-store";
-import {
-  evaluateDripCondition,
-} from "@/utils/drip-conditions";
+import { evaluateDripCondition } from "@/utils/drip-conditions";
 import type {
   LearnerProgressData,
   DripConditionEvaluation,
@@ -2410,52 +2408,52 @@ export const CourseStructureDetails = ({
                   const evaluation = chapterEvaluations[ch.id];
                   const isChapterLocked = evaluation?.isLocked ?? false;
                   return (
-                  <div
-                    key={ch.id}
-                    className={`rounded-md border border-neutral-200 bg-white p-3 sm:p-4 shadow-sm ${
-                      isChapterLocked
-                        ? "opacity-60 cursor-not-allowed"
-                        : "hover:shadow cursor-pointer"
-                    }`}
-                    onClick={async () => {
-                      if (isChapterLocked) return;
-                      setSelectedChapterId(ch.id);
-                      await getSlidesWithChapterId(ch.id);
-                    }}
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-md bg-neutral-100 flex items-center justify-center overflow-hidden">
-                        {thumbUrlById[`chapter:${ch.id}`] ? (
-                          <img
-                            src={thumbUrlById[`chapter:${ch.id}`]}
-                            alt={toTitleCase(ch.chapter_name)}
-                            className="w-full h-full object-cover"
-                            crossOrigin="anonymous"
-                            referrerPolicy="no-referrer"
-                            loading="eager"
-                            onError={(e) => {
-                              e.currentTarget.classList.add("border-red-400");
-                            }}
-                          />
-                        ) : (
-                          <FileText size={24} className="text-neutral-500" />
-                        )}
-                      </div>
-                      <div className="min-w-0">
-                        <div
-                          className="text-sm font-medium text-neutral-800 truncate"
-                          title={ch.chapter_name}
-                        >
-                          {ch.chapter_name}
+                    <div
+                      key={ch.id}
+                      className={`rounded-md border border-neutral-200 bg-white p-3 sm:p-4 shadow-sm ${
+                        isChapterLocked
+                          ? "opacity-60 cursor-not-allowed"
+                          : "hover:shadow cursor-pointer"
+                      }`}
+                      onClick={async () => {
+                        if (isChapterLocked) return;
+                        setSelectedChapterId(ch.id);
+                        await getSlidesWithChapterId(ch.id);
+                      }}
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-md bg-neutral-100 flex items-center justify-center overflow-hidden">
+                          {thumbUrlById[`chapter:${ch.id}`] ? (
+                            <img
+                              src={thumbUrlById[`chapter:${ch.id}`]}
+                              alt={toTitleCase(ch.chapter_name)}
+                              className="w-full h-full object-cover"
+                              crossOrigin="anonymous"
+                              referrerPolicy="no-referrer"
+                              loading="eager"
+                              onError={(e) => {
+                                e.currentTarget.classList.add("border-red-400");
+                              }}
+                            />
+                          ) : (
+                            <FileText size={24} className="text-neutral-500" />
+                          )}
                         </div>
-                        {isChapterLocked && (
-                          <div className="mt-1">
-                            <LockedBadge size="sm" />
+                        <div className="min-w-0">
+                          <div
+                            className="text-sm font-medium text-neutral-800 truncate"
+                            title={ch.chapter_name}
+                          >
+                            {ch.chapter_name}
                           </div>
-                        )}
+                          {isChapterLocked && (
+                            <div className="mt-1">
+                              <LockedBadge size="sm" />
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
                   );
                 })}
             </div>
@@ -2499,45 +2497,45 @@ export const CourseStructureDetails = ({
                 const evaluation = slideEvaluations[sl.id];
                 const isSlideLocked = evaluation?.isLocked ?? false;
                 return (
-                <div
-                  key={sl.id}
-                  className={`${getSlideStyling()} flex-col items-start gap-2 p-3 ${
-                    isSlideLocked ? "opacity-60 cursor-not-allowed" : ""
-                  }`}
-                  onClick={() => {
-                    if (isSlideLocked) return;
-                    if (isSlideClickable()) {
-                      handleSlideNavigation(
-                        selectedSubjectId || "",
-                        selectedModuleId || "",
-                        selectedChapterId,
-                        sl.id
-                      );
-                    }
-                  }}
-                >
-                  <div className="flex items-center gap-2 sm:gap-3 w-full">
-                    <div className="flex items-center gap-2">
-                      <div className="flex w-6 h-6 items-center justify-center rounded-md text-xs font-bold bg-gray-100 text-gray-500">
-                        {index + 1}
-                      </div>
-                      {getIcon(sl, "4")}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="font-medium text-sm truncate">
-                        {sl.title}
-                      </div>
-                      <div className="text-xs text-gray-500 mt-0.5 sm:mt-1">
-                        {getSlideTypeDisplay(sl)}
-                      </div>
-                      {isSlideLocked && (
-                        <div className="mt-1">
-                          <LockedBadge size="sm" />
+                  <div
+                    key={sl.id}
+                    className={`${getSlideStyling()} flex-col items-start gap-2 p-3 ${
+                      isSlideLocked ? "opacity-60 cursor-not-allowed" : ""
+                    }`}
+                    onClick={() => {
+                      if (isSlideLocked) return;
+                      if (isSlideClickable()) {
+                        handleSlideNavigation(
+                          selectedSubjectId || "",
+                          selectedModuleId || "",
+                          selectedChapterId,
+                          sl.id
+                        );
+                      }
+                    }}
+                  >
+                    <div className="flex items-center gap-2 sm:gap-3 w-full">
+                      <div className="flex items-center gap-2">
+                        <div className="flex w-6 h-6 items-center justify-center rounded-md text-xs font-bold bg-gray-100 text-gray-500">
+                          {index + 1}
                         </div>
-                      )}
+                        {getIcon(sl, "4")}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium text-sm truncate">
+                          {sl.title}
+                        </div>
+                        <div className="text-xs text-gray-500 mt-0.5 sm:mt-1">
+                          {getSlideTypeDisplay(sl)}
+                        </div>
+                        {isSlideLocked && (
+                          <div className="mt-1">
+                            <LockedBadge size="sm" />
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
                 );
               });
             })()}
