@@ -12,6 +12,7 @@ import { DoubtResolutionSidebar } from "./doubt-resolution-sidebar/components/si
 import CustomVideoPlayer from "./custom-video-player";
 import QuestionSlide from "./question-slide";
 import AssignmentSlide from "./assignment-slide";
+import { isItemLocked } from "@/components/drip-conditions/helpers";
 
 import { MyButton } from "@/components/design-system/button";
 import { DocViewer } from "./doc-viewer";
@@ -26,7 +27,7 @@ import { Slide } from "@/hooks/study-library/use-slides";
 import { getStudentDisplaySettings } from "@/services/student-display-settings";
 
 export const SlideMaterial = () => {
-  const { activeItem, items, setActiveItem } = useContentStore();
+  const { activeItem, items, setActiveItem, slideEvaluations } = useContentStore();
   const selectionRef = useRef(null);
   const loadGenerationRef = useRef(0);
   const [heading, setHeading] = useState(activeItem?.title || "");
@@ -41,8 +42,16 @@ export const SlideMaterial = () => {
   // Slide navigation helpers
   const slidesList = Array.isArray(items) ? items : [];
   const currentIndex = slidesList.findIndex((s) => s.id === activeItem?.id);
-  const canGoPrev = currentIndex > 0;
-  const canGoNext = currentIndex > -1 && currentIndex < slidesList.length - 1;
+  
+  // Check if prev/next slides are locked
+  const prevSlide = currentIndex > 0 ? slidesList[currentIndex - 1] : null;
+  const nextSlide = currentIndex > -1 && currentIndex < slidesList.length - 1 ? slidesList[currentIndex + 1] : null;
+  
+  const isPrevLocked = prevSlide ? (slideEvaluations[prevSlide.id] && isItemLocked(slideEvaluations[prevSlide.id])) : false;
+  const isNextLocked = nextSlide ? (slideEvaluations[nextSlide.id] && isItemLocked(slideEvaluations[nextSlide.id])) : false;
+  
+  const canGoPrev = currentIndex > 0 && !isPrevLocked;
+  const canGoNext = currentIndex > -1 && currentIndex < slidesList.length - 1 && !isNextLocked;
 
   const goToPrev = () => {
     if (!canGoPrev) return;

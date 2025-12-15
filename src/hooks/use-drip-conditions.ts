@@ -21,15 +21,20 @@ export function useDripConditions(
 ) {
   // Parse the JSON string
   const parseResult = useMemo(() => {
-    return parseDripCondition(dripConditionJson);
-  }, [dripConditionJson]);
+    const result = parseDripCondition(dripConditionJson);
+
+    return result;
+  }, [dripConditionJson, level]);
 
   // Get condition for the specific level
   const condition = useMemo(() => {
     if (!parseResult.success || !parseResult.data) {
       return null;
     }
-    return getConditionForLevel(parseResult.data, level);
+
+    const levelCondition = getConditionForLevel(parseResult.data, level);
+
+    return levelCondition;
   }, [parseResult, level]);
 
   return {

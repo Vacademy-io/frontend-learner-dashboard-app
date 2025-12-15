@@ -16,6 +16,11 @@ export {
   getDripConditionSummary,
   formatBehavior,
 } from "./displayHelpers";
+export {
+  selectDripCondition,
+  hasEnabledConditionForTarget,
+  getEnabledConditionForTarget,
+} from "./selectDripCondition";
 
 export type {
   LearnerProgressData,

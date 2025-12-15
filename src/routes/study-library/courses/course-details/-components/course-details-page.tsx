@@ -59,8 +59,6 @@ import { CourseContentSections } from "./course-content-sections";
 import { CourseSidebar } from "./course-sidebar";
 import { Button } from "@/components/ui/button";
 import { extractTextFromHTML } from "@/components/common/helper";
-import { useDripConditionStore } from "@/stores/study-library/drip-conditions-store";
-import { parseDripConditions } from "@/services/getIsDrippingEnable.ts";
 
 type SlideType = {
   id: string;
@@ -528,17 +526,6 @@ export const CourseDetailsPage = () => {
   const [backendReadTimeMinutes, setBackendReadTimeMinutes] = useState<
     number | null
   >(null);
-  const [dripConditionJson, setDripConditionJson] = useState<string | null>(
-    null
-  );
-
-  // Drip condition store
-  const setDripCondition = useDripConditionStore(
-    (state) => state.setDripCondition
-  );
-  const setIsDrippingEnable = useDripConditionStore(
-    (state) => state.setIsDrippingEnable
-  );
 
   useEffect(() => {
     const fetchInstituteDetails = async () => {
@@ -555,8 +542,6 @@ export const CourseDetailsPage = () => {
           searchParams.courseId || ""
         );
         setPackageSessionIdForCurrentLevel(packageSessionId);
-        const setting = parseDripConditions(response.data.setting);
-        setIsDrippingEnable(setting.isDrippingEnable);
         if (import.meta.env.MODE !== "production") {
           console.info("[CourseDetailsPage] mapping result", {
             selectedSession,
@@ -637,7 +622,6 @@ export const CourseDetailsPage = () => {
     selectedLevel,
     searchParams.courseId,
     updateLoadingState,
-    setIsDrippingEnable,
   ]);
 
   // Fetch payment type when institute ID is available
@@ -1224,65 +1208,36 @@ export const CourseDetailsPage = () => {
     enabled: !!searchParams.courseId,
   });
 
-  // Extract read_time_in_minutes and drip_condition_json from package detail API (correct source of truth)
+  // Extract read_time_in_minutes from package detail API (correct source of truth)
   useEffect(() => {
     if (!singleCourseQuery.data) {
       return;
     }
 
-    // Try to access drip_condition_json from various possible locations in the response
     const rawData = singleCourseQuery.data as Record<string, unknown>;
-
-    let extractedDripCondition: string | null = null;
     let extractedReadTime: number | undefined = undefined;
 
     // Check direct properties
-    if ("drip_condition_json" in rawData) {
-      extractedDripCondition = rawData.drip_condition_json;
-    }
     if ("read_time_in_minutes" in rawData) {
-      extractedReadTime = rawData.read_time_in_minutes;
+      extractedReadTime = rawData.read_time_in_minutes as number | undefined;
     }
 
     // Check if data is nested in a 'data' property
     if (
-      !extractedDripCondition &&
-      rawData.data &&
-      "drip_condition_json" in rawData.data
-    ) {
-      extractedDripCondition = rawData.data.drip_condition_json;
-    }
-    if (
       !extractedReadTime &&
       rawData.data &&
+      typeof rawData.data === "object" &&
+      rawData.data !== null &&
       "read_time_in_minutes" in rawData.data
     ) {
-      extractedReadTime = rawData.data.read_time_in_minutes;
+      extractedReadTime = (rawData.data as Record<string, unknown>)
+        .read_time_in_minutes as number | undefined;
     }
 
     if (extractedReadTime) {
       setBackendReadTimeMinutes(extractedReadTime);
     }
-
-    if (
-      extractedDripCondition !== null &&
-      extractedDripCondition !== undefined
-    ) {
-      setDripConditionJson(extractedDripCondition);
-
-      // Save to Zustand store for global access
-      if (searchParams.courseId) {
-        setDripCondition(searchParams.courseId, extractedDripCondition);
-      }
-    } else {
-      setDripConditionJson(null);
-    }
-  }, [
-    singleCourseQuery.data,
-    singleCourseQuery.isLoading,
-    searchParams.courseId,
-    setDripCondition,
-  ]);
+  }, [singleCourseQuery.data, singleCourseQuery.isLoading]);
 
   // Custom slide count calculation to handle special document types
   const processedSlideCounts = useMemo(() => {
@@ -1813,7 +1768,6 @@ export const CourseDetailsPage = () => {
                       enrolledSession.package_dto.id === searchParams.courseId
                   )}
                   onLoadingChange={handleModulesLoadingChange}
-                  dripConditionJson={dripConditionJson}
                   {...(paymentType && { paymentType })}
                 />
               </div>

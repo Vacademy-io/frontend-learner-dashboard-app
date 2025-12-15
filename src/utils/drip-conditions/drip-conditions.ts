@@ -175,6 +175,12 @@ export interface DripConditionJson {
   behavior: DripConditionBehavior;
 
   /**
+   * Whether this specific condition is enabled
+   * If false, this condition is skipped during evaluation
+   */
+  is_enabled?: boolean;
+
+  /**
    * Array of rules that control unlocking
    * Current implementation typically uses a single rule per condition
    */

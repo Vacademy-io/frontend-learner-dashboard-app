@@ -58,8 +58,11 @@ export const useDripConditionStore = create<DripConditionState>()(
     }),
     {
       name: "drip-conditions-storage",
-      // Only persist the dripConditions object
-      partialize: (state) => ({ dripConditions: state.dripConditions }),
+      // Persist both dripConditions and isDrippingEnable
+      partialize: (state) => ({
+        dripConditions: state.dripConditions,
+        isDrippingEnable: state.isDrippingEnable,
+      }),
     }
   )
 );

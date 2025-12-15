@@ -97,7 +97,7 @@ function evaluateRule(
         if (scores.length < requiredCount) {
           return {
             passed: false,
-            message: `Complete ${requiredCount} more assessments`,
+            message: `Complete ${requiredCount} more slides/chapters to unlock`,
           };
         }
         const lastNScores = scores.slice(-requiredCount);
@@ -133,7 +133,9 @@ function evaluateRule(
 
       const completedCount = prerequisiteIds.filter((id: string) => {
         const completion = progressData.prerequisiteCompletions?.[id] || 0;
-        return completion >= threshold;
+        const isComplete = completion >= threshold;
+
+        return isComplete;
       }).length;
 
       const isPassed = completedCount === prerequisiteIds.length;
@@ -179,6 +181,15 @@ export function evaluateDripCondition(
 ): DripConditionEvaluation {
   // No drip condition = fully accessible
   if (!condition || !condition.rules || condition.rules.length === 0) {
+    return {
+      isLocked: false,
+      isHidden: false,
+      unlockMessage: null,
+    };
+  }
+
+  // Check if condition is disabled via is_enabled flag
+  if (condition.is_enabled === false) {
     return {
       isLocked: false,
       isHidden: false,

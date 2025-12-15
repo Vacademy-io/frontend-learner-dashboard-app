@@ -119,6 +119,7 @@ export function parseDripCondition(
  * Handles both single condition and array of conditions
  * If the condition has a target field matching the level, return it
  * If no target field (package-level condition), return it for both levels
+ * Respects is_enabled flag - only returns enabled conditions
  */
 export function getConditionForLevel(
   dripCondition: DripConditionJson | DripConditionJson[] | null,
@@ -128,20 +129,29 @@ export function getConditionForLevel(
     return null;
   }
 
-  // Handle array of conditions - find the one matching the target level
+  // Handle array of conditions - find the first enabled one matching the target level
   if (Array.isArray(dripCondition)) {
-    const matchingCondition = dripCondition.find(
-      (condition) => condition.target === level
-    );
+    const matchingCondition = dripCondition.find((condition) => {
+      const targetsLevel = condition.target === level || !condition.target;
+      const isEnabled = condition.is_enabled !== false;
+
+      return targetsLevel && isEnabled;
+    });
+
     return matchingCondition || null;
   }
 
   // Handle single condition object
-  // If target is specified, only return if it matches
-  if (dripCondition.target) {
-    return dripCondition.target === level ? dripCondition : null;
+  // Check if disabled
+  if (dripCondition.is_enabled === false) {
+    return null;
   }
 
-  // No target specified (package-level) - applies to all levels
+  // If target is specified, only return if it matches
+  if (dripCondition.target) {
+    const matches = dripCondition.target === level;
+    return matches ? dripCondition : null;
+  }
+
   return dripCondition;
 }

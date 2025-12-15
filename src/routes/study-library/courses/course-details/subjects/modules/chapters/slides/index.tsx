@@ -83,8 +83,13 @@ function Slides() {
   const { modulesWithChaptersData } = useModulesWithChaptersStore();
 
   // Get drip conditions from store or fetch from API
-  const { getDripCondition, setDripCondition, isDrippingEnable } =
-    useDripConditionStore();
+  const {
+    getDripCondition,
+    setDripCondition,
+    clearDripCondition,
+    isDrippingEnable,
+  } = useDripConditionStore();
+
   const storedDripCondition = courseId ? getDripCondition(courseId) : null;
 
   // Fetch drip condition from API if not in store
@@ -114,10 +119,11 @@ function Slides() {
         courseDetails.dripCondition;
 
       if (dripCondition) {
+        clearDripCondition(courseId); // Clear before setting
         setDripCondition(courseId, dripCondition);
       }
     }
-  }, [courseDetails, courseId, setDripCondition]);
+  }, [courseDetails, courseId, setDripCondition, clearDripCondition]);
 
   // Use stored or fetched drip condition
   const dripConditionJson =
@@ -155,6 +161,12 @@ function Slides() {
       const evaluations: Record<string, any> = {};
 
       if (slideCondition) {
+        // Build prerequisite completions map from all slides
+        const prerequisiteCompletions: Record<string, number> = {};
+        slides.forEach((slide) => {
+          prerequisiteCompletions[slide.id] = slide.percentage_completed || 0;
+        });
+
         // Evaluate drip conditions for each slide
         accessibleSlides = slides.filter((slide, index) => {
           const previousSlide = index > 0 ? slides[index - 1] : null;
@@ -163,6 +175,7 @@ function Slides() {
             previousItemId: previousSlide?.id,
             previousItemCompletion: previousSlide?.percentage_completed || 0,
             itemIndex: index,
+            prerequisiteCompletions,
           };
 
           const evaluation = isDrippingEnable
@@ -215,6 +228,13 @@ function Slides() {
             (s) => s.id === slideId
           );
           if (slideIndex !== -1 && slideCondition) {
+            // Build prerequisite completions map
+            const prerequisiteCompletions: Record<string, number> = {};
+            slides.forEach((slide) => {
+              prerequisiteCompletions[slide.id] =
+                slide.percentage_completed || 0;
+            });
+
             const previousSlide =
               slideIndex > 0 ? accessibleSlides[slideIndex - 1] : null;
             const progressData: LearnerProgressData = {
@@ -222,6 +242,7 @@ function Slides() {
               previousItemId: previousSlide?.id,
               previousItemCompletion: previousSlide?.percentage_completed || 0,
               itemIndex: slideIndex,
+              prerequisiteCompletions,
             };
 
             const evaluation = isDrippingEnable
@@ -257,6 +278,7 @@ function Slides() {
     chapterId,
     slideCondition,
     setSlideEvaluations,
+    isDrippingEnable,
   ]);
 
   const handleSubjectRoute = useCallback(() => {
@@ -280,6 +302,12 @@ function Slides() {
 
       // Check if target slide is locked
       if (slideCondition) {
+        // Build prerequisite completions map
+        const prerequisiteCompletions: Record<string, number> = {};
+        slides?.forEach((slide) => {
+          prerequisiteCompletions[slide.id] = slide.percentage_completed || 0;
+        });
+
         const slideIndex =
           slides?.findIndex((s: Slide) => s.id === targetSlideId) || 0;
         const previousSlide = slideIndex > 0 ? slides?.[slideIndex - 1] : null;
@@ -288,6 +316,7 @@ function Slides() {
           previousItemId: previousSlide?.id,
           previousItemCompletion: previousSlide?.percentage_completed || 0,
           itemIndex: slideIndex,
+          prerequisiteCompletions,
         };
 
         const evaluation = isDrippingEnable
@@ -327,6 +356,7 @@ function Slides() {
       moduleId,
       chapterId,
       sessionId,
+      isDrippingEnable,
     ]
   );
 

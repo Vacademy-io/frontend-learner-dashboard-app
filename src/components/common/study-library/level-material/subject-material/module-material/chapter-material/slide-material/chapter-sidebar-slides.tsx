@@ -530,8 +530,10 @@ const SlideItem = ({
           <div
             role="listitem"
             aria-current={isActive ? "true" : undefined}
-            className="w-full transition-all duration-200 ease-in-out animate-fade-in-up cursor-pointer group/slide"
-            onClick={onClick}
+            className={`w-full transition-all duration-200 ease-in-out animate-fade-in-up group/slide ${
+              isLocked ? "cursor-not-allowed opacity-60" : "cursor-pointer"
+            }`}
+            onClick={isLocked ? undefined : onClick}
             style={{
               animationDelay: `${index * 50}ms`,
             }}

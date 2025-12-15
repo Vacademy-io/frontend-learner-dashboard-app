@@ -8,7 +8,6 @@ import { LockedBadge } from "@/components/drip-conditions";
 import { useDripConditionStore } from "@/stores/study-library/drip-conditions-store";
 import {
   evaluateDripCondition,
-  countLockedAndHidden,
 } from "@/utils/drip-conditions";
 import type {
   LearnerProgressData,
@@ -438,6 +437,13 @@ export const CourseStructureDetails = ({
       .flatMap((modules) => modules)
       .flatMap((mod) => mod.chapters);
 
+    // Build prerequisite completions map for chapters
+    const prerequisiteCompletions: Record<string, number> = {};
+    allChapters.forEach((chapter) => {
+      const progress = calculateChapterProgress(chapter.id);
+      prerequisiteCompletions[chapter.id] = progress;
+    });
+
     const progressDataByChapterId: Record<string, LearnerProgressData> = {};
     allChapters.forEach((chapter, index) => {
       const previousChapter = index > 0 ? allChapters[index - 1] : null;
@@ -449,6 +455,7 @@ export const CourseStructureDetails = ({
           ? calculateChapterProgress(previousChapter.id)
           : 0,
         itemIndex: index, // Add index for count-based exception logic
+        prerequisiteCompletions, // Add prerequisite completions map
       };
     });
 
@@ -485,7 +492,15 @@ export const CourseStructureDetails = ({
 
     const evaluations: Record<string, DripConditionEvaluation> = {};
 
-    for (const [chapterId, slides] of Object.entries(slidesMap)) {
+    // Build prerequisite completions map from all slides
+    const prerequisiteCompletions: Record<string, number> = {};
+    for (const slides of Object.values(slidesMap)) {
+      slides.forEach((slide) => {
+        prerequisiteCompletions[slide.id] = slide.percentage_completed || 0;
+      });
+    }
+
+    for (const slides of Object.values(slidesMap)) {
       slides.forEach((slide, index) => {
         const previousSlide = index > 0 ? slides[index - 1] : null;
         const progressData: LearnerProgressData = {
@@ -493,6 +508,7 @@ export const CourseStructureDetails = ({
           previousItemId: previousSlide?.id,
           previousItemCompletion: previousSlide?.percentage_completed || 0,
           itemIndex: index, // Add index for count-based exception logic
+          prerequisiteCompletions, // Add prerequisite completions map
         };
         const evaluation = isDrippingEnable
           ? evaluateDripCondition(slideCondition, progressData)
@@ -1110,11 +1126,19 @@ export const CourseStructureDetails = ({
                                         key={ch.id}
                                         open={isChapterOpen}
                                         onOpenChange={() => {
+                                          if (isChapterLocked) return;
                                           toggleChapter(ch.id);
                                           getSlidesWithChapterId(ch.id);
                                         }}
                                       >
-                                        <CollapsibleTrigger className="group flex w-full items-center rounded-md px-2 py-1 text-left text-sm text-neutral-600 transition-all duration-200 hover:bg-green-50/70 hover:border-green-200/60 border border-transparent focus:outline-none focus-visible:ring-2 focus-visible:ring-green-400 focus-visible:ring-offset-1">
+                                        <CollapsibleTrigger
+                                          disabled={isChapterLocked}
+                                          className={`group flex w-full items-center rounded-md px-2 py-1 text-left text-sm text-neutral-600 transition-all duration-200 border border-transparent focus:outline-none focus-visible:ring-2 focus-visible:ring-green-400 focus-visible:ring-offset-1 ${
+                                            isChapterLocked
+                                              ? "cursor-not-allowed opacity-60"
+                                              : "hover:bg-green-50/70 hover:border-green-200/60 cursor-pointer"
+                                          }`}
+                                        >
                                           <div className="flex min-w-0 flex-1 items-center gap-1.5">
                                             {isChapterOpen ? (
                                               <CaretDown
@@ -1518,11 +1542,19 @@ export const CourseStructureDetails = ({
                                         key={ch.id}
                                         open={isChapterOpen}
                                         onOpenChange={() => {
+                                          if (isChapterLocked) return;
                                           toggleChapter(ch.id);
                                           getSlidesWithChapterId(ch.id);
                                         }}
                                       >
-                                        <CollapsibleTrigger className="group flex w-full items-center rounded-md px-2 py-1 text-left text-sm text-neutral-600 transition-all duration-200 hover:bg-green-50/70 hover:border-green-200/60 border border-transparent focus:outline-none focus-visible:ring-2 focus-visible:ring-green-400 focus-visible:ring-offset-1">
+                                        <CollapsibleTrigger
+                                          disabled={isChapterLocked}
+                                          className={`group flex w-full items-center rounded-md px-2 py-1 text-left text-sm text-neutral-600 transition-all duration-200 border border-transparent focus:outline-none focus-visible:ring-2 focus-visible:ring-green-400 focus-visible:ring-offset-1 ${
+                                            isChapterLocked
+                                              ? "cursor-not-allowed opacity-60"
+                                              : "hover:bg-green-50/70 hover:border-green-200/60 cursor-pointer"
+                                          }`}
+                                        >
                                           <div className="flex min-w-0 flex-1 items-center gap-1.5">
                                             {isChapterOpen ? (
                                               <CaretDown
@@ -1809,11 +1841,19 @@ export const CourseStructureDetails = ({
                                       key={ch.id}
                                       open={isChapterOpen}
                                       onOpenChange={() => {
+                                        if (isChapterLocked) return;
                                         toggleChapter(ch.id);
                                         getSlidesWithChapterId(ch.id);
                                       }}
                                     >
-                                      <CollapsibleTrigger className="group flex w-full items-center rounded-md px-2 py-1 text-left text-sm text-neutral-600 transition-all duration-200 hover:bg-green-50/70 hover:border-green-200/60 border border-transparent focus:outline-none focus-visible:ring-2 focus-visible:ring-green-400 focus-visible:ring-offset-1">
+                                      <CollapsibleTrigger
+                                        disabled={isChapterLocked}
+                                        className={`group flex w-full items-center rounded-md px-2 py-1 text-left text-sm text-neutral-600 transition-all duration-200 border border-transparent focus:outline-none focus-visible:ring-2 focus-visible:ring-green-400 focus-visible:ring-offset-1 ${
+                                          isChapterLocked
+                                            ? "cursor-not-allowed opacity-60"
+                                            : "hover:bg-green-50/70 hover:border-green-200/60 cursor-pointer"
+                                        }`}
+                                      >
                                         <div className="flex min-w-0 flex-1 items-center gap-1.5">
                                           {isChapterOpen ? (
                                             <CaretDown
@@ -2362,11 +2402,23 @@ export const CourseStructureDetails = ({
               {(subjectModulesMap[selectedSubjectId] || [])
                 .filter((m) => m.module.id === selectedModuleId)
                 .flatMap((m) => m.chapters)
-                .map((ch) => (
+                .filter((ch) => {
+                  const evaluation = chapterEvaluations[ch.id];
+                  return !evaluation?.isHidden;
+                })
+                .map((ch) => {
+                  const evaluation = chapterEvaluations[ch.id];
+                  const isChapterLocked = evaluation?.isLocked ?? false;
+                  return (
                   <div
                     key={ch.id}
-                    className="rounded-md border border-neutral-200 bg-white p-3 sm:p-4 shadow-sm hover:shadow cursor-pointer"
+                    className={`rounded-md border border-neutral-200 bg-white p-3 sm:p-4 shadow-sm ${
+                      isChapterLocked
+                        ? "opacity-60 cursor-not-allowed"
+                        : "hover:shadow cursor-pointer"
+                    }`}
                     onClick={async () => {
+                      if (isChapterLocked) return;
                       setSelectedChapterId(ch.id);
                       await getSlidesWithChapterId(ch.id);
                     }}
@@ -2396,10 +2448,16 @@ export const CourseStructureDetails = ({
                         >
                           {ch.chapter_name}
                         </div>
+                        {isChapterLocked && (
+                          <div className="mt-1">
+                            <LockedBadge size="sm" />
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
             </div>
           )}
         {/* Slides */}
@@ -2426,26 +2484,37 @@ export const CourseStructureDetails = ({
                 );
               }
               const chapterSlides = slidesMap[selectedChapterId] || [];
-              if (status === "loaded" && chapterSlides.length === 0) {
+              const visibleSlides = chapterSlides.filter((sl) => {
+                const evaluation = slideEvaluations[sl.id];
+                return !evaluation?.isHidden;
+              });
+              if (status === "loaded" && visibleSlides.length === 0) {
                 return (
                   <div className="text-sm text-neutral-500 italic">
                     No Slides
                   </div>
                 );
               }
-              return chapterSlides.map((sl, index) => (
+              return visibleSlides.map((sl, index) => {
+                const evaluation = slideEvaluations[sl.id];
+                const isSlideLocked = evaluation?.isLocked ?? false;
+                return (
                 <div
                   key={sl.id}
-                  className={`${getSlideStyling()} flex-col items-start gap-2 p-3`}
-                  onClick={() =>
-                    isSlideClickable() &&
-                    handleSlideNavigation(
-                      selectedSubjectId || "",
-                      selectedModuleId || "",
-                      selectedChapterId,
-                      sl.id
-                    )
-                  }
+                  className={`${getSlideStyling()} flex-col items-start gap-2 p-3 ${
+                    isSlideLocked ? "opacity-60 cursor-not-allowed" : ""
+                  }`}
+                  onClick={() => {
+                    if (isSlideLocked) return;
+                    if (isSlideClickable()) {
+                      handleSlideNavigation(
+                        selectedSubjectId || "",
+                        selectedModuleId || "",
+                        selectedChapterId,
+                        sl.id
+                      );
+                    }
+                  }}
                 >
                   <div className="flex items-center gap-2 sm:gap-3 w-full">
                     <div className="flex items-center gap-2">
@@ -2461,10 +2530,16 @@ export const CourseStructureDetails = ({
                       <div className="text-xs text-gray-500 mt-0.5 sm:mt-1">
                         {getSlideTypeDisplay(sl)}
                       </div>
+                      {isSlideLocked && (
+                        <div className="mt-1">
+                          <LockedBadge size="sm" />
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
-              ));
+                );
+              });
             })()}
           </div>
         )}
