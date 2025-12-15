@@ -181,6 +181,7 @@ const CourseCatalougePage: React.FC = () => {
             if (course.id && course.drip_condition_json) {
               // Clear old condition first to ensure fresh data
               clearDripCondition(course.id);
+              console.log("settings ->", course.drip_condition_json);
               setDripCondition(course.id, course.drip_condition_json);
             } else if (course.id && !course.drip_condition_json) {
               // Clear drip condition if not present in API response
