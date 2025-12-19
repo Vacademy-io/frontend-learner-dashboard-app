@@ -1,17 +1,39 @@
 import React from 'react';
-import { isYouTubeUrl, convertToYouTubeEmbedUrl } from '../-utils/helper';
+import { isYouTubeUrl, convertToYouTubeEmbedUrl, getYouTubeVideoId } from '../-utils/helper';
 
 interface YouTubeVideoPlayerProps {
   url: string;
   className?: string;
 }
 
-export const YouTubeVideoPlayer: React.FC<YouTubeVideoPlayerProps> = ({ 
-  url, 
-  className = "" 
+const BRIDGE_URL = "https://vacademy.io/player.html";
+
+export const YouTubeVideoPlayer: React.FC<YouTubeVideoPlayerProps> = ({
+  url,
+  className = ""
 }) => {
+  const videoId = getYouTubeVideoId(url);
+  const isNativeIOS = typeof window !== 'undefined' &&
+    window.Capacitor?.getPlatform() === 'ios';
+
   if (!url || !isYouTubeUrl(url)) {
     return null;
+  }
+
+  if (isNativeIOS && videoId) {
+    return (
+      <div className={`w-full overflow-hidden rounded-lg shadow-xl ${className}`}>
+        <div className="relative aspect-video bg-black">
+          {/* Use Iframe Bridge for iOS to avoid Error 153 */}
+          <iframe
+            src={`${BRIDGE_URL}?videoId=${videoId}`}
+            className="size-full rounded-lg bg-black"
+            allow="autoplay; encrypted-media"
+            title="YouTube video player"
+          />
+        </div>
+      </div>
+    );
   }
 
   const embedUrl = convertToYouTubeEmbedUrl(url);
@@ -32,8 +54,9 @@ export const YouTubeVideoPlayer: React.FC<YouTubeVideoPlayerProps> = ({
             height: '100%',
           }}
           sandbox="allow-scripts allow-same-origin allow-presentation allow-forms"
+          referrerPolicy="strict-origin-when-cross-origin"
         />
       </div>
     </div>
   );
-}; 
+};

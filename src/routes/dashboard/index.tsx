@@ -139,8 +139,8 @@ const StatCard = ({
         <div className="flex items-center justify-between mb-2 sm:mb-3 md:mb-5">
           <div
             className={`stat-card-icon p-1.5 sm:p-2 md:p-3 ${document.documentElement.classList.contains("ui-vibrant")
-                ? "pastel-bg-blue"
-                : "bg-primary-100"
+              ? "pastel-bg-blue"
+              : "bg-primary-100"
               } rounded-md sm:rounded-lg text-primary-600 group-hover:scale-110 transition-transform duration-300 shadow-sm`}
           >
             {/* Swap icon to playful Tabler in vibrant mode */}
@@ -317,8 +317,8 @@ const ContinueLearningCard = ({
                   <ChevronRight
                     size={10}
                     className={`${hasVibrant
-                        ? "text-slate-800"
-                        : "text-gray-400 group-hover:text-primary-600"
+                      ? "text-slate-800"
+                      : "text-gray-400 group-hover:text-primary-600"
                       } sm:w-3 sm:h-3`}
                   />
                 </div>
@@ -1022,7 +1022,7 @@ export function DashboardComponent() {
             {/* Above grid already includes Continue Learning and Analytics per settings */}
 
             {/* Developer Test Section - Only in development */}
-            {process.env.NODE_ENV === "development" && (
+            {import.meta.env.MODE === "development" && (
               <div
                 className="animate-fade-in-up"
                 style={{ animationDelay: "0.8s" }}
@@ -1141,9 +1141,9 @@ export function DashboardComponent() {
                             <div
                               key={dayData.day}
                               className={`flex flex-col items-center space-y-1 p-1.5 sm:p-2 md:p-3 bg-white rounded-md sm:rounded-lg border border-gray-200 min-w-0 flex-1 ${dayData.status === "PENDING" ||
-                                  dayData.status === "NO_CLASS"
-                                  ? "opacity-60"
-                                  : ""
+                                dayData.status === "NO_CLASS"
+                                ? "opacity-60"
+                                : ""
                                 }`}
                             >
                               <Icon

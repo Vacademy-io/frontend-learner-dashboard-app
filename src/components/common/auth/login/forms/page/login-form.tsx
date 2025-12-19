@@ -794,7 +794,7 @@ export function LoginForm({
                     <ArrowRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
                   </motion.button>
                 )}
-                {authProviders?.github && (
+                {/* {authProviders?.github && (
                   <motion.button
                     whileHover={{ scale: 1.01 }}
                     whileTap={{ scale: 0.99 }}
@@ -806,7 +806,7 @@ export function LoginForm({
                     <span className="text-sm">Continue with GitHub</span>
                     <ArrowRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
                   </motion.button>
-                )}
+                )} */}
               </motion.div>
 
               {/* Compact Divider */}

@@ -8,26 +8,29 @@ export function isYouTubeUrl(url: string): boolean {
 
 export function getYouTubeVideoId(url: string): string | null {
     if (!url) return null;
-    
+
     const patterns = [
         /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/,
         /youtube\.com\/watch\?.*v=([^&\n?#]+)/,
     ];
-    
+
     for (const pattern of patterns) {
         const match = url.match(pattern);
         if (match) return match[1];
     }
-    
+
     return null;
 }
 
 export function convertToYouTubeEmbedUrl(url: string): string {
     const videoId = getYouTubeVideoId(url);
     if (!videoId) return url;
-    
+
     // Add iOS-friendly parameters
-    return `https://www.youtube.com/embed/${videoId}?playsinline=1&enablejsapi=1&origin=${window.location.origin}`;
+    const winOrigin = typeof window !== 'undefined' ? window.location.origin : 'https://www.youtube.com';
+    const origin = (winOrigin.includes('capacitor://') || winOrigin.includes('file://')) ? 'http://localhost' : winOrigin;
+
+    return `https://www.youtube.com/embed/${videoId}?playsinline=1&enablejsapi=1&origin=${origin}&widget_referrer=${origin}`;
 }
 
 interface SubjectType {
@@ -135,7 +138,7 @@ export const transformApiDataToCourseData = async (
                 const mediaId = isJson(apiData.course.course_media_id)
                     ? courseMediaImage.id
                     : apiData.course.course_media_id;
-                
+
                 // Only call getPublicUrl if mediaId is not empty
                 if (mediaId && mediaId.trim() !== "") {
                     courseMediaPreview = await getPublicUrl(mediaId);

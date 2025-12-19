@@ -10,6 +10,8 @@ import { useDomainRouting } from "@/hooks/use-domain-routing";
 import { getTokenFromStorage } from "@/lib/auth/sessionUtility";
 import { Preferences } from "@capacitor/preferences";
 import { isNullOrEmptyOrUndefined } from "@/lib/utils";
+// We can keep this import if needed for other logic, but NOT for tagName
+import { getAppConfig } from "@/utils/app-config"; 
 
 interface CourseCataloguePageProps {
   tagName: string;
@@ -18,15 +20,15 @@ interface CourseCataloguePageProps {
 }
 
 export const CourseCataloguePage: React.FC<CourseCataloguePageProps> = ({
-  tagName,
+  tagName, // ✅ Reverted: Use the prop directly (it contains "CourseCollections")
   instituteId,
   instituteThemeCode,
 }) => {
-  console.log("[CourseCataloguePage] Component mounted with props:", {
-    tagName,
-    instituteId,
-    instituteThemeCode
-  });
+  
+  // Debug log to confirm we are using the correct tag
+  useEffect(() => {
+    console.log("[CourseCataloguePage] Using TagName:", tagName);
+  }, [tagName]);
 
   const navigate = useNavigate();
   const domainRouting = useDomainRouting();
@@ -73,6 +75,7 @@ export const CourseCataloguePage: React.FC<CourseCataloguePageProps> = ({
     const fetchCatalogueData = async () => {
       try {
         setIsLoading(true);
+        // ✅ API Call using the correct tagName ("CourseCollections")
         const data = await CourseCatalogueService.getCourseCatalogueByTag(instituteId, tagName);
 
         setCatalogueData(data);
@@ -305,7 +308,6 @@ export const CourseCataloguePage: React.FC<CourseCataloguePageProps> = ({
               catalogueData={catalogueData}
             />
           )}
-
           {/* Header Section with Theme Colors - Only show if title exists in JSON */}
           {catalogueData?.pages?.[0]?.title && (
             <div
@@ -323,8 +325,7 @@ export const CourseCataloguePage: React.FC<CourseCataloguePageProps> = ({
               </div>
             </div>
           )}
-          {/*           
-          Render only homepage components from JSON */}
+          {/* Render only homepage components from JSON */}
           {catalogueData.pages
             .filter(page => page.id === "home" || page.route === "homepage")
             .map((page) => (

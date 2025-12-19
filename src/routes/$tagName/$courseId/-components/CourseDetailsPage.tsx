@@ -7,9 +7,11 @@ import axios from "axios";
 import { JsonRenderer } from "../../-components/JsonRenderer";
 import { CourseCatalogueService } from "../../-services/course-catalogue-service";
 import { CourseCatalogueData } from "../../-types/course-catalogue-types";
-import { CourseStructureDetails } from "../../-components/CourseStructureDetails"; // Course structure component
+import { CourseStructureDetails } from "../../-components/CourseStructureDetails";
 import { EnrollmentPaymentDialog } from "../../-components/EnrollmentPaymentDialog";
 import { getBackendCourseDuration } from "@/utils/courseTime";
+// 🔥 CORE FIX IMPORT
+import { getAppConfig } from "@/utils/app-config";
 
 interface CourseDetailsPageProps {
   courseId: string;
@@ -64,7 +66,7 @@ interface CourseData {
 
 export const CourseDetailsPage: React.FC<CourseDetailsPageProps> = ({
   courseId,
-  tagName,
+  tagName: propTagName, // 👈 RENAMED PROP: To avoid conflict with our resolved tagName
   instituteId,
   instituteThemeCode,
   enrollInviteId,
@@ -77,6 +79,24 @@ export const CourseDetailsPage: React.FC<CourseDetailsPageProps> = ({
   const [courseData, setCourseData] = useState<CourseData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // =========================================================
+  // 🔥 UNIVERSAL PLATFORM FIX (iOS/Android/Web)
+  // =========================================================
+  // logic: On Native, router props are unreliable for subdomains.
+  // We use getAppConfig to force the correct subdomain from flavor config.
+  const appConfig = getAppConfig();
+  const tagName = appConfig.isNative ? appConfig.subdomain : propTagName;
+
+  // Debug log to confirm correct flavor detection
+  useEffect(() => {
+    console.log("[CourseDetailsPage] Platform Resolution:", {
+      platform: appConfig.isNative ? 'NATIVE' : 'WEB',
+      originalTag: propTagName,
+      resolvedTag: tagName
+    });
+  }, [tagName, propTagName, appConfig]);
+  // =========================================================
 
   const getCardStyling = () => {
     if (!catalogueData?.globalSettings) {
@@ -112,7 +132,7 @@ export const CourseDetailsPage: React.FC<CourseDetailsPageProps> = ({
       try {
         const data = await CourseCatalogueService.getCourseCatalogueByTag(
           instituteId,
-          tagName
+          tagName // 🔥 USES RESOLVED TAGNAME
         );
         setCatalogueData(data);
       } catch (error) {
@@ -437,7 +457,7 @@ export const CourseDetailsPage: React.FC<CourseDetailsPageProps> = ({
     if (courseId && instituteId) {
       fetchCourseDetails();
     }
-  }, [courseId, tagName, instituteId]);
+  }, [courseId, tagName, instituteId]); // 🔥 tagName added to dependencies
 
   // Apply institute theme
   useEffect(() => {
@@ -485,7 +505,7 @@ export const CourseDetailsPage: React.FC<CourseDetailsPageProps> = ({
             The requested course could not be loaded.
           </p>
           <button
-            onClick={() => navigate({ to: `/${tagName}` })}
+            onClick={() => navigate({ to: `/${tagName}` })} // 🔥 Use resolved tagName for navigation
             className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700"
           >
             Back to Catalog
@@ -522,7 +542,7 @@ export const CourseDetailsPage: React.FC<CourseDetailsPageProps> = ({
               }}
               globalSettings={catalogueData.globalSettings}
               instituteId={instituteId}
-              tagName={tagName}
+              tagName={tagName} // 🔥 Use resolved tagName
               catalogueData={catalogueData}
             />
           )}
@@ -538,7 +558,7 @@ export const CourseDetailsPage: React.FC<CourseDetailsPageProps> = ({
                 page={page}
                 globalSettings={catalogueData.globalSettings}
                 instituteId={instituteId}
-                tagName={tagName}
+                tagName={tagName} // 🔥 Use resolved tagName
                 courseData={courseData}
               />
             ))}
@@ -1118,7 +1138,7 @@ export const CourseDetailsPage: React.FC<CourseDetailsPageProps> = ({
             }}
             globalSettings={catalogueData.globalSettings}
             instituteId={instituteId}
-            tagName={tagName}
+            tagName={tagName} // 🔥 Uses resolved tagName
           />
         )}
 
@@ -1258,7 +1278,7 @@ export const CourseDetailsPage: React.FC<CourseDetailsPageProps> = ({
               const leadCollectionConfig = globalSettings?.leadCollection;
               if (leadCollectionConfig?.enabled) {
                 setShowLeadCollection(true);
-              }}
+              }}}
               className="w-full px-4 py-2 text-white font-medium hover:opacity-90 rounded-md transition-colors"
               style={{
                 backgroundColor: domainRouting.instituteThemeCode ? `hsl(var(--primary))` : '#3b82f6'
@@ -1291,7 +1311,7 @@ export const CourseDetailsPage: React.FC<CourseDetailsPageProps> = ({
               </span>
             </div>
           </div>
-        </div>)}
+        </div>
     </div>
   );
 };

@@ -57,5 +57,21 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
+	<key>NSAppTransportSecurity</key>
+<dict>
+  <key>NSAllowsArbitraryLoads</key>
+  <true/>
+  <key>NSAllowsArbitraryLoadsInWebContent</key>
+  <true/>
+</dict>
+
+<key>WKWebViewConfiguration</key>
+<dict>
+  <key>allowsInlineMediaPlayback</key>
+  <true/>
+</dict>
+<key>NSAllowsArbitraryLoadsInWebContent</key>
+<true/>
+
 </dict>
 </plist>

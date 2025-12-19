@@ -2,8 +2,7 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 "use client";
 
-import type React from "react";
-import {
+import React, {
   useEffect,
   useRef,
   useCallback,
@@ -21,7 +20,6 @@ import { calculateNetDuration } from "@/utils/study-library/tracking/calculateNe
 import { useVideoSync } from "@/hooks/study-library/useVideoSync";
 import YouTube, {
   type YouTubeEvent,
-  type YouTubePlayer,
   type YouTubeProps,
 } from "react-youtube";
 import {
@@ -30,15 +28,28 @@ import {
   Pause,
   Play,
   Rewind,
-  X,
   Gauge,
+  ArrowsIn,
 } from "@phosphor-icons/react";
 import { Preferences } from "@capacitor/preferences";
+import { Capacitor } from "@capacitor/core";
+import { StatusBar } from "@capacitor/status-bar";
 import { useContentStore } from "@/stores/study-library/chapter-sidebar-store";
 import VideoQuestionOverlay from "./video-question-overlay";
 import { useMediaRefsStore } from "@/stores/mediaRefsStore";
 
-// Add the YouTube PlayerState enum to avoid window.YT references
+// --- Helper to detect iOS ---
+const isIOS = () => {
+  if (typeof window === "undefined") return false;
+  return (
+    /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (window as any).Capacitor?.getPlatform?.() === "ios"
+  );
+};
+
+// --- Constants ---
+const BRIDGE_URL = "https://neerajhariyale.github.io/player.html/player.html";
+
 enum PlayerState {
   UNSTARTED = -1,
   ENDED = 0,
@@ -48,6 +59,7 @@ enum PlayerState {
   CUED = 5,
 }
 
+// --- Interfaces ---
 interface YouTubePlayerProps {
   videoId: string;
   videoTitle?: string;
@@ -56,28 +68,19 @@ interface YouTubePlayerProps {
   questions?: Array<{
     id: string;
     question_time_in_millis: number;
-    text_data: {
-      content: string;
-    };
-    parent_rich_text?: {
-      content: string;
-    };
-    options: Array<{
-      id: string;
-      text: {
-        content: string;
-      };
-    }>;
+    text_data: { content: string };
+    parent_rich_text?: { content: string };
+    options: Array<{ id: string; text: { content: string } }>;
     can_skip?: boolean;
     question_type?: string;
     auto_evaluation_json?: string;
   }>;
-  allowPlayPause?: boolean; // If false, play/pause controls are disabled
-  allowRewind?: boolean; // If false, rewind controls are disabled
-  isLiveStream?: boolean; // If true, indicates this is a live stream
-  liveTimestamp?: number; // Current live timestamp in seconds (for live streams)
-  liveClassStartTime?: string; // ISO timestamp when the live class started (for syncing video position)
-  enableConcentrationScore?: boolean; // If false, concentration score features are disabled
+  allowPlayPause?: boolean;
+  allowRewind?: boolean;
+  isLiveStream?: boolean;
+  liveTimestamp?: number;
+  liveClassStartTime?: string;
+  enableConcentrationScore?: boolean;
 }
 
 export const formatTime = (timeInSeconds: number) => {
@@ -86,7 +89,7 @@ export const formatTime = (timeInSeconds: number) => {
   return `${minutes}:${seconds < 10 ? "0" : ""}${seconds}`;
 };
 
-export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({
+const YouTubePlayerComp = forwardRef<any, YouTubePlayerProps>(({
   videoId,
   onTimeUpdate,
   ms = 0,
@@ -95,141 +98,82 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({
   allowRewind = true,
   isLiveStream = false,
   liveTimestamp = 0,
-  liveClassStartTime,
   enableConcentrationScore = true,
-}) => {
+}, ref) => {
+  // --- Stores & Hooks ---
   const { activeItem } = useContentStore();
-  // Subscribe only to addActivity to avoid re-render on every trackingData update
   const addActivity = useTrackingStore((state) => state.addActivity);
+  const { syncVideoTrackingData } = useVideoSync();
+  const setCurrentYoutubeTime = useMediaRefsStore((state) => state.setCurrentYoutubeTime);
+  const setCurrentYoutubeVideoLength = useMediaRefsStore((state) => state.setCurrentYoutubeVideoLength);
+
+  // --- Refs ---
   const activityId = useRef(uuidv4());
-  const currentTimestamps = useRef<
-    Array<{
-      id: string;
-      start_time: string;
-      end_time: string;
-      start: number;
-      end: number;
-    }>
-  >([]);
+  const currentTimestamps = useRef<Array<{ id: string; start_time: string; end_time: string; start: number; end: number; }>>([]);
   const videoStartTime = useRef<number>(0);
   const videoEndTime = useRef<number>(0);
-  const [elapsedTime, setElapsedTime] = useState(0);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const currentStartTimeRef = useRef("");
   const timestampDurationRef = useRef(0);
-  const [isFirstPlay, setIsFirstPlay] = useState(true);
   const updateIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const { syncVideoTrackingData } = useVideoSync();
   const currentStartTimeInEpochRef = useRef<number>(0);
+  const playerContainerRef = useRef<HTMLDivElement>(null);
+  const concentrationScoreId = useRef(uuidv4());
+  const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const verificationTimerRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // iOS Bridge Refs
+  const iosIframeRef = useRef<HTMLIFrameElement>(null);
+  const iosCurrentTimeRef = useRef<number>(0);
 
+  // --- State ---
+  const [elapsedTime, setElapsedTime] = useState(0);
+  const [isFirstPlay, setIsFirstPlay] = useState(true);
   const [isPlayed, setIsPlayed] = useState(allowPlayPause ? false : true);
-  const [player, setPlayer] = useState<YouTubePlayer | null>(null);
+  const [player, setPlayer] = useState<any | null>(null);
   const [playerReady, setPlayerReady] = useState(false);
   const [duration, setDuration] = useState(0);
-
   const [currentTime, setCurrentTime] = useState(0);
   const [minutesInput, setMinutesInput] = useState("");
   const [secondsInput, setSecondsInput] = useState("");
+  
+  // Fullscreen States
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const iframeRef = useRef<HTMLIFrameElement | null>(null);
-  const playerContainerRef = useRef<HTMLDivElement>(null);
-  const concentrationScoreId = useRef(uuidv4());
-  const [showFullscreenControls, setShowFullscreenControls] = useState(false);
-  const fullscreenControlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const [isPseudoFullscreen, setIsPseudoFullscreen] = useState(false);
-  const hasAutoPlayAttempted = useRef(false);
-  const [showManualPlayButton, setShowManualPlayButton] = useState(false);
-
-  // Playback speed state
+  
+  const [showControls, setShowControls] = useState(true);
+  
+  // Speed & Seek Animation
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
   const [showSpeedOptions, setShowSpeedOptions] = useState(false);
+  const [showSeekAnimation, setShowSeekAnimation] = useState<{ side: "left" | "right"; show: boolean }>({ side: "left", show: false });
   const speedOptions = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
-  const speedButtonRef = useRef<HTMLButtonElement>(null);
 
-  // Volume control state
-  const [volume, setVolume] = useState(100); // 0 - 100
-
-  // UI control states
-  const [showControls, setShowControls] = useState(true);
-  const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const [showSeekAnimation, setShowSeekAnimation] = useState<{
-    side: "left" | "right";
-    show: boolean;
-  }>({ side: "left", show: false });
-
-  // Question state
+  // Questions & Metrics
   const [currentQuestion, setCurrentQuestion] = useState<any>(null);
   const [showQuestion, setShowQuestion] = useState(false);
-  const [answeredQuestions, setAnsweredQuestions] = useState<
-    Record<
-      string,
-      {
-        answered: boolean;
-        selectedOptions: string | string[];
-        isCorrect?: boolean;
-        timestamp: number;
-      }
-    >
-  >({});
-
-  // Verification state
+  const [answeredQuestions, setAnsweredQuestions] = useState<Record<string, any>>({});
+  
+  // Verification
   const [showVerification, setShowVerification] = useState(false);
   const [verificationCountdown, setVerificationCountdown] = useState(59);
   const [verificationNumbers, setVerificationNumbers] = useState<number[]>([]);
-  const [verificationInterval] = useState(180);
   const [lastVerificationTime, setLastVerificationTime] = useState(0);
-  const verificationTimerRef = useRef<NodeJS.Timeout | null>(null);
-
-  // Concentration metrics
+  
+  // Concentration Metrics
   const [tabSwitchCount, setTabSwitchCount] = useState(0);
   const [pauseCount, setPauseCount] = useState(0);
   const [wrongAnswerCount, setWrongAnswerCount] = useState(0);
   const [missedAnswerCount, setMissedAnswerCount] = useState(0);
-  const [answerTimesInSeconds, setAnswerTimesInSeconds] = useState<number[]>(
-    []
-  );
-  const [concentrationScore, setConcentrationScore] = useState(100); // Start with perfect score
-
-  // Live stream state
-  const [isBehindLive, setIsBehindLive] = useState(false);
+  const [answerTimesInSeconds, setAnswerTimesInSeconds] = useState<number[]>([]);
+  const [concentrationScore, setConcentrationScore] = useState(100);
   const [wasPausedByTabSwitch, setWasPausedByTabSwitch] = useState(false);
+  
+  // Live Stream
+  const [isBehindLive, setIsBehindLive] = useState(false);
 
-  // Memoize questions to prevent unnecessary re-renders
-  const memoizedQuestions = useMemo(
-    () => questions,
-    [JSON.stringify(questions)]
-  );
-
-  // Memoize timeToQuestionMap to prevent recreating it unnecessarily
-  const timeToQuestionMap = useMemo(() => {
-    if (memoizedQuestions && memoizedQuestions.length > 0) {
-      return memoizedQuestions.map((q) => ({
-        time: q.question_time_in_millis,
-        question: q,
-      }));
-    }
-    return [];
-  }, [memoizedQuestions]);
-
-  // Subscribe only to setter functions to avoid re-render on store updates
-  const setCurrentYoutubeTime = useMediaRefsStore(
-    (state) => state.setCurrentYoutubeTime
-  );
-  const setCurrentYoutubeVideoLength = useMediaRefsStore(
-    (state) => state.setCurrentYoutubeVideoLength
-  );
-
-  useEffect(() => {
-    setCurrentYoutubeTime(currentTime);
-  }, [currentTime, setCurrentYoutubeTime]);
-
-  // Reset answered questions when questions or videoId changes
-  useEffect(() => {
-    setAnsweredQuestions({});
-  }, [memoizedQuestions, videoId]);
-
-  // Helper function to safely get a number from potentially a Promise<number>
+  // --- Helpers ---
   const safeGetNumber = async (value: any): Promise<number> => {
     if (value === undefined || value === null) return 0;
     if (typeof value === "number") return value;
@@ -237,68 +181,99 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({
       try {
         const resolved = await value;
         return typeof resolved === "number" ? resolved : 0;
-      } catch {
-        return 0;
-      }
+      } catch { return 0; }
     }
     return 0;
   };
 
-  // Helper function to verify player iframe is ready before operations
-  const isPlayerIframeReady = async (
-    playerInstance: YouTubePlayer | null
-  ): Promise<boolean> => {
-    if (!playerInstance) return false;
-    try {
-      const iframe = await playerInstance.getIframe();
-      return !!(iframe && iframe.src);
-    } catch (err) {
-      console.warn("Unable to verify iframe state:", err);
-      return false;
-    }
+  const safePlayerOperation = async (operation: () => void, name = "op"): Promise<boolean> => {
+    if (!player || !playerReady) return false;
+    try { operation(); return true; } 
+    catch (error) { console.error(`Error ${name}:`, error); return false; }
   };
 
-  // Safe wrapper for player operations
-  const safePlayerOperation = async (
-    operation: () => void,
-    operationName: string = "player operation"
-  ): Promise<boolean> => {
-    if (!player || !playerReady) {
-      console.warn(`${operationName}: Player not ready`);
-      return false;
-    }
+  // --- Imperative Handle ---
+  useImperativeHandle(ref, () => ({
+    playVideo: () => { setIsPlayed(true); safePlayerOperation(() => player?.playVideo()); },
+    pauseVideo: () => { setIsPlayed(false); safePlayerOperation(() => player?.pauseVideo()); },
+    getCurrentTime: () => currentTime,
+    getDuration: () => duration,
+    seekTo: (seconds: number, allowSeekAhead: boolean) => {
+      safePlayerOperation(() => player?.seekTo(seconds, allowSeekAhead));
+      setCurrentTime(seconds);
+    },
+  }));
 
-    const iframeReady = await isPlayerIframeReady(player);
-    if (!iframeReady) {
-      console.warn(`${operationName}: Iframe not ready, skipping operation`);
-      return false;
-    }
+  // ==========================================
+  // 🔥 iOS BRIDGE LOGIC
+  // ==========================================
+  useEffect(() => {
+    if (!isIOS() || !videoId) return;
 
-    try {
-      operation();
-      return true;
-    } catch (error) {
-      console.error(`Error during ${operationName}:`, error);
-      return false;
-    }
-  };
+    const handleBridgeMessage = (event: MessageEvent) => {
+      try {
+        if (typeof event.data !== 'string') return;
+        const data = JSON.parse(event.data);
 
+        if (data.type === 'READY') {
+          setDuration(data.payload.duration);
+          // Fake Player Proxy for Bridge
+          const bridgePlayer = {
+            playVideo: () => iosIframeRef.current?.contentWindow?.postMessage(JSON.stringify({ command: 'play' }), '*'),
+            pauseVideo: () => iosIframeRef.current?.contentWindow?.postMessage(JSON.stringify({ command: 'pause' }), '*'),
+            seekTo: (seconds: number) => iosIframeRef.current?.contentWindow?.postMessage(JSON.stringify({ command: 'seekTo', seconds }), '*'),
+            setVolume: (vol: number) => iosIframeRef.current?.contentWindow?.postMessage(JSON.stringify({ command: 'setVolume', volume: vol }), '*'),
+            setPlaybackRate: (rate: number) => iosIframeRef.current?.contentWindow?.postMessage(JSON.stringify({ command: 'setPlaybackRate', rate }), '*'),
+            getDuration: () => data.payload.duration,
+            getCurrentTime: () => iosCurrentTimeRef.current,
+            unMute: () => { },
+            getIframe: () => iosIframeRef.current,
+            getPlayerState: () => 1
+          };
+          setPlayer(bridgePlayer);
+          setPlayerReady(true);
+        }
+        if (data.type === 'TIME_UPDATE') {
+          iosCurrentTimeRef.current = data.payload.currentTime;
+        }
+        if (data.type === 'STATE_CHANGE') {
+          const eventData = { data: data.payload.data, target: player };
+          onStateChange(eventData as any);
+        }
+      } catch (e) { }
+    };
+
+    window.addEventListener('message', handleBridgeMessage);
+    return () => window.removeEventListener('message', handleBridgeMessage);
+  }, [videoId]);
+
+  // --- Memos ---
+  const memoizedQuestions = useMemo(() => questions, [JSON.stringify(questions)]);
+  const timeToQuestionMap = useMemo(() => {
+    if (memoizedQuestions && memoizedQuestions.length > 0) {
+      return memoizedQuestions.map((q) => ({ time: q.question_time_in_millis, question: q }));
+    }
+    return [];
+  }, [memoizedQuestions]);
+
+  // --- Effects ---
+  useEffect(() => { setCurrentYoutubeTime(currentTime); }, [currentTime]);
+  useEffect(() => { setAnsweredQuestions({}); }, [memoizedQuestions, videoId]);
+
+  // --- Logic Functions ---
   const checkForQuestions = useCallback(async () => {
-    if (!timeToQuestionMap || timeToQuestionMap.length === 0 || !player) return;
-
+    if (!timeToQuestionMap.length || !player) return;
     try {
-      const currentTime = await player.getCurrentTime();
-      if (typeof currentTime !== "number" || isNaN(currentTime)) return;
-      const currentTimeMs = currentTime * 1000;
+      const currentTimeVal = await safeGetNumber(player.getCurrentTime());
+      if (typeof currentTimeVal !== "number" || isNaN(currentTimeVal)) return;
+      const currentTimeMs = currentTimeVal * 1000;
 
       const questionToShow = timeToQuestionMap.find(({ time, question }) => {
-        if (answeredQuestions && answeredQuestions[question.id]?.answered)
-          return false;
+        if (answeredQuestions && answeredQuestions[question.id]?.answered) return false;
         return Math.abs(currentTimeMs - time) < 500;
       });
 
       if (questionToShow && !showQuestion) {
-        // Use the force pause function for immediate pause
         player.pauseVideo();
         setIsPlayed(false);
         stopProgressTracking();
@@ -306,211 +281,77 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({
         setCurrentQuestion(questionToShow.question);
         setShowQuestion(true);
       }
-    } catch (error) {
-      console.error("Error checking for questions:", error);
-    }
+    } catch (error) { console.error(error); }
   }, [timeToQuestionMap, showQuestion, answeredQuestions, player]);
 
-  // Handle question submission
   const handleQuestionSubmit = async (selectedOption: string | string[]) => {
     if (!currentQuestion) return { success: false };
-
-    // Evaluate the answer (you can enhance this logic)
-    const isCorrect = true; // This should be based on actual evaluation logic
-
-    // Mark question as answered with detailed info
     setAnsweredQuestions((prev) => ({
       ...prev,
-      [currentQuestion.id]: {
-        answered: true,
-        selectedOptions: selectedOption,
-        isCorrect,
-        timestamp: Date.now(),
-      },
+      [currentQuestion.id]: { answered: true, selectedOptions: selectedOption, isCorrect: true, timestamp: Date.now() },
     }));
-
-    // Return mock response (in a real app, this would come from the server)
-    return {
-      success: true,
-      isCorrect: isCorrect,
-      explanation: "Great job! You've answered correctly.",
-    };
+    return { success: true, isCorrect: true, explanation: "Correct!" };
   };
 
-  // Handle closing the question overlay (skip/close)
   const handleQuestionClose = () => {
-    // Mark question as skipped only if it's skippable
     if (currentQuestion && currentQuestion.can_skip) {
       setAnsweredQuestions((prev) => ({
         ...prev,
-        [currentQuestion.id]: {
-          answered: true,
-          selectedOptions: [],
-          isCorrect: false,
-          timestamp: Date.now(),
-        },
+        [currentQuestion.id]: { answered: true, selectedOptions: [], isCorrect: false, timestamp: Date.now() },
       }));
     }
-
     setShowQuestion(false);
     setCurrentQuestion(null);
-
-    // Resume video playback
-    if (player) {
-      player.playVideo();
-      setIsPlayed(true);
-    }
+    if (player) { player.playVideo(); setIsPlayed(true); }
   };
 
-  // Load saved verification time from Capacitor preferences
+  // --- Concentration Logic ---
   useEffect(() => {
     if (!enableConcentrationScore) return;
-
     const loadSavedData = async () => {
       try {
-        const { value } = await Preferences.get({
-          key: "video_concentration_metrics",
-        });
+        const { value } = await Preferences.get({ key: "video_concentration_metrics" });
         if (value) {
-          const savedMetrics = JSON.parse(value);
-          setTabSwitchCount(savedMetrics.tabSwitchCount || 0);
-          setWrongAnswerCount(savedMetrics.wrongAnswerCount || 0);
-          setMissedAnswerCount(savedMetrics.missedAnswerCount || 0);
-          setPauseCount(savedMetrics.pauseCount || 0);
-          setAnswerTimesInSeconds(savedMetrics.answerTimesInSeconds || []);
-          setConcentrationScore(savedMetrics.concentrationScore || 100);
+          const data = JSON.parse(value);
+          setTabSwitchCount(data.tabSwitchCount || 0);
+          setWrongAnswerCount(data.wrongAnswerCount || 0);
+          setMissedAnswerCount(data.missedAnswerCount || 0);
+          setPauseCount(data.pauseCount || 0);
+          setAnswerTimesInSeconds(data.answerTimesInSeconds || []);
+          setConcentrationScore(data.concentrationScore || 100);
         }
-
-        // Load last verification time
-        const { value: verificationTimeValue } = await Preferences.get({
-          key: "verification_time",
-        });
-        if (verificationTimeValue) {
-          const savedTime = Number.parseInt(verificationTimeValue, 10);
-          setLastVerificationTime(savedTime);
-        }
-      } catch (error) {
-        console.error("Error loading saved concentration metrics:", error);
-      }
+        const { value: vTime } = await Preferences.get({ key: "verification_time" });
+        if (vTime) setLastVerificationTime(Number.parseInt(vTime, 10));
+      } catch (e) { }
     };
-
     loadSavedData();
   }, [enableConcentrationScore]);
 
-  // Save concentration metrics to Capacitor preferences
-  const saveConcentrationMetrics = useCallback(async () => {
-    try {
-      const metrics = {
-        tabSwitchCount,
-        wrongAnswerCount,
-        missedAnswerCount,
-        pauseCount,
-        answerTimesInSeconds,
-        concentrationScore,
-      };
-
-      await Preferences.set({
-        key: "video_concentration_metrics",
-        value: JSON.stringify(metrics),
-      });
-    } catch (error) {
-      console.error("Error saving concentration metrics:", error);
-    }
-  }, [
-    tabSwitchCount,
-    wrongAnswerCount,
-    missedAnswerCount,
-    pauseCount,
-    answerTimesInSeconds,
-    concentrationScore,
-  ]);
-
-  // Save verification time to Capacitor preferences
-  const saveVerificationTime = async (time: number) => {
-    try {
-      await Preferences.set({
-        key: "verification_time",
-        value: time.toString(),
-      });
-    } catch (error) {
-      console.error("Error saving verification time:", error);
-    }
-  };
-
-  // Update concentration score based on metrics
   useEffect(() => {
     if (!enableConcentrationScore) return;
+    const score = Math.max(0, 100 - (tabSwitchCount * 10) - (wrongAnswerCount * 5) - (missedAnswerCount * 20) - (pauseCount * 5));
+    setConcentrationScore(score);
+    Preferences.set({ key: "video_concentration_metrics", value: JSON.stringify({ tabSwitchCount, wrongAnswerCount, missedAnswerCount, pauseCount, answerTimesInSeconds, concentrationScore: score }) });
+  }, [tabSwitchCount, wrongAnswerCount, missedAnswerCount, pauseCount, enableConcentrationScore]);
 
-    // Simple algorithm to calculate concentration score
-    // This can be adjusted based on specific requirements
-    const baseScore = 100;
-    const tabSwitchPenalty = tabSwitchCount * 10;
-    const wrongAnswerPenalty = wrongAnswerCount * 5;
-    const pouseCountPenalty = pauseCount * 5;
-    const missedAnswerPenalty = missedAnswerCount * 20;
-
-    let newScore =
-      baseScore -
-      tabSwitchPenalty -
-      wrongAnswerPenalty -
-      missedAnswerPenalty -
-      pouseCountPenalty;
-    newScore = Math.max(0, newScore); // Ensure score doesn't go below 0
-
-    setConcentrationScore(newScore);
-    saveConcentrationMetrics();
-  }, [
-    tabSwitchCount,
-    wrongAnswerCount,
-    missedAnswerCount,
-    pauseCount,
-    saveConcentrationMetrics,
-    enableConcentrationScore,
-  ]);
-
-  // Generate verification numbers
+  // --- Verification Logic ---
   const generateVerificationNumbers = useCallback(() => {
-    const correctNum = Math.floor(Math.random() * 100);
-    let num1 = correctNum;
-    let num2 = correctNum;
-
-    // Ensure numbers are different from the correct one
-    while (num1 === correctNum) {
-      num1 = Math.floor(Math.random() * 100);
-    }
-
-    while (num2 === correctNum || num2 === num1) {
-      num2 = Math.floor(Math.random() * 100);
-    }
-
-    // Set in a fixed order - correct number is always in the middle
-    setVerificationNumbers([num1, correctNum, num2]);
+    const correct = Math.floor(Math.random() * 100);
+    let n1 = correct, n2 = correct;
+    while (n1 === correct) n1 = Math.floor(Math.random() * 100);
+    while (n2 === correct || n2 === n1) n2 = Math.floor(Math.random() * 100);
+    setVerificationNumbers([n1, correct, n2]);
   }, []);
 
-  // Start the verification countdown timer
   const startVerificationTimer = useCallback(() => {
-    if (verificationTimerRef.current) {
-      clearInterval(verificationTimerRef.current);
-    }
-
+    if (verificationTimerRef.current) clearInterval(verificationTimerRef.current);
     setVerificationCountdown(59);
-
     verificationTimerRef.current = setInterval(() => {
       setVerificationCountdown((prev) => {
         if (prev <= 1) {
-          // Time's up, pause the video
-          if (player) {
-            player.pauseVideo();
-            setIsPlayed(false);
-          }
-          // Increment missed answer count
-          setMissedAnswerCount((prev) => prev + 1);
-          // Clear the timer
-          if (verificationTimerRef.current) {
-            clearInterval(verificationTimerRef.current);
-            verificationTimerRef.current = null;
-          }
-          // Close the verification dialog
+          if (player) { player.pauseVideo(); setIsPlayed(false); }
+          setMissedAnswerCount((p) => p + 1);
+          if (verificationTimerRef.current) clearInterval(verificationTimerRef.current);
           setShowVerification(false);
           return 0;
         }
@@ -519,268 +360,102 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({
     }, 1000);
   }, [player]);
 
-  // Handle verification number click
   const handleVerificationClick = (index: number) => {
-    // Clear the verification timer
-    if (verificationTimerRef.current) {
-      clearInterval(verificationTimerRef.current);
-      verificationTimerRef.current = null;
-    }
-
-    const responseTime = 59 - verificationCountdown;
-    // Add response time to array
-    const newAnswerTimes = [...answerTimesInSeconds, responseTime];
-    setAnswerTimesInSeconds(newAnswerTimes);
-    // Check if correct number was clicked (middle position, index 1)
+    if (verificationTimerRef.current) clearInterval(verificationTimerRef.current);
+    setAnswerTimesInSeconds([...answerTimesInSeconds, 59 - verificationCountdown]);
     if (index === 1) {
-      // Record verification time
-      const currentTimeInSeconds = Math.floor(Date.now() / 1000);
-      setLastVerificationTime(currentTimeInSeconds);
-      saveVerificationTime(currentTimeInSeconds);
-
-      // Hide verification
+      const now = Math.floor(Date.now() / 1000);
+      setLastVerificationTime(now);
+      Preferences.set({ key: "verification_time", value: now.toString() });
       setShowVerification(false);
     } else {
-      // Wrong number clicked, increment wrong answer count
-      setWrongAnswerCount((prev) => prev + 1);
-
-      // Pause the video
-      if (player) {
-        player.pauseVideo();
-        setIsPlayed(false);
-      }
-
-      // Close the verification dialog
+      setWrongAnswerCount((p) => p + 1);
+      if (player) { player.pauseVideo(); setIsPlayed(false); }
       setShowVerification(false);
     }
   };
 
-  // Check if verification is needed based on elapsed time
   useEffect(() => {
-    if (!enableConcentrationScore) return;
-
-    if (
-      isPlayed &&
-      elapsedTime > 0 &&
-      elapsedTime % verificationInterval === 0
-    ) {
-      // Show verification without pausing the video
-      setShowVerification(true);
-      generateVerificationNumbers();
-      startVerificationTimer();
-      console.log(lastVerificationTime);
+    if (enableConcentrationScore && isPlayed && elapsedTime > 0 && elapsedTime % 180 === 0) {
+      setShowVerification(true); generateVerificationNumbers(); startVerificationTimer();
     }
-  }, [
-    elapsedTime,
-    verificationInterval,
-    isPlayed,
-    generateVerificationNumbers,
-    startVerificationTimer,
-    enableConcentrationScore,
-  ]);
+  }, [elapsedTime, isPlayed, enableConcentrationScore]);
 
-  const calculatePercentageWatched = (totalDuration: number) => {
-    const netDuration = calculateNetDuration(currentTimestamps.current);
-    return ((netDuration / totalDuration) * 100).toFixed(2);
-  };
-
-  const clearUpdateInterval = useCallback(() => {
-    if (updateIntervalRef.current) {
-      clearInterval(updateIntervalRef.current);
-      updateIntervalRef.current = null;
-    }
-  }, []);
-
+  // --- Timing & Tracking ---
   const startTimer = useCallback(() => {
-    if (timerRef.current) return;
-    timerRef.current = setInterval(() => {
-      setElapsedTime((prev) => prev + 1);
-      timestampDurationRef.current += 1;
-    }, 1000);
+    if (!timerRef.current) {
+      timerRef.current = setInterval(() => {
+        setElapsedTime((p) => p + 1); timestampDurationRef.current += 1;
+      }, 1000);
+    }
   }, []);
 
   const stopTimer = useCallback(() => {
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
+    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
   }, []);
 
-  // Start progress tracking interval when player is playing
   const startProgressTracking = useCallback(() => {
-    if (progressIntervalRef.current) return;
-    progressIntervalRef.current = setInterval(async () => {
-      if (player) {
-        try {
-          const time = await safeGetNumber(player.getCurrentTime());
-          setCurrentTime(time);
-
-          // Check for questions at current timestamp
-          checkForQuestions();
-
-          if (onTimeUpdate) {
-            onTimeUpdate(time);
-          }
-        } catch (error) {
-          console.error("Error getting current time for progress bar:", error);
+    if (!progressIntervalRef.current) {
+      progressIntervalRef.current = setInterval(async () => {
+        if (player) {
+          try {
+            const time = await safeGetNumber(player.getCurrentTime());
+            setCurrentTime(time);
+            checkForQuestions();
+            if (onTimeUpdate) onTimeUpdate(time);
+          } catch (e) { }
         }
-      }
-    }, 250); // Update 4 times per second for smoother progress
+      }, 250);
+    }
   }, [player, onTimeUpdate, checkForQuestions]);
 
-  // Stop progress tracking interval
   const stopProgressTracking = useCallback(() => {
-    if (progressIntervalRef.current) {
-      clearInterval(progressIntervalRef.current);
-      progressIntervalRef.current = null;
-    }
+    if (progressIntervalRef.current) { clearInterval(progressIntervalRef.current); progressIntervalRef.current = null; }
   }, []);
 
-  // Function to check if user can navigate to a specific time
-  const canNavigateToTime = useCallback(
-    (targetTimeSeconds: number) => {
-      const targetTimeMs = targetTimeSeconds * 1000;
+  const canNavigateToTime = useCallback((targetTimeSeconds: number) => {
+    const targetMs = targetTimeSeconds * 1000;
+    const prevQs = timeToQuestionMap.filter(({ time }) => time <= targetMs);
+    return !prevQs.some(({ question }) => !question.can_skip && !answeredQuestions[question.id]?.answered);
+  }, [timeToQuestionMap, answeredQuestions]);
 
-      // Find all questions that come before or at the target time
-      const previousQuestions = timeToQuestionMap.filter(
-        ({ time }) => time <= targetTimeMs
-      );
+  // --- Event Handlers ---
+  const handleQuestionMarkerClick = useCallback((qData: any) => {
+    if (!canNavigateToTime(qData.question_time_in_millis / 1000)) return;
+    setCurrentQuestion(qData); setShowQuestion(true);
+    if (player) { player.pauseVideo(); setIsPlayed(false); stopProgressTracking(); stopTimer(); }
+  }, [canNavigateToTime, player]);
 
-      // Check if all previous questions that cannot be skipped are answered
-      for (const { question } of previousQuestions) {
-        if (!question.can_skip && !answeredQuestions[question.id]?.answered) {
-          return false; // Cannot navigate forward past unanswered required questions
-        }
-      }
-
-      return true;
-    },
-    [timeToQuestionMap, answeredQuestions]
-  );
-
-  // Function to handle question marker click
-  const handleQuestionMarkerClick = useCallback(
-    (questionData: any) => {
-      // Check if we can navigate to this question's time
-      const questionTimeSeconds = questionData.question_time_in_millis / 1000;
-
-      if (!canNavigateToTime(questionTimeSeconds)) {
-        // Show a message that they need to answer previous questions first
-        return;
-      }
-
-      // Set the current question and show overlay
-      setCurrentQuestion(questionData);
-      setShowQuestion(true);
-
-      // Pause the video
-      if (player) {
-        player.pauseVideo();
-        setIsPlayed(false);
-        stopProgressTracking();
-        stopTimer();
-      }
-    },
-    [canNavigateToTime, player, stopProgressTracking, stopTimer]
-  );
-
-  // Pause video when tab is switched
+  // Visibility Change (Tab Switching)
   useEffect(() => {
     if (!enableConcentrationScore) return;
-
-    const handleVisibilityChange = () => {
+    const handleVisibility = () => {
       if (document.hidden) {
-        // Tab switched away
-        setTabSwitchCount((prev) => prev + 1);
-
-        if (player && isPlayed) {
-          player.pauseVideo();
-          setIsPlayed(false);
-          setWasPausedByTabSwitch(true); // Mark that video was paused by tab switch
-        }
-
-        // Close the verification dialog if it's open
-        if (showVerification) {
-          setShowVerification(false);
-
-          // Clear the verification timer
-          if (verificationTimerRef.current) {
-            clearInterval(verificationTimerRef.current);
-            verificationTimerRef.current = null;
-          }
-        }
+        setTabSwitchCount((p) => p + 1);
+        if (player && isPlayed) { player.pauseVideo(); setIsPlayed(false); setWasPausedByTabSwitch(true); }
+        if (showVerification) { setShowVerification(false); if (verificationTimerRef.current) clearInterval(verificationTimerRef.current); }
       } else {
-        // Tab is back in focus
-        // Auto-play if allowPlayPause is false and video was paused by tab switch
         if (player && wasPausedByTabSwitch && !allowPlayPause) {
-          setTimeout(() => {
-            player.playVideo();
-            setIsPlayed(true);
-            setWasPausedByTabSwitch(false);
-          }, 500); // Small delay to ensure tab is fully focused
+          setTimeout(() => { player.playVideo(); setIsPlayed(true); setWasPausedByTabSwitch(false); }, 500);
         }
       }
     };
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => document.removeEventListener("visibilitychange", handleVisibility);
+  }, [player, isPlayed, wasPausedByTabSwitch, enableConcentrationScore]);
 
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-
-    return () => {
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-    };
-  }, [
-    player,
-    showVerification,
-    isPlayed,
-    wasPausedByTabSwitch,
-    allowPlayPause,
-    enableConcentrationScore,
-  ]);
-
-  // Get duration when player is ready
+  // Video Duration
   useEffect(() => {
-    if (!player) return;
+    if (player) {
+      safeGetNumber(player.getDuration()).then(d => { setDuration(d); setCurrentYoutubeVideoLength(d); });
+    }
+  }, [player]);
 
-    const getDuration = async () => {
-      try {
-        const dur = await safeGetNumber(player.getDuration());
-        setDuration(dur);
-        // Set the YouTube video length in the store
-        setCurrentYoutubeVideoLength(dur);
-      } catch (error) {
-        console.error("Error getting duration:", error);
-      }
-    };
-
-    getDuration();
-  }, [player, setCurrentYoutubeVideoLength]);
-
-  // Update current time periodically
-  useEffect(() => {
-    if (!player || !isPlayed) return;
-
-    const updateTimeInterval = setInterval(async () => {
-      try {
-        const time = await safeGetNumber(player.getCurrentTime());
-        setCurrentTime(time);
-
-        // Check if user is behind live for live streams
-        if (isLiveStream && liveTimestamp > 0) {
-          const timeDifference = liveTimestamp - time;
-          setIsBehindLive(timeDifference > 30); // Consider behind if more than 30 seconds
-        }
-      } catch (error) {
-        console.error("Error getting current time:", error);
-      }
-    }, 1000);
-
-    return () => clearInterval(updateTimeInterval);
-  }, [player, isPlayed, isLiveStream, liveTimestamp]);
-
-  // Activity tracking effect
+  // Tracking Interval
   useEffect(() => {
     const endTime = videoEndTime.current || getEpochTimeInMillis();
-
-    const newActivity = {
+    const netDuration = calculateNetDuration(currentTimestamps.current);
+    const activity = {
       id: activeItem?.id || "",
       activity_id: activityId.current,
       source: "VIDEO" as const,
@@ -789,11 +464,10 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({
       end_time: endTime,
       duration: elapsedTime.toString(),
       timestamps: currentTimestamps.current,
-      percentage_watched: calculatePercentageWatched(duration),
+      percentage_watched: ((netDuration / duration) * 100).toFixed(2),
       sync_status: "STALE" as const,
       current_start_time: currentStartTimeRef.current,
       current_start_time_in_epoch: currentStartTimeInEpochRef.current,
-      // answered_time: answeredTimeArray,
       ...(enableConcentrationScore && {
         concentration_score: {
           id: concentrationScoreId.current,
@@ -807,956 +481,164 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({
       }),
       new_activity: true,
     };
-    addActivity(newActivity, true);
-  }, [
-    elapsedTime,
-    duration,
-    videoId,
-    tabSwitchCount,
-    wrongAnswerCount,
-    missedAnswerCount,
-    answerTimesInSeconds,
-    pauseCount,
-    concentrationScore,
-    addActivity,
-    activeItem?.id,
-    calculatePercentageWatched,
-    enableConcentrationScore,
-  ]);
+    addActivity(activity, true);
+  }, [elapsedTime, duration, videoId, tabSwitchCount, concentrationScore]);
 
-  // Prevent right-click on the video
-  useEffect(() => {
-    const handleContextMenu = (e: MouseEvent) => {
-      e.preventDefault();
-      return false;
-    };
-
-    const playerContainer = playerContainerRef.current;
-    if (playerContainer) {
-      playerContainer.addEventListener("contextmenu", handleContextMenu);
-    }
-
-    return () => {
-      if (playerContainer) {
-        playerContainer.removeEventListener("contextmenu", handleContextMenu);
-      }
-    };
-  }, []);
-
-  // Add CSS to hide YouTube elements when the video ends
-  useEffect(() => {
-    const handleVideoEnd = () => {
-      // Add a style element to hide YouTube end screen elements
-      const styleEl = document.createElement("style");
-      styleEl.innerHTML = `
-            .ytp-endscreen-content,
-            .ytp-ce-element,
-            .ytp-ce-covering-overlay,
-            .ytp-ce-element-shadow,
-            .ytp-ce-covering-image,
-            .ytp-ce-expanding-image,
-            .ytp-ce-element.ytp-ce-channel.ytp-ce-channel-this,
-            .ytp-ce-element.ytp-ce-video.ytp-ce-element-show,
-            .ytp-pause-overlay,
-            .ytp-related-on-pause-container,
-            .ytp-more-videos-overlay {
-            display: none !important;
-            }
-        `;
-      document.head.appendChild(styleEl);
-
-      return () => {
-        document.head.removeChild(styleEl);
-      };
-    };
-
-    if (player) {
-      handleVideoEnd();
-    }
-
-    return () => {
-      const styleElements = document.querySelectorAll("style");
-      styleElements.forEach((el) => {
-        if (el.innerHTML.includes("ytp-endscreen-content")) {
-          document.head.removeChild(el);
-        }
-      });
-    };
-  }, [player]);
-
-    // Add an additional effect to handle iframe load and inject CSS
-    useEffect(() => {
-      if (!iframeRef.current) return;
-      const injectCSS = () => {
-        try {
-          const iframe = iframeRef.current;
-          if (!iframe) return;
+  // --- Player Controls ---
+  const togglePause = async () => { if (allowPlayPause) { setIsPlayed(false); await safePlayerOperation(() => player?.pauseVideo()); } };
+  const togglePlay = async () => { setIsPlayed(true); await safePlayerOperation(() => { try { player?.unMute(); } catch (e) { } player?.playVideo(); }); };
+  const forcePause = async () => { player?.pauseVideo(); setIsPlayed(false); stopProgressTracking(); stopTimer(); };
   
-          // Try to access iframe content
-          const iframeDocument =
-            iframe.contentDocument || iframe.contentWindow?.document;
-          if (!iframeDocument) return;
-  
-          // Create a style element
-          const style = iframeDocument.createElement("style");
-          style.textContent = `
-              .ytp-chrome-top,
-              .ytp-chrome-bottom,
-              .ytp-watermark,
-              .ytp-show-cards-title,
-              .ytp-youtube-button,
-              .ytp-embed-title,
-              .ytp-embed-owner,
-              .ytp-share-button,
-              .ytp-watch-later-button,
-              .ytp-more-videos-overlay,
-              .ytp-pause-overlay,
-              .ytp-related-on-pause-container,
-              .ytp-endscreen-content,
-              .ytp-ce-element {
-                  display: none !important;
-              }
-              `;
-  
-          // Append style to iframe head
-          iframeDocument.head.appendChild(style);
-        } catch (error) {
-          console.error("Error injecting CSS into iframe:", error);
-        }
-      };
-  
-      // Try to inject CSS after iframe is loaded
-      const iframe = iframeRef.current;
-      if (iframe) {
-        iframe.addEventListener("load", injectCSS);
-  
-        // Also try immediately in case iframe is already loaded
-        injectCSS();
-  
-        return () => {
-          iframe.removeEventListener("load", injectCSS);
-        };
-      }
-    }, [iframeRef.current]);
-
-  // Note: CSS injection into YouTube iframe removed due to cross-origin restrictions
-  // YouTube UI elements are controlled via playerVars (controls, modestbranding, etc.)
-
-  // Determine proper origin for Electron vs Web
-  const getPlayerOrigin = () => {
-    const origin = window.location.origin;
-    // If running in Electron with capacitor protocol, use localhost as origin
-    if (origin.includes('capacitor-electron') || origin.includes('file://')) {
-      return 'http://localhost';
-    }
-    return origin;
+  const onPlayerReady: YouTubeProps["onReady"] = async (e) => {
+    setPlayer(e.target); setPlayerReady(true);
+    setDuration(await safeGetNumber(e.target.getDuration()));
   };
-
-  const opts: YouTubeProps["opts"] = {
-    height: "100%",
-    width: "100%",
-    playerVars: {
-      controls: 0, // Disable YouTube controls
-      disablekb: 1, // Disable keyboard controls
-      fs: 0, // Disable fullscreen button
-      iv_load_policy: 3, // Disable annotations
-      modestbranding: 1, // Hide YouTube logo
-      rel: 0, // Don't show related videos
-      // showinfo: 0, // Hide video title and uploader
-      autoplay: allowPlayPause ? 0 : 1, // Autoplay when pause control is disabled
-      // cc_load_policy: 0, // Hide closed captions
-      origin: getPlayerOrigin(), // Use localhost for Electron, actual origin for web
-      enablejsapi: 1, // Enable JavaScript API
-      playsinline: 1, // Play inline on iOS
-      loop: 0, // Don't loop the video
-      color: "white", // Use white progress bar
-      // hl: "en", // Set language to English
-      start: 0, // Start from the beginning
-      end: 0, // End at the natural end of the video
-      // autohide: 1, // Hide controls after play begins
-      widget_referrer: window.location.href, // Fix for error 153
-    },
-  };
-
-  const togglePause = async () => {
-    if (!allowPlayPause) return;
-    setIsPlayed(false);
-
-    await safePlayerOperation(() => player?.pauseVideo(), "togglePause");
-  };
-
-  // Direct pause function for question overlay - bypasses state management issues
-  const forcePause = async () => {
-    const success = await safePlayerOperation(() => {
-      player?.pauseVideo();
-      setIsPlayed(false);
-      stopProgressTracking();
-      stopTimer();
-    }, "forcePause");
-
-    if (success) {
-      console.log("VideoQuestionOverlay: Video force paused successfully");
-    } else {
-      console.warn("VideoQuestionOverlay: Player not ready for force pause");
-    }
-  };
-
-  const togglePlay = async () => {
-    setIsPlayed(true);
-
-    await safePlayerOperation(() => {
-      try {
-        player?.unMute();
-      } catch (e) {
-        console.warn("unMute failed (non-fatal)", e);
-      }
-      player?.playVideo();
-    }, "togglePlay");
-  };
-
-  const onPlayerReady: YouTubeProps["onReady"] = async (
-    event: YouTubeEvent
-  ) => {
-    setPlayer(event.target);
-    setPlayerReady(true);
-    try {
-      const vol = await event.target.getVolume();
-      setVolume(typeof vol === "number" ? vol : 100);
-    } catch (err) {
-      console.error("Error getting initial volume", err);
-    }
-
-      // Get the iframe element
-    try {
-      const iframe = await event.target.getIframe();
-      iframeRef.current = iframe;
-
-      // Set iframe attributes for Error 153 fix
-      if (iframe) {
-        try {
-          iframe.setAttribute(
-            "allow",
-            "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen"
-          );
-          iframe.setAttribute("allowfullscreen", "true");
-          // Fix for YouTube error 153 on Windows Electron
-          iframe.setAttribute("referrerpolicy", "strict-origin-when-cross-origin");
-        } catch (e) {
-          console.error("Error setting iframe attributes:", e);
-        }
-        try {
-          const iframeDocument =
-            iframe.contentDocument || iframe.contentWindow?.document;
-          if (iframeDocument) {
-            const style = iframeDocument.createElement("style");
-            style.textContent = `
-                    .ytp-chrome-top,
-                    .ytp-chrome-bottom,
-                    .ytp-watermark,
-                    .ytp-show-cards-title,
-                    .ytp-youtube-button,
-                    .ytp-embed-title,
-                    .ytp-embed-owner,
-                    .ytp-share-button,
-                    .ytp-watch-later-button,
-                    .ytp-more-videos-overlay,
-                    .ytp-pause-overlay,
-                    .ytp-related-on-pause-container,
-                    .ytp-endscreen-content,
-                    .ytp-ce-element {
-                      display: none !important;
-                    }
-                  `;
-            iframeDocument.head.appendChild(style);
-          }
-        } catch (error) {
-          console.error("Error accessing iframe content:", error);
-        }
-      }
-    } catch (error) {
-      console.error("Error getting iframe:", error);
-    }
-  };
-
-  // Handler for manual play button (for iOS/browsers that block autoplay)
-  const handleManualPlay = async () => {
-    if (!player || !playerReady) return;
-
-    const success = await safePlayerOperation(() => {
-      try {
-        player.unMute();
-      } catch (e) {
-        console.warn("unMute failed during manual play", e);
-      }
-      player.playVideo();
-    }, "manualPlay");
-
-    if (success) {
-      setIsPlayed(true);
-      setShowManualPlayButton(false); // Hide the button permanently
-    }
-  };
-
-  // Clean up fullscreen controls timeout
-  useEffect(() => {
-    return () => {
-      if (fullscreenControlsTimeoutRef.current) {
-        clearTimeout(fullscreenControlsTimeoutRef.current);
-      }
-    };
-  }, []);
-
-  // Auto-play when player is ready and allowPlayPause is false
-  useEffect(() => {
-    if (
-      !allowPlayPause &&
-      player &&
-      playerReady &&
-      !hasAutoPlayAttempted.current
-    ) {
-      hasAutoPlayAttempted.current = true; // Mark that we've attempted autoplay
-
-      // Small delay to ensure iframe is ready
-      const autoplayTimeout = setTimeout(async () => {
-        const success = await safePlayerOperation(() => {
-          try {
-            player.unMute(); // Unmute for autoplay
-          } catch (e) {
-            console.warn("unMute failed during autoplay", e);
-          }
-          player.playVideo();
-        }, "autoplay");
-
-        if (success) {
-          // Verify that video actually started playing after a short delay
-          setTimeout(async () => {
-            try {
-              const playerState = await player.getPlayerState();
-              // PlayerState.PLAYING = 1, if not playing, show manual button
-              if (playerState !== 1) {
-                setShowManualPlayButton(true);
-              } else {
-                setIsPlayed(true);
-                setShowManualPlayButton(false);
-              }
-            } catch (error) {
-              console.warn("Error checking player state after autoplay", error);
-              setShowManualPlayButton(true);
-            }
-          }, 1000);
-        } else {
-          console.warn("Autoplay failed, showing manual play button");
-          setShowManualPlayButton(true);
-        }
-      }, 500);
-
-      return () => clearTimeout(autoplayTimeout);
-    }
-  }, [allowPlayPause, player, playerReady]);
-
-  useEffect(() => {
-    const handleFullscreenChange = () => {
-      const isNowFullscreen = !!document.fullscreenElement;
-      setIsFullscreen(isNowFullscreen);
-
-      // Show controls briefly when entering/exiting fullscreen
-      if (isNowFullscreen) {
-        // Entering fullscreen - show fullscreen controls
-        setShowFullscreenControls(true);
-
-        // Hide controls after 3 seconds
-        if (fullscreenControlsTimeoutRef.current) {
-          clearTimeout(fullscreenControlsTimeoutRef.current);
-        }
-
-        fullscreenControlsTimeoutRef.current = setTimeout(() => {
-          setShowFullscreenControls(false);
-        }, 3000);
-      } else {
-        // Exiting fullscreen - show regular controls
-        setShowFullscreenControls(false);
-        setShowControls(true);
-
-        // Hide regular controls after 3 seconds
-        if (controlsTimeoutRef.current) {
-          clearTimeout(controlsTimeoutRef.current);
-        }
-
-        controlsTimeoutRef.current = setTimeout(() => {
-          setShowControls(false);
-        }, 3000);
-      }
-    };
-
-    document.addEventListener("fullscreenchange", handleFullscreenChange);
-
-    return () => {
-      document.removeEventListener("fullscreenchange", handleFullscreenChange);
-    };
-  }, []);
-
-  // Control video playback based on isPlayed state
-  useEffect(() => {
-    if (!player || !playerReady) return;
-
-    const controlPlayback = async () => {
-      await safePlayerOperation(() => {
-        if (isPlayed) {
-          player.playVideo();
-          startProgressTracking();
-        } else {
-          player.pauseVideo();
-          setPauseCount((prev) => prev + 1);
-          stopProgressTracking();
-        }
-      }, "controlPlayback");
-    };
-
-    controlPlayback();
-  }, [
-    isPlayed,
-    player,
-    playerReady,
-    startProgressTracking,
-    stopProgressTracking,
-  ]);
-
-  // Clean up on unmount
-  useEffect(() => {
-    return () => {
-      clearUpdateInterval();
-      stopProgressTracking();
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-      }
-      if (verificationTimerRef.current) {
-        clearInterval(verificationTimerRef.current);
-      }
-      if (fullscreenControlsTimeoutRef.current) {
-        clearTimeout(fullscreenControlsTimeoutRef.current);
-      }
-      if (controlsTimeoutRef.current) {
-        clearTimeout(controlsTimeoutRef.current);
-      }
-    };
-  }, [clearUpdateInterval, stopProgressTracking]);
 
   const onStateChange = async (event: YouTubeEvent) => {
-    if (!player) return;
+    if (!player && !event.target) return;
+    const target = player || event.target;
+    try { setCurrentTime(await safeGetNumber(target.getCurrentTime())); } catch (e) { }
 
-    const now = getEpochTimeInMillis();
-
-    // Handle different state events without directly referencing YT.PlayerState
-    const PLAYING_STATE = PlayerState.PLAYING;
-    const PAUSED_STATE = PlayerState.PAUSED;
-    const ENDED_STATE = PlayerState.ENDED;
-
-    // Safely get the current time
-    let currentTime = 0;
-    try {
-      currentTime = await safeGetNumber(player.getCurrentTime());
-      setCurrentTime(currentTime); // Update state with current time
-    } catch (error) {
-      console.error("Error getting current time:", error);
-    }
-
-    if (event.data === PLAYING_STATE) {
-      startTimer();
-      startProgressTracking();
-
-      if (!videoStartTime.current) {
-        videoStartTime.current = now;
-      }
-
-      if (isFirstPlay) {
-        syncVideoTrackingData();
-        setIsFirstPlay(false);
-
-        if (!updateIntervalRef.current) {
-          updateIntervalRef.current = setInterval(() => {
-            syncVideoTrackingData();
-          }, 60 * 1000);
-        }
-      }
-
+    if (event.data === PlayerState.PLAYING) {
+      startTimer(); startProgressTracking(); setIsPlayed(true);
+      if (isFirstPlay) { syncVideoTrackingData(); setIsFirstPlay(false); updateIntervalRef.current = setInterval(() => syncVideoTrackingData(), 60000); }
       currentStartTimeRef.current = formatVideoTime(currentTime);
-      currentStartTimeInEpochRef.current =
-        convertTimeToSeconds(currentStartTimeRef.current) * 1000;
-      setIsPlayed(true);
-    } else if (event.data === PAUSED_STATE || event.data === ENDED_STATE) {
-      stopTimer();
-      stopProgressTracking();
-      videoEndTime.current = now;
-
-      const currentStartTimeInSeconds = convertTimeToSeconds(
-        currentStartTimeRef.current
-      );
-      const endTimeInSeconds =
-        currentStartTimeInSeconds + timestampDurationRef.current;
-      const endTimeStamp = formatVideoTime(endTimeInSeconds);
-
+      currentStartTimeInEpochRef.current = convertTimeToSeconds(currentStartTimeRef.current) * 1000;
+    } else if (event.data === PlayerState.PAUSED || event.data === PlayerState.ENDED) {
+      stopTimer(); stopProgressTracking(); videoEndTime.current = getEpochTimeInMillis();
+      const endTimeSeconds = convertTimeToSeconds(currentStartTimeRef.current) + timestampDurationRef.current;
+      const endTimeStamp = formatVideoTime(endTimeSeconds);
       currentTimestamps.current.push({
-        id: uuidv4(),
-        start_time: currentStartTimeRef.current,
-        end_time: endTimeStamp,
+        id: uuidv4(), start_time: currentStartTimeRef.current, end_time: endTimeStamp,
         start: convertTimeToSeconds(currentStartTimeRef.current) * 1000,
-        end: convertTimeToSeconds(endTimeStamp) * 1000,
+        end: endTimeSeconds * 1000,
       });
-
       currentStartTimeRef.current = formatVideoTime(currentTime);
       timestampDurationRef.current = 0;
       setIsPlayed(false);
     }
   };
 
-  // Note: numeric input handler removed as this component does not expose manual time jump UI
+  const seekToTimestamp = async (seconds: number) => {
+    if (!player || !playerReady || !allowRewind || !canNavigateToTime(seconds)) return;
+    const dur = await safeGetNumber(player.getDuration());
+    const final = Math.min(Math.max(seconds, 0), dur);
+    if (await safePlayerOperation(() => player.seekTo(final, true))) setCurrentTime(final);
+  };
 
-  const seekToTimestamp = async (
-    targetTimeInSeconds?: number,
-    forceSeek = false
-  ) => {
-    if (!player || !playerReady) return false;
+  const handleProgressBarClick = async (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!player || !duration || !allowRewind) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const seekTime = ((e.clientX - rect.left) / rect.width) * duration;
+    seekToTimestamp(seekTime);
+  };
 
-    // Block manual seeking if rewind is not allowed (unless it's a forced seek like initial ms prop)
-    if (!forceSeek && !allowRewind) {
-      return false;
+  const handleDoubleClick = useCallback(async (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!player || !playerReady || !allowRewind) return;
+    const isRight = (e.clientX - e.currentTarget.getBoundingClientRect().left) > e.currentTarget.clientWidth / 2;
+    const curr = await safeGetNumber(player.getCurrentTime());
+    const newTime = isRight ? curr + 10 : curr - 10;
+    if (isRight && !canNavigateToTime(newTime)) { setShowSeekAnimation({ side: "right", show: false }); return; }
+    if (await safePlayerOperation(() => player.seekTo(newTime, true))) {
+      setCurrentTime(newTime);
+      setShowSeekAnimation({ side: isRight ? "right" : "left", show: true });
+      setTimeout(() => setShowSeekAnimation({ side: isRight ? "right" : "left", show: false }), 1000);
     }
+  }, [player, canNavigateToTime, allowRewind]);
 
-    // Verify iframe is ready
-    const iframeReady = await isPlayerIframeReady(player);
-    if (!iframeReady) {
-      console.warn("Player iframe not ready yet, skipping seek");
-      return false;
-    }
+  // ==========================================
+  // 🔥 UNIFIED CONTROLS HANDLER (IMPROVED)
+  // ==========================================
+  const handleInteraction = () => {
+    setShowControls(true);
+    if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
+    // 4 seconds timeout before hiding again
+    controlsTimeoutRef.current = setTimeout(() => setShowControls(false), 4000);
+  };
 
-    let totalSecondsToSeek: number;
-
-    if (typeof targetTimeInSeconds === "number") {
-      totalSecondsToSeek = targetTimeInSeconds;
+  const handleContainerClick = (e: React.MouseEvent | React.TouchEvent) => {
+    // Ignore clicks on buttons/inputs
+    if ((e.target as HTMLElement).closest('button, input, .control-bar, .speed-menu')) return;
+    
+    if (!showControls) {
+      // If controls are hidden, JUST show them (don't toggle play/pause)
+      handleInteraction();
     } else {
-      const minutes = minutesInput === "" ? 0 : Number.parseInt(minutesInput);
-      const seconds = secondsInput === "" ? 0 : Number.parseInt(secondsInput);
-      totalSecondsToSeek = minutes * 60 + seconds;
-    }
-
-    // Check navigation restrictions unless forced (e.g., for initial seek with ms prop)
-    if (!forceSeek && !canNavigateToTime(totalSecondsToSeek)) {
-      // You could show a toast notification here
-      return false;
-    }
-
-    try {
-      const videoDuration = await safeGetNumber(player.getDuration());
-
-      let finalSeekTime = totalSecondsToSeek;
-      // Ensure timestamp is within valid range
-      if (finalSeekTime <= 0) {
-        finalSeekTime = 0;
-      } else if (finalSeekTime >= videoDuration) {
-        finalSeekTime = videoDuration;
-      }
-
-      const success = await safePlayerOperation(
-        () => player.seekTo(finalSeekTime, true),
-        "seekToTimestamp"
-      );
-
-      if (success) {
-        // Update currentTime state to reflect new position
-        setCurrentTime(finalSeekTime);
-      }
-
-      return success;
-    } catch (error) {
-      console.error("Error seeking to timestamp:", error);
-      return false;
+      // If controls are visible, toggle play/pause AND keep controls visible for a bit
+      isPlayed ? togglePause() : togglePlay();
+      handleInteraction();
     }
   };
 
-  useEffect(() => {
-    // Only seek if ms is greater than 0 and player is ready
-    if (ms > 0 && player && playerReady) {
-      const totalSeconds = ms / 1000;
-      const minutes = Math.floor(totalSeconds / 60);
-      const seconds = Math.floor(totalSeconds % 60); // Use Math.floor for whole seconds
+  // ==========================================
+  // 🔥 ROBUST FULLSCREEN TOGGLE
+  // ==========================================
+  const toggleFullscreen = async () => {
+    // Force controls to show when entering fullscreen
+    handleInteraction();
 
-      // Update input fields for display consistency
-      setMinutesInput(minutes.toString());
-      setSecondsInput(seconds.toString());
-
-      // Add a small delay to ensure the player iframe is fully initialized
-      const seekTimeout = setTimeout(() => {
-        // Call seekToTimestamp with the calculated totalSeconds (force it for initial load)
-        seekToTimestamp(totalSeconds, true);
-      }, 500); // 500ms delay to ensure iframe is ready
-
-      return () => clearTimeout(seekTimeout);
-    }
-  }, [ms, player, playerReady]);
-
-  // Live class synchronization - automatically sync video to live class progress
-  useEffect(() => {
-    if (!liveClassStartTime || !player || !playerReady || !isLiveStream) return;
-
-    const syncToLiveClassProgress = () => {
+    // 1. If currently in Pseudo mode (CSS), exit it
+    if (isPseudoFullscreen) {
+      setIsPseudoFullscreen(false);
       try {
-        // Parse the live class start time (ISO string)
-        const startTime = new Date(liveClassStartTime).getTime();
-        const currentTime = Date.now();
-
-        // Calculate elapsed time in seconds since live class started
-        const elapsedSeconds = Math.floor((currentTime - startTime) / 1000);
-
-        // Only sync if elapsed time is positive (class has started)
-        if (elapsedSeconds > 0) {
-          // Add a small delay to ensure the player iframe is fully initialized
-          setTimeout(() => {
-            // Seek to the calculated position (force it to bypass restrictions)
-            seekToTimestamp(elapsedSeconds, true);
-          }, 500);
-        } else {
-          console.log("Live class hasn't started yet, waiting...");
-        }
-      } catch (error) {
-        console.error("Error syncing to live class progress:", error);
-      }
-    };
-
-    // Initial sync when player becomes ready with a delay
-    const syncTimeout = setTimeout(() => {
-      syncToLiveClassProgress();
-    }, 500);
-
-    return () => clearTimeout(syncTimeout);
-  }, [liveClassStartTime, player, playerReady, isLiveStream]);
-
-  const toggleFullscreen = useCallback(async () => {
-    if (!playerContainerRef.current) {
-      console.error("Player container not available");
+        if (Capacitor.isNativePlatform()) await StatusBar.show();
+      } catch (e) {}
       return;
     }
 
+    // 2. If currently in Native mode, exit it
+    if (document.fullscreenElement) {
+      await document.exitFullscreen().catch(() => {});
+      setIsFullscreen(false);
+      return;
+    }
+
+    // 3. Try to Enter Native Fullscreen
     try {
-      const elem = playerContainerRef.current as any;
-      const canNativeFullscreen =
-        typeof document.fullscreenEnabled !== "undefined" &&
-        document.fullscreenEnabled &&
-        elem &&
-        typeof elem.requestFullscreen === "function";
-
-      if (document.fullscreenElement) {
-        await document.exitFullscreen();
-        setIsFullscreen(false);
-        setShowFullscreenControls(false);
-        return;
-      }
-
-      if (isPseudoFullscreen) {
-        // Exit pseudo fullscreen
-        setIsPseudoFullscreen(false);
-        setShowFullscreenControls(false);
-        return;
-      }
-
-      if (canNativeFullscreen) {
-        await elem.requestFullscreen();
+      // Don't try native on iOS (it fails or shows warnings)
+      if (playerContainerRef.current && !isIOS()) {
+        await playerContainerRef.current.requestFullscreen();
         setIsFullscreen(true);
-        setShowFullscreenControls(true);
       } else {
-        // Fallback to pseudo fullscreen for iOS Chrome/WebView
-        setIsPseudoFullscreen(true);
-        setShowFullscreenControls(true);
+        throw new Error("iOS or Preference");
       }
-
-      // Hide controls after 3 seconds
-      if (fullscreenControlsTimeoutRef.current) {
-        clearTimeout(fullscreenControlsTimeoutRef.current);
-      }
-
-      fullscreenControlsTimeoutRef.current = setTimeout(() => {
-        setShowFullscreenControls(false);
-      }, 3000);
     } catch (error) {
-      console.error("Error toggling fullscreen:", error);
-      // As a last resort, toggle pseudo-fullscreen
-      setIsPseudoFullscreen((prev) => !prev);
-      setShowFullscreenControls(true);
-    }
-  }, []);
-
-  // Function to change playback speed
-  const changePlaybackSpeed = useCallback(
-    (speed: number) => {
-      // Block speed changes if rewind is not allowed
-      if (!allowRewind) {
-        return;
-      }
-
-      if (player && playerReady) {
-        try {
-          player.setPlaybackRate(speed);
-          setPlaybackSpeed(speed);
-          setShowSpeedOptions(false);
-        } catch (error) {
-          console.error("Error changing playback speed:", error);
-        }
-      }
-    },
-    [player, playerReady, allowRewind]
-  );
-
-  // Handle volume change
-  const handleVolumeChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const newVolume = parseInt(e.target.value, 10);
-      setVolume(newVolume);
-      if (player) {
-        try {
-          player.setVolume(newVolume);
-        } catch (err) {
-          console.error("Error setting volume", err);
-        }
-      }
-    },
-    [player]
-  );
-
-  // Toggle speed options dropdown
-  const toggleSpeedOptions = useCallback(() => {
-    // Only allow toggling if rewind is allowed
-    if (!allowRewind) {
-      return;
-    }
-    setShowSpeedOptions((prev) => !prev);
-  }, [allowRewind]);
-
-  // Go to live timestamp (for live streams)
-  const goToLive = useCallback(async () => {
-    if (!player || !playerReady || !isLiveStream || liveTimestamp <= 0) return;
-
-    const success = await safePlayerOperation(
-      () => player.seekTo(liveTimestamp, true),
-      "goToLive"
-    );
-
-    if (success) {
-      setCurrentTime(liveTimestamp);
-      setIsBehindLive(false);
-    }
-  }, [player, playerReady, isLiveStream, liveTimestamp]);
-
-  // Close speed options when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as HTMLElement;
-      if (showSpeedOptions && !target.closest(".speed-control-container") && !target.closest(".speed-dropdown")) {
-        setShowSpeedOptions(false);
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [showSpeedOptions]);
-
-  // Handle double-click to seek
-  const handleDoubleClick = useCallback(
-    async (event: React.MouseEvent<HTMLDivElement>) => {
-      if (!player || !playerReady) return;
-
-      // Block double-click seeking if rewind is not allowed
-      if (!allowRewind) {
-        return;
-      }
-
-      const rect = event.currentTarget.getBoundingClientRect();
-      const clickX = event.clientX - rect.left;
-      const isRightSide = clickX > rect.width / 2;
-
+      // 4. Fallback: Force CSS Pseudo Fullscreen
+      console.log("Native fullscreen failed, using Pseudo mode");
+      setIsPseudoFullscreen(true);
       try {
-        const currentTime = await safeGetNumber(player.getCurrentTime());
-        const duration = await safeGetNumber(player.getDuration());
-
-        let newTime: number;
-        if (isRightSide) {
-          // Forward 10 seconds
-          newTime = Math.min(currentTime + 10, duration);
-          setShowSeekAnimation({ side: "right", show: true });
-        } else {
-          // Backward 10 seconds
-          newTime = Math.max(currentTime - 10, 0);
-          setShowSeekAnimation({ side: "left", show: true });
-        }
-
-        // Check if navigation is allowed (only for forward seeks)
-        if (isRightSide && !canNavigateToTime(newTime)) {
-          setShowSeekAnimation({ side: "right", show: false });
-          return;
-        }
-
-        const success = await safePlayerOperation(
-          () => player.seekTo(newTime, true),
-          "handleDoubleClick"
-        );
-
-        if (success) {
-          setCurrentTime(newTime);
-        }
-
-        // Hide animation after 1 second
-        setTimeout(() => {
-          setShowSeekAnimation({
-            side: isRightSide ? "right" : "left",
-            show: false,
-          });
-        }, 1000);
-      } catch (error) {
-        console.error("Error seeking on double click:", error);
-      }
-    },
-    [player, playerReady, canNavigateToTime, allowRewind]
-  );
-
-  // Toggle play / pause on SINGLE click anywhere on the video (but ignore clicks on inner controls)
-  const handleSingleClick = useCallback(
-    (event: React.MouseEvent<HTMLDivElement>) => {
-      // Prevent toggle if the click originated from a descendant element (e.g.
-      // the control buttons). We only want pure clicks on the video surface.
-      if (event.target !== event.currentTarget) return;
-
-      if (!player || !playerReady) return;
-
-      // When pause control is disabled, allow only Play via single click
-      if (!allowPlayPause) {
-        if (!isPlayed) {
-          togglePlay();
-        }
-        return; // Ignore pause when already playing
-      }
-
-      if (isPlayed) {
-        togglePause();
-      } else {
-        togglePlay();
-      }
-    },
-    [player, playerReady, isPlayed, togglePause, togglePlay, allowPlayPause]
-  );
-
-  // Handle mouse movement to show/hide controls
-  const handleMouseMoveOnVideo = useCallback(() => {
-    if (isFullscreen || isPseudoFullscreen) {
-      // Handle fullscreen controls
-
-      setShowFullscreenControls(true);
-
-      // Clear existing fullscreen timeout
-      if (fullscreenControlsTimeoutRef.current) {
-        clearTimeout(fullscreenControlsTimeoutRef.current);
-      }
-
-      // Set timeout to hide fullscreen controls after 3 seconds of inactivity
-      fullscreenControlsTimeoutRef.current = setTimeout(() => {
-        if (!showSpeedOptions) {
-          // Don't hide if speed menu is open
-          setShowFullscreenControls(false);
-        }
-      }, 3000);
-    } else {
-      // Handle regular controls
-      setShowControls(true);
-
-      // Clear existing timeout
-      if (controlsTimeoutRef.current) {
-        clearTimeout(controlsTimeoutRef.current);
-      }
-
-      // Set timeout to hide controls after 3 seconds of inactivity
-      controlsTimeoutRef.current = setTimeout(() => {
-        if (!showSpeedOptions) {
-          // Don't hide if speed menu is open
-          setShowControls(false);
-        }
-      }, 3000);
-    }
-  }, [isFullscreen, isPseudoFullscreen, showSpeedOptions]);
-
-  // Show controls when speed menu opens
-  useEffect(() => {
-    if (showSpeedOptions) {
-      setShowControls(true);
-      setShowFullscreenControls(true);
-      if (controlsTimeoutRef.current) {
-        clearTimeout(controlsTimeoutRef.current);
-      }
-      if (fullscreenControlsTimeoutRef.current) {
-        clearTimeout(fullscreenControlsTimeoutRef.current);
-      }
-    }
-  }, [showSpeedOptions]);
-
-  // Handle progress bar click for seeking
-  const handleProgressBarClick = async (
-    e: React.MouseEvent<HTMLDivElement>
-  ) => {
-    if (!player || !playerReady || duration <= 0) return;
-
-    // Block seeking if rewind is not allowed
-    if (!allowRewind) {
-      return;
-    }
-
-    const progressBar = e.currentTarget;
-    const rect = progressBar.getBoundingClientRect();
-    const clickPosition = (e.clientX - rect.left) / rect.width;
-    const seekTime = clickPosition * duration;
-
-    // Check if navigation is allowed
-    if (!canNavigateToTime(seekTime)) {
-      return;
-    }
-
-    const success = await safePlayerOperation(
-      () => player.seekTo(seekTime, true),
-      "handleProgressBarClick"
-    );
-
-    if (success) {
-      setCurrentTime(seekTime);
+        if (Capacitor.isNativePlatform()) await StatusBar.hide();
+      } catch (e) {}
     }
   };
 
+  const changePlaybackSpeed = (speed: number) => {
+    if (!allowRewind || !player) return;
+    try { player.setPlaybackRate(speed); setPlaybackSpeed(speed); setShowSpeedOptions(false); } catch (e) { }
+  };
+
+  const goToLive = async () => {
+    if (!player || !isLiveStream || liveTimestamp <= 0) return;
+    if (await safePlayerOperation(() => player.seekTo(liveTimestamp, true))) {
+      setCurrentTime(liveTimestamp); setIsBehindLive(false);
+    }
+  };
+
+  // --- Render ---
   return (
     <div className="w-full max-w-[100vw] overflow-x-hidden flex flex-col items-center gap-4">
-      {/* Non-fullscreen verification overlay - shown outside the player */}
+
+      {/* Verification Overlay */}
       {showVerification && !isFullscreen && enableConcentrationScore && (
-        <div className="w-full mb-2 animate-in fade-in slide-in-from-top duration-300">
+        <div className="w-full mb-2 animate-in fade-in slide-in-from-top duration-300 z-50">
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg shadow-lg overflow-hidden">
             <div className="p-3">
-              <div className="mt-1">
-                <p className="text-xs text-neutral-600">
-                  Just ensuring that you are actively learning, please click the
-                  number{" "}
-                  <span className="text-primary-500 font-bold">
-                    {verificationNumbers[1]}
-                  </span>{" "}
-                  within{" "}
-                  <span className="text-primary-500 font-bold">
-                    {verificationCountdown}{" "}
-                  </span>
-                  seconds.
-                </p>
-              </div>
-              <div className="mt-2 flex justify-center space-x-2">
-                {verificationNumbers.map((number, index) => (
-                  <button
-                    key={index}
-                    onClick={() => handleVerificationClick(index)}
-                    className="px-2 py-1 rounded-lg text-xs font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 bg-white text-neutral-600 border border-gray-200 hover:bg-gray-50"
-                  >
-                    {number}
-                  </button>
+              <p className="text-xs text-neutral-600 mb-2">
+                Click <span className="text-primary-500 font-bold">{verificationNumbers[1]}</span> within <span className="text-primary-500 font-bold">{verificationCountdown}</span>s.
+              </p>
+              <div className="flex justify-center space-x-2">
+                {verificationNumbers.map((num, idx) => (
+                  <button key={idx} onClick={() => handleVerificationClick(idx)} className="px-2 py-1 rounded-lg text-xs font-medium bg-white border hover:bg-gray-50">{num}</button>
                 ))}
               </div>
             </div>
@@ -1764,713 +646,168 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({
         </div>
       )}
 
-      {/* Video player container with verification overlay */}
       <div
         ref={playerContainerRef}
-        className={`aspect-video w-full max-w-[100vw] relative min-h-[200px] sm:min-h-[250px] md:min-h-[300px] lg:h-full items-center flex justify-center overflow-hidden bg-black rounded-lg group ${
-          isPseudoFullscreen
-            ? "fixed inset-0 z-[10000] rounded-none overflow-hidden max-w-[100vw] max-h-[100vh]"
-            : ""
-        }`}
-        onMouseMove={handleMouseMoveOnVideo}
-        onMouseEnter={handleMouseMoveOnVideo}
+        className={`
+          transition-all duration-300 ease-in-out
+          ${isPseudoFullscreen 
+            ? "fixed inset-0 z-[99999] w-screen h-screen bg-black flex items-center justify-center" 
+            : "relative aspect-video w-full max-w-[100vw] rounded-lg isolate bg-black relative"
+          }
+        `}
+        // 🔥 IMPROVED INTERACTION HANDLERS
+        onClick={handleContainerClick}
+        onTouchStart={handleInteraction} // For instant mobile response
+        onMouseMove={handleInteraction}  // For desktop mouse movement
         onDoubleClick={handleDoubleClick}
-        onClick={handleSingleClick}
       >
-        {/* Verification overlay - only shown in fullscreen */}
-        {showVerification && (isFullscreen || isPseudoFullscreen) && enableConcentrationScore && (
-          <div className="absolute top-2 left-1/2 transform -translate-x-1/2 w-full max-w-xs z-[10000] animate-in fade-in slide-in-from-top duration-300">
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg shadow-lg overflow-hidden">
-              <div className="p-3">
-                <div className="mt-1">
-                  <p className="text-xs text-neutral-600">
-                    Just ensuring that you are actively learning, please click
-                    the number{" "}
-                    <span className="text-primary-500 font-bold">
-                      {verificationNumbers[1]}
-                    </span>{" "}
-                    within{" "}
-                    <span className="text-primary-500 font-bold">
-                      {verificationCountdown}{" "}
-                    </span>
-                    seconds.
-                  </p>
-                </div>
-                <div className="mt-2 flex justify-center space-x-2">
-                  {verificationNumbers.map((number, index) => (
-                    <button
-                      key={index}
-                      onClick={() => handleVerificationClick(index)}
-                      className="px-2 py-1 rounded-lg text-xs font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 bg-white text-neutral-600 border border-gray-200 hover:bg-gray-50"
-                    >
-                      {number}
-                    </button>
-                  ))}
-                </div>
-              </div>
+        {/* VIDEO LAYER */}
+        <div className="absolute inset-0 w-full h-full z-0 pointer-events-none overflow-hidden bg-black">
+          {isIOS() ? (
+            <iframe
+              ref={iosIframeRef}
+              src={`${BRIDGE_URL}?videoId=${videoId}`}
+              className="w-full h-full border-0 scale-[1.35] origin-center"
+              scrolling="no"
+              allow="autoplay; encrypted-media; fullscreen"
+              referrerPolicy="origin"
+            />
+          ) : (
+            <div className="w-full h-full scale-[1.35] origin-center">
+              <YouTube
+                videoId={videoId}
+                opts={{
+                  height: "100%", width: "100%",
+                  playerVars: {
+                    autoplay: allowPlayPause ? 0 : 1, playsinline: 1, enablejsapi: 1, modestbranding: 1, rel: 0,
+                    controls: 0, fs: 0, disablekb: 1, widget_referrer: typeof window !== 'undefined' ? window.location.origin : '',
+                  },
+                }}
+                onReady={onPlayerReady}
+                className="h-full w-full"
+                onStateChange={onStateChange}
+              />
+            </div>
+          )}
+        </div>
+
+        {/* CONTROLS OVERLAY */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/30 pointer-events-none z-10 transition-opacity duration-300" style={{ opacity: showControls || !isPlayed ? 1 : 0 }} />
+
+        {/* BIG PLAY BUTTON */}
+        {!isPlayed && !showVerification && (
+          <div className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none">
+            <div className="bg-black/40 backdrop-blur-sm p-4 rounded-full border border-white/20 animate-in fade-in zoom-in duration-200">
+              <Play size={32} weight="fill" className="text-white" />
             </div>
           </div>
         )}
 
-        {/* Invisible fullscreen mouse capture overlay */}
-        {(isFullscreen || isPseudoFullscreen) && (
-          <div
-            className="absolute inset-0 z-[9998] pointer-events-auto"
-            onMouseMove={handleMouseMoveOnVideo}
-            onMouseEnter={handleMouseMoveOnVideo}
-          />
-        )}
-
-        {/* Fullscreen controls overlay */}
-        {(isFullscreen || isPseudoFullscreen) && showFullscreenControls && (
-          <div className="absolute inset-0 z-[9999] flex flex-col justify-between animate-in fade-in duration-200 pointer-events-none">
-            {/* Top controls - Exit fullscreen */}
-            <div className="flex justify-end p-4 pointer-events-auto">
-              <button
-                onClick={toggleFullscreen}
-                className="p-2.5 rounded-full bg-black/60 text-white hover:bg-black/80 transition-all hover:scale-105 shadow-lg backdrop-blur-sm border border-white/10"
-                aria-label="Exit fullscreen"
-              >
-                <X size={22} weight="bold" />
-              </button>
-            </div>
-
-            {/* Bottom controls - Complete controls like non-fullscreen */}
-            <div className="p-4 pointer-events-auto">
-              {/* Professional Video Controls Overlay */}
-              <div className="flex items-center justify-between mb-4">
-                {/* Left Controls */}
-                <div className="flex items-center gap-3">
-                  {/* Play/Pause */}
-                  {isPlayed ? (
-                    allowPlayPause ? (
-                      <button
-                        onClick={togglePause}
-                        className="p-2 rounded-full text-white transition-all backdrop-blur-sm bg-white/20 hover:bg-white/30"
-                      >
-                        <Pause size={20} weight="fill" />
-                      </button>
-                    ) : null
-                  ) : (
-                    <button
-                      onClick={togglePlay}
-                      className="p-2 rounded-full text-white transition-all backdrop-blur-sm bg-white/20 hover:bg-white/30"
-                    >
-                      <Play size={20} weight="fill" />
-                    </button>
-                  )}
-
-                  {/* Rewind */}
-                  <button
-                    onClick={async () => {
-                      if (!allowRewind) return;
-                      if (player) {
-                        const currentTime = await safeGetNumber(
-                          player.getCurrentTime()
-                        );
-                        const newTime = Math.max(currentTime - 10, 0);
-                        const success = await safePlayerOperation(
-                          () => player.seekTo(newTime, true),
-                          "fullscreenRewind"
-                        );
-                        if (success) {
-                          setCurrentTime(newTime);
-                        }
-                      }
-                    }}
-                    disabled={!allowRewind}
-                    className={`p-2 rounded-full text-white backdrop-blur-sm ${
-                      allowRewind
-                        ? "bg-white/20 hover:bg-white/30 transition-all hover:scale-105"
-                        : "bg-white/10 opacity-50 cursor-not-allowed"
-                    }`}
-                  >
-                    <Rewind size={18} weight="fill" />
-                  </button>
-                </div>
-
-                {/* Right Controls */}
-                <div className="flex items-center gap-3">
-                  {/* Go Live Button - Only show for live streams when behind */}
-                  {isLiveStream && isBehindLive && (
-                    <button
-                      onClick={goToLive}
-                      className="flex items-center gap-1 px-3 py-1 rounded-full bg-red-500 hover:bg-red-600 text-white text-sm font-medium transition-all hover:scale-105 backdrop-blur-sm animate-pulse"
-                      title="Go to live stream"
-                    >
-                      <div className="w-2 h-2 bg-white rounded-full"></div>
-                      LIVE
-                    </button>
-                  )}
-
-                  {/* Volume Slider */}
-                  <div className="flex items-center gap-1">
-                    <input
-                      type="range"
-                      min="0"
-                      max="100"
-                      value={volume}
-                      onChange={handleVolumeChange}
-                      className="h-1 w-24 cursor-pointer accent-primary-500"
-                    />
-                  </div>
-
-                  {/* Playback Speed Control */}
-                  <div className="relative speed-control-container">
-                    <button
-                      onClick={toggleSpeedOptions}
-                      className={`relative p-2 rounded-full text-white transition-all backdrop-blur-sm ${
-                        allowRewind && playerReady
-                          ? "bg-white/20 hover:bg-white/30 hover:scale-105"
-                          : "bg-white/10 opacity-50 cursor-not-allowed"
-                      }`}
-                      disabled={!playerReady || !allowRewind}
-                    >
-                      <Gauge size={18} weight="fill" />
-                      {playbackSpeed !== 1 && (
-                        <span className="absolute -top-1 -right-1 bg-primary-500 text-white text-xs rounded-full min-w-[18px] h-[18px] flex items-center justify-center font-bold px-1 shadow-md border-2 border-white">
-                          {playbackSpeed}x
-                        </span>
-                      )}
-                    </button>
-
-                    {/* Speed Options Dropdown - Inline in fullscreen controls */}
-                    {showSpeedOptions && allowRewind && (
-                      <div className="speed-dropdown absolute bottom-full right-0 mb-2 bg-black/90 backdrop-blur-sm rounded-lg shadow-lg border border-white/20 z-[20] min-w-[80px] max-h-[240px] overflow-y-auto">
-                        <div className="px-3 py-1 text-xs font-medium text-white/70 border-b border-white/20 sticky top-0 bg-black/90">
-                          Speed
-                        </div>
-                        <div className="py-2">
-                          {speedOptions.map((speed) => (
-                            <button
-                              key={speed}
-                              onClick={() => changePlaybackSpeed(speed)}
-                              className={`w-full px-3 py-2 text-sm text-left hover:bg-white/20 transition-colors ${
-                                playbackSpeed === speed
-                                  ? "text-primary-400 bg-white/10 font-medium"
-                                  : "text-white"
-                              }`}
-                            >
-                              {speed}x
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Exit Fullscreen (alternative position) */}
-                  <button
-                    onClick={toggleFullscreen}
-                    className="p-2 rounded-full bg-white/20 hover:bg-white/30 text-white transition-all hover:scale-105 backdrop-blur-sm"
-                  >
-                    <X size={18} weight="fill" />
-                  </button>
-                </div>
-              </div>
-
-              {/* Progress Bar */}
-              {allowPlayPause && (
-                <div className="relative w-full">
-                  <div
-                    className={`w-full h-1 bg-white/30 rounded-full group ${
-                      allowRewind ? "cursor-pointer" : "cursor-not-allowed"
-                    }`}
-                    onClick={handleProgressBarClick}
-                  >
-                    <div
-                      className="h-full bg-white rounded-full transition-all duration-150 group-hover:h-1.5"
-                      style={{
-                        width: `${
-                          duration > 0 ? (currentTime / duration) * 100 : 0
-                        }%`,
-                      }}
-                    ></div>
-                  </div>
-
-                  {/* Question Markers */}
-                  {timeToQuestionMap.map(({ time, question }, index) => {
-                    const position =
-                      duration > 0 ? (time / 1000 / duration) * 100 : 0;
-                    const isAnswered = answeredQuestions[question.id]?.answered;
-                    const canSkip = question.can_skip;
-
-                    return (
-                      <button
-                        key={question.id}
-                        className={`absolute w-3 h-3 rounded-full transform -translate-x-1/2 -translate-y-1 top-0 border-2 border-white shadow-lg transition-all z-10 ${
-                          isAnswered
-                            ? "bg-green-500"
-                            : canSkip
-                            ? "bg-yellow-500"
-                            : "bg-red-500"
-                        } ${
-                          allowRewind
-                            ? "hover:scale-125 cursor-pointer hover:bg-green-600"
-                            : "cursor-not-allowed opacity-75"
-                        }`}
-                        style={{
-                          left: `${Math.max(1.5, Math.min(98.5, position))}%`,
-                        }}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (allowRewind) {
-                            handleQuestionMarkerClick(question);
-                          }
-                        }}
-                        disabled={!allowRewind}
-                        title={`Question ${index + 1}${
-                          isAnswered
-                            ? " (Answered)"
-                            : canSkip
-                            ? " (Skippable)"
-                            : " (Required)"
-                        }${!allowRewind ? " (Navigation disabled)" : ""}`}
-                      >
-                        {isAnswered ? (
-                          <span className="text-white text-xs font-bold flex items-center justify-center w-full h-full">
-                            ✓
-                          </span>
-                        ) : (
-                          <span className="text-white text-xs font-bold flex items-center justify-center w-full h-full">
-                            ?
-                          </span>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-
-              {/* Time Display */}
-              {allowPlayPause && (
-                <div className="flex justify-between text-white text-xs mt-2 font-medium">
-                  <span>{formatTime(currentTime)}</span>
-                  <span>{formatTime(duration)}</span>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Seek animation overlays */}
+        {/* SEEK ANIMATION */}
         {showSeekAnimation.show && (
-          <div
-            className={`absolute inset-0 flex items-center justify-center pointer-events-none z-[1000]`}
-          >
-            <div
-              className={`flex items-center gap-2 bg-black/70 backdrop-blur-sm rounded-lg px-4 py-2 text-white animate-in fade-in zoom-in duration-300 ${
-                showSeekAnimation.side === "right"
-                  ? "flex-row"
-                  : "flex-row-reverse"
-              }`}
-            >
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-30">
+            <div className={`flex items-center gap-2 bg-black/70 backdrop-blur-sm rounded-lg px-4 py-2 text-white ${showSeekAnimation.side === "right" ? "flex-row" : "flex-row-reverse"}`}>
               <div className="flex gap-1">
-                {[...Array(showSeekAnimation.side === "right" ? 2 : 2)].map(
-                  (_, i) => (
-                    <FastForward
-                      key={i}
-                      size={20}
-                      weight="fill"
-                      className={
-                        showSeekAnimation.side === "right" ? "" : "rotate-180"
-                      }
-                    />
-                  )
-                )}
+                <FastForward size={20} weight="fill" className={showSeekAnimation.side === "right" ? "" : "rotate-180"} />
+                <FastForward size={20} weight="fill" className={showSeekAnimation.side === "right" ? "" : "rotate-180"} />
               </div>
               <span className="text-sm font-medium">10s</span>
             </div>
           </div>
         )}
 
-        {/* Manual Play Button for iOS/browsers that block autoplay */}
-        {showManualPlayButton && !allowPlayPause && (
-          <div className="absolute inset-0 flex items-center justify-center z-[1001] bg-black/30 backdrop-blur-sm animate-in fade-in duration-500">
-            <button
-              onClick={handleManualPlay}
-              className="flex flex-col items-center gap-3 p-6 rounded-2xl bg-gradient-to-br from-primary-500 to-primary-600 text-white shadow-2xl hover:scale-105 transition-all duration-300 hover:shadow-primary-500/50 active:scale-95"
-              aria-label="Start video"
-            >
-              <div className="p-4 rounded-full bg-white/20 backdrop-blur-sm">
-                <Play size={48} weight="fill" />
-              </div>
-              <span className="text-lg font-semibold">Tap to Start Video</span>
-              <span className="text-sm text-white/80">
-                Video will play automatically
-              </span>
-            </button>
+        {/* QUESTION MODAL */}
+        {showQuestion && (
+          <div className="absolute inset-0 z-50 bg-black/90 flex items-center justify-center p-4">
+            <VideoQuestionOverlay
+              question={currentQuestion}
+              onSubmit={handleQuestionSubmit}
+              onClose={handleQuestionClose}
+              onPause={forcePause}
+              previousAnswer={currentQuestion ? answeredQuestions[currentQuestion.id]?.selectedOptions : undefined}
+            />
           </div>
         )}
 
-        {/* Bottom Controls Overlay (always visible when not fullscreen) */}
-        {!(isFullscreen || isPseudoFullscreen) && (
-          <div
-            className={`absolute bottom-0 left-0 right-0 z-[9999] transition-all duration-300 ${
-              showControls
-                ? "opacity-100 translate-y-0"
-                : "opacity-0 translate-y-2"
-            }`}
-          >
-            <div className="bg-gradient-to-t from-black/80 via-black/40 to-transparent p-4 pt-8">
-              {/* Professional Video Controls Overlay */}
-              <div className="flex items-center justify-between mb-4">
-                {/* Left Controls */}
-                <div className="flex items-center gap-3">
-                  {/* Play/Pause */}
-                  {isPlayed ? (
-                    allowPlayPause ? (
-                      <button
-                        onClick={togglePause}
-                        className="p-2 rounded-full text-white transition-all backdrop-blur-sm bg-white/20 hover:bg-white/30"
-                      >
-                        <Pause size={20} weight="fill" />
-                      </button>
-                    ) : null
-                  ) : (
-                    <button
-                      onClick={togglePlay}
-                      className="p-2 rounded-full text-white transition-all backdrop-blur-sm bg-white/20 hover:bg-white/30"
-                    >
-                      <Play size={20} weight="fill" />
-                    </button>
-                  )}
+        {/* CONTROL BAR */}
+        <div 
+          className={`control-bar absolute bottom-2 left-0 right-0 z-[100] p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] transition-all duration-300 pointer-events-auto ${
+            showControls ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2"
+          }`}
+        >
+          {/* Background Gradient for visibility */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent z-[-1] pointer-events-none h-[150%]" />
+          
+          <div className="flex flex-col gap-2 relative z-10">
+            {/* Progress Bar */}
+            <div className="relative w-full h-1 bg-white/30 rounded-full cursor-pointer hover:h-1.5 transition-all group/progress" onClick={handleProgressBarClick}>
+              <div className="h-full bg-primary-500 rounded-full relative" style={{ width: `${duration > 0 ? (currentTime / duration) * 100 : 0}%` }}>
+                <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full scale-0 group-hover/progress:scale-100 transition-transform shadow-sm" />
+              </div>
+              {timeToQuestionMap.map(({ time, question }) => (
+                <div key={question.id} className="absolute top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full border border-black/20 bg-yellow-500" style={{ left: `${(time / 1000 / duration) * 100}%` }} onClick={(e) => { e.stopPropagation(); handleQuestionMarkerClick(question) }} />
+              ))}
+            </div>
 
-                  {/* Rewind */}
-                  <button
-                    onClick={async () => {
-                      if (!allowRewind) return;
-                      if (player) {
-                        const currentTime = await safeGetNumber(
-                          player.getCurrentTime()
-                        );
-                        const newTime = Math.max(currentTime - 10, 0);
-                        const success = await safePlayerOperation(
-                          () => player.seekTo(newTime, true),
-                          "controlsRewind"
-                        );
-                        if (success) {
-                          setCurrentTime(newTime);
-                        }
-                      }
-                    }}
-                    disabled={!allowRewind}
-                    className={`p-2 rounded-full text-white backdrop-blur-sm ${
-                      allowRewind
-                        ? "bg-white/20 hover:bg-white/30 transition-all hover:scale-105"
-                        : "bg-white/10 opacity-50 cursor-not-allowed"
-                    }`}
-                  >
-                    <Rewind size={18} weight="fill" />
+            {/* Buttons */}
+            <div className="flex items-center justify-between mt-1">
+              <div className="flex items-center gap-4">
+                <button onClick={(e) => { e.stopPropagation(); isPlayed ? togglePause() : togglePlay(); }} className="text-white hover:text-primary-400">
+                  {isPlayed ? <Pause size={24} weight="fill" /> : <Play size={24} weight="fill" />}
+                </button>
+                {allowRewind && (
+                  <button onClick={(e) => { e.stopPropagation(); seekToTimestamp(currentTime - 10); }} className="text-white hover:text-primary-400 transition-colors">
+                    <Rewind size={24} weight="fill" />
                   </button>
-                </div>
-
-                {/* Right Controls */}
-                <div className="flex items-center gap-3">
-                  {/* Go Live Button - Only show for live streams when behind */}
-                  {isLiveStream && isBehindLive && (
-                    <button
-                      onClick={goToLive}
-                      className="flex items-center gap-1 px-3 py-1 rounded-full bg-red-500 hover:bg-red-600 text-white text-sm font-medium transition-all hover:scale-105 backdrop-blur-sm animate-pulse"
-                      title="Go to live stream"
-                    >
-                      <div className="w-2 h-2 bg-white rounded-full"></div>
-                      LIVE
-                    </button>
-                  )}
-
-                  {/* Volume Slider */}
-                  <div className="flex items-center gap-1">
-                    <input
-                      type="range"
-                      min="0"
-                      max="100"
-                      value={volume}
-                      onChange={handleVolumeChange}
-                      className="h-1 w-24 cursor-pointer accent-primary-500"
-                    />
-                  </div>
-
-                  {/* Playback Speed Control */}
-                  <div className="relative speed-control-container">
-                    <button
-                      ref={speedButtonRef}
-                      onClick={toggleSpeedOptions}
-                      className={`relative p-2 rounded-full text-white transition-all backdrop-blur-sm ${
-                        allowRewind && playerReady
-                          ? "bg-white/20 hover:bg-white/30 hover:scale-105"
-                          : "bg-white/10 opacity-50 cursor-not-allowed"
-                      }`}
-                      disabled={!playerReady || !allowRewind}
-                    >
-                      <Gauge size={18} weight="fill" />
-                      {playbackSpeed !== 1 && (
-                        <span className="absolute -top-1 -right-1 bg-primary-500 text-white text-xs rounded-full min-w-[18px] h-[18px] flex items-center justify-center font-bold px-1 shadow-md border-2 border-white">
-                          {playbackSpeed}x
-                        </span>
-                      )}
-                    </button>
-                  </div>
-
-                  {/* Fullscreen */}
-                  <button
-                    onClick={toggleFullscreen}
-                    className="p-2 rounded-full bg-white/20 hover:bg-white/30 text-white transition-all hover:scale-105 backdrop-blur-sm"
-                    disabled={!playerContainerRef.current}
-                  >
-                    <ArrowsOut size={18} weight="fill" />
-                  </button>
-                </div>
+                )}
+                <span className="text-xs text-white/90 font-mono">{formatTime(currentTime)} / {formatTime(duration)}</span>
               </div>
 
-              {/* Progress Bar */}
-              {allowPlayPause && (
-                <div className="relative w-full">
-                  <div
-                    className={`w-full h-1 bg-white/30 rounded-full group ${
-                      allowRewind ? "cursor-pointer" : "cursor-not-allowed"
-                    }`}
-                    onClick={handleProgressBarClick}
-                  >
-                    <div
-                      className="h-full bg-white rounded-full transition-all duration-150 group-hover:h-1.5"
-                      style={{
-                        width: `${
-                          duration > 0 ? (currentTime / duration) * 100 : 0
-                        }%`,
-                      }}
-                    ></div>
-                  </div>
-
-                  {/* Question Markers */}
-                  {timeToQuestionMap.map(({ time, question }, index) => {
-                    const position =
-                      duration > 0 ? (time / 1000 / duration) * 100 : 0;
-                    const isAnswered = answeredQuestions[question.id]?.answered;
-                    const canSkip = question.can_skip;
-
-                    return (
-                      <button
-                        key={question.id}
-                        className={`absolute w-3 h-3 rounded-full transform -translate-x-1/2 -translate-y-1 top-0 border-2 border-white shadow-lg transition-all z-10 ${
-                          isAnswered
-                            ? "bg-green-500"
-                            : canSkip
-                            ? "bg-yellow-500"
-                            : "bg-red-500"
-                        } ${
-                          allowRewind
-                            ? "hover:scale-125 cursor-pointer hover:bg-green-600"
-                            : "cursor-not-allowed opacity-75"
-                        }`}
-                        style={{
-                          left: `${Math.max(1.5, Math.min(98.5, position))}%`,
-                        }}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (allowRewind) {
-                            handleQuestionMarkerClick(question);
-                          }
-                        }}
-                        disabled={!allowRewind}
-                        title={`Question ${index + 1}${
-                          isAnswered
-                            ? " (Answered)"
-                            : canSkip
-                            ? " (Skippable)"
-                            : " (Required)"
-                        }${!allowRewind ? " (Navigation disabled)" : ""}`}
-                      >
-                        {isAnswered ? (
-                          <span className="text-white text-xs font-bold flex items-center justify-center w-full h-full">
-                            ✓
-                          </span>
-                        ) : (
-                          <span className="text-white text-xs font-bold flex items-center justify-center w-full h-full">
-                            ?
-                          </span>
-                        )}
-                      </button>
-                    );
-                  })}
+              <div className="flex items-center gap-3">
+                <div className="relative">
+                  <button onClick={(e) => { e.stopPropagation(); if (allowRewind) setShowSpeedOptions(!showSpeedOptions); }} className="text-white hover:text-primary-400 flex items-center gap-1">
+                    <Gauge size={20} weight="fill" /><span className="text-xs font-bold">{playbackSpeed}x</span>
+                  </button>
+                  {showSpeedOptions && (
+                    <div className="speed-menu absolute bottom-full right-0 mb-2 bg-black/90 border border-white/10 rounded-lg overflow-hidden flex flex-col min-w-[80px] max-h-40 overflow-y-auto z-50">
+                      {speedOptions.map(speed => (
+                        <button key={speed} onClick={(e) => { e.stopPropagation(); changePlaybackSpeed(speed); }} className={`px-3 py-2 text-xs text-left w-full hover:bg-white/20 ${playbackSpeed === speed ? "text-primary-400 font-bold" : "text-white"}`}>{speed}x</button>
+                      ))}
+                    </div>
+                  )}
                 </div>
-              )}
-
-              {/* Time Display */}
-              {allowPlayPause && (
-                <div className="flex justify-between text-white text-xs mt-2 font-medium">
-                  <span>{formatTime(currentTime)}</span>
-                  <span>{formatTime(duration)}</span>
-                </div>
-              )}
+                {isLiveStream && isBehindLive && (<button onClick={goToLive} className="flex items-center gap-1 px-3 py-1 rounded-full bg-red-500 hover:bg-red-600 text-white text-sm font-medium"><div className="w-2 h-2 bg-white rounded-full"></div>LIVE</button>)}
+                
+                {/* Fullscreen Button */}
+                <button onClick={(e) => { e.stopPropagation(); toggleFullscreen(); }} className="text-white hover:text-primary-400">
+                  {isFullscreen || isPseudoFullscreen ? <ArrowsIn size={20} weight="fill" /> : <ArrowsOut size={20} weight="fill" />}
+                </button>
+              </div>
             </div>
           </div>
-        )}
-
-        {/* YouTube player */}
-        <div className="w-full h-full max-w-[100vw] overflow-hidden pointer-events-none">
-          <YouTube
-            videoId={videoId}
-            opts={opts}
-            onReady={onPlayerReady}
-            className="h-full w-full"
-            onStateChange={onStateChange}
-          />
         </div>
-
-        {/* Question Overlay */}
-        {showQuestion && (
-          <VideoQuestionOverlay
-            question={currentQuestion}
-            onSubmit={handleQuestionSubmit}
-            onClose={handleQuestionClose}
-            onPause={forcePause}
-            previousAnswer={
-              currentQuestion
-                ? answeredQuestions[currentQuestion.id]?.selectedOptions
-                : undefined
-            }
-          />
-        )}
-        {/* Bottom gradient overlay in fullscreen */}
-        {(isFullscreen || isPseudoFullscreen) && (
-          <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-black/80 via-black/40 to-transparent pointer-events-none rounded-b-lg z-[9998]" />
-        )}
       </div>
-
-      {/* Speed Options Dropdown - Non-fullscreen - Rendered outside video container with fixed positioning */}
-      {showSpeedOptions && allowRewind && !isFullscreen && !isPseudoFullscreen && speedButtonRef.current && (
-        <div
-          className="speed-dropdown fixed bg-black/90 backdrop-blur-sm rounded-lg shadow-lg border border-white/20 z-[10001] min-w-[80px] max-h-[240px] overflow-y-auto"
-          style={{
-            bottom: `${window.innerHeight - speedButtonRef.current.getBoundingClientRect().top + 8}px`,
-            right: `${window.innerWidth - speedButtonRef.current.getBoundingClientRect().right}px`,
-          }}
-        >
-          <div className="px-3 py-1 text-xs font-medium text-white/70 border-b border-white/20 sticky top-0 bg-black/90">
-            Speed
-          </div>
-          <div className="py-2">
-            {speedOptions.map((speed) => (
-              <button
-                key={speed}
-                onClick={() => changePlaybackSpeed(speed)}
-                className={`w-full px-3 py-2 text-sm text-left hover:bg-white/20 transition-colors ${
-                  playbackSpeed === speed
-                    ? "text-primary-400 bg-white/10 font-medium"
-                    : "text-white"
-                }`}
-              >
-                {speed}x
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   );
-};
+});
 
-interface YouTubePlayerWrapperProps {
-  videoId: string;
-  onTimeUpdate?: (currentTime: number) => void;
-  questions?: Array<{
-    id: string;
-    question_time_in_millis: number;
-    text_data: {
-      content: string;
-    };
-    parent_rich_text?: {
-      content: string;
-    };
-    options: Array<{
-      id: string;
-      text: {
-        content: string;
-      };
-    }>;
-    can_skip?: boolean;
-    question_type?: string;
-    auto_evaluation_json?: string;
-  }>;
-  ms?: number;
-  allowPlayPause?: boolean;
-  allowRewind?: boolean;
-  isLiveStream?: boolean;
-  liveTimestamp?: number;
-  liveClassStartTime?: string;
-  enableConcentrationScore?: boolean;
-}
+YouTubePlayerComp.displayName = "YouTubePlayerComp";
 
-// This is a wrapper component that exposes the YouTube player methods
-const YouTubePlayerWrapper = forwardRef<any, YouTubePlayerWrapperProps>(
-  (
-    {
-      videoId,
-      onTimeUpdate,
-      questions,
-      ms,
-      allowPlayPause,
-      allowRewind,
-      isLiveStream,
-      liveTimestamp,
-      liveClassStartTime,
-      enableConcentrationScore,
-    },
-    ref
-  ) => {
-    const playerRef = useRef<any>(null);
-    // Expose methods to parent component
+// --- WRAPPER COMPONENT ---
+const YouTubePlayerWrapper = forwardRef<any, YouTubePlayerProps>(
+  (props, ref) => {
+    const internalRef = useRef<any>(null);
+
     useImperativeHandle(ref, () => ({
-      playVideo: () => {
-        if (playerRef.current) {
-          playerRef.current.playVideo();
-        }
-      },
-      pauseVideo: () => {
-        if (playerRef.current) {
-          playerRef.current.pauseVideo();
-        }
-      },
-      getCurrentTime: () => {
-        if (playerRef.current) {
-          return playerRef.current.getCurrentTime();
-        }
-        return 0;
-      },
-      getDuration: () => {
-        if (playerRef.current) {
-          return playerRef.current.getDuration();
-        }
-        return 0;
-      },
-      seekTo: (seconds: number, allowSeekAhead: boolean) => {
-        if (playerRef.current) {
-          playerRef.current.seekTo(seconds, allowSeekAhead);
-        }
-      },
+      playVideo: () => internalRef.current?.playVideo(),
+      pauseVideo: () => internalRef.current?.pauseVideo(),
+      getCurrentTime: () => internalRef.current?.getCurrentTime(),
+      getDuration: () => internalRef.current?.getDuration(),
+      seekTo: (seconds: number, allowSeekAhead: boolean) =>
+        internalRef.current?.seekTo(seconds, allowSeekAhead),
     }));
 
-    // Handle time updates to check for questions
-    const handleTimeUpdate = (currentTime: number) => {
-      if (onTimeUpdate) {
-        onTimeUpdate(currentTime);
-      }
-    };
-    return (
-      <YouTubePlayerComp
-        videoId={videoId}
-        onTimeUpdate={handleTimeUpdate}
-        questions={questions}
-        ms={ms}
-        allowPlayPause={allowPlayPause}
-        allowRewind={allowRewind}
-        isLiveStream={isLiveStream}
-        liveTimestamp={liveTimestamp}
-        liveClassStartTime={liveClassStartTime}
-        enableConcentrationScore={enableConcentrationScore}
-      />
-    );
+    return <YouTubePlayerComp {...props} ref={internalRef} />;
   }
 );
 

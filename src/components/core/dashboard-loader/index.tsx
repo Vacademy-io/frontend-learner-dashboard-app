@@ -82,7 +82,7 @@ export class ErrorBoundary extends Component<
             </MyButton>
           </div>
 
-          {process.env.NODE_ENV === "development" &&
+          {import.meta.env.MODE === "development" &&
             this.state.error && (
               <details className="mt-6 max-w-full overflow-auto rounded-lg bg-red-100 p-4 text-left">
                 <summary className="mb-2 cursor-pointer text-sm font-medium text-red-800">
@@ -224,9 +224,8 @@ export const DashboardLoader = ({
   return (
     <ErrorBoundary>
       <div
-        className={`${
-          fullscreen ? "fixed inset-0" : "w-full"
-        } flex items-center justify-center bg-background`}
+        className={`${fullscreen ? "fixed inset-0" : "w-full"
+          } flex items-center justify-center bg-background`}
         style={{ minHeight: containerMinHeight }}
       >
         <div className="flex flex-col items-center justify-center gap-4 px-4">

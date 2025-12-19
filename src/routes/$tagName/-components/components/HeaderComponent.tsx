@@ -390,7 +390,7 @@ export const HeaderComponent: React.FC<HeaderProps & {
   const hideSearchAndCart = shouldHideSearchAndCart();
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 bg-white shadow-sm border-b w-full">
+    <header className="fixed top-0 left-0 right-0 z-999] bg-white shadow-sm border-b w-full">
       <div className={`w-full ${isHeaderStylesEnabled && !isMobile ? 'px-20' : 'px-4 sm:px-6 lg:px-8'}`}>
         <div className={`flex items-center pt-2 pb-2 h-19 ${isCourseCatalogeTypeEnabled ? 'md:justify-between' : 'justify-between'}`}>
           {/* Mobile menu button - Left side when courseCatalogeType.enabled is true */}
@@ -773,7 +773,9 @@ export const HeaderComponent: React.FC<HeaderProps & {
             </div>
           </div>
           )
+          
         )}
+
       </div>
 
       {/* Search Bar - Only for hero section header */}

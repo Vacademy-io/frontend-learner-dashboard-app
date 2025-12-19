@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <style>
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: black; }
+        iframe { width: 100%; height: 100%; pointer-events: none; } /* Disable pointer events on iframe to force use of JS API */
+    </style>
+</head>
+<body>
+    <div id="player"></div>
+    <script>
+        var tag = document.createElement('script');
+        tag.src = "https://www.youtube.com/iframe_api";
+        var firstScriptTag = document.getElementsByTagName('script')[0];
+        firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+
+        var player;
+        var timer;
+        
+        // URL se Video ID nikalo
+        const urlParams = new URLSearchParams(window.location.search);
+        const videoId = urlParams.get('videoId');
+
+        function onYouTubeIframeAPIReady() {
+            player = new YT.Player('player', {
+                height: '100%',
+                width: '100%',
+                videoId: videoId,
+                playerVars: {
+                    'playsinline': 1,
+                    'controls': 0,    // Controls hide karo
+                    'rel': 0,
+                    'modestbranding': 1,
+                    'fs': 0,
+                    'iv_load_policy': 3,
+                    'autohide': 1,
+                    'disablekb': 1
+                },
+                events: {
+                    'onReady': onPlayerReady,
+                    'onStateChange': onPlayerStateChange
+                }
+            });
+        }
+
+        function onPlayerReady(event) {
+            sendMessage('READY', { duration: player.getDuration() });
+            // Har 250ms mein time update bhejo (Sync ke liye)
+            timer = setInterval(function() {
+                if(player && player.getCurrentTime) {
+                    sendMessage('TIME_UPDATE', { currentTime: player.getCurrentTime() });
+                }
+            }, 250);
+        }
+
+        function onPlayerStateChange(event) {
+            sendMessage('STATE_CHANGE', { data: event.data });
+        }
+
+        // React App 
+        function sendMessage(type, payload) {
+            window.parent.postMessage(JSON.stringify({ type: type, payload: payload }), '*');
+        }
+
+        // React App se message suno
+        window.addEventListener('message', function(event) {
+            if (!player) return;
+            
+            try {
+                var data = JSON.parse(event.data);
+                if (data.command === 'play') player.playVideo();
+                if (data.command === 'pause') player.pauseVideo();
+                if (data.command === 'seekTo') player.seekTo(data.seconds, true);
+                if (data.command === 'setVolume') player.setVolume(data.volume);
+                if (data.command === 'setPlaybackRate') player.setPlaybackRate(data.rate);
+            } catch (e) { console.error(e); }
+        });
+    </script>
+</body>
+</html>
