@@ -56,6 +56,7 @@ import { Route as StudyLibraryLiveClassWaitingRoomIndexRouteImport } from './rou
 import { Route as StudyLibraryLiveClassEmbedIndexRouteImport } from './routes/study-library/live-class/embed/index'
 import { Route as StudyLibraryLiveClassUsernameIndexRouteImport } from './routes/study-library/live-class/$username/index'
 import { Route as StudyLibraryCoursesCourseDetailsIndexRouteImport } from './routes/study-library/courses/course-details/index'
+import { Route as MMediaIdPhoneNumberIndexRouteImport } from './routes/m/$mediaId/$phoneNumber/index'
 import { Route as AssessmentReportsStudentReportIndexRouteImport } from './routes/assessment/reports/student-report/index'
 import { Route as AssessmentExaminationAssessmentIdIndexRouteImport } from './routes/assessment/examination/$assessmentId/index'
 import { Route as AssessmentExaminationAssessmentIdAssessmentPreviewRouteImport } from './routes/assessment/examination/$assessmentId/assessmentPreview'
@@ -317,6 +318,12 @@ const StudyLibraryCoursesCourseDetailsIndexRoute =
     path: '/study-library/courses/course-details/',
     getParentRoute: () => rootRouteImport,
   } as any)
+const MMediaIdPhoneNumberIndexRoute =
+  MMediaIdPhoneNumberIndexRouteImport.update({
+    id: '/m/$mediaId/$phoneNumber/',
+    path: '/m/$mediaId/$phoneNumber/',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AssessmentReportsStudentReportIndexRoute =
   AssessmentReportsStudentReportIndexRouteImport.update({
     id: '/assessment/reports/student-report/',
@@ -424,6 +431,7 @@ export interface FileRoutesByFullPath {
   '/assessment/examination/$assessmentId/assessmentPreview': typeof AssessmentExaminationAssessmentIdAssessmentPreviewRoute
   '/assessment/examination/$assessmentId': typeof AssessmentExaminationAssessmentIdIndexRoute
   '/assessment/reports/student-report': typeof AssessmentReportsStudentReportIndexRoute
+  '/m/$mediaId/$phoneNumber': typeof MMediaIdPhoneNumberIndexRoute
   '/study-library/courses/course-details': typeof StudyLibraryCoursesCourseDetailsIndexRoute
   '/study-library/live-class/$username': typeof StudyLibraryLiveClassUsernameIndexRoute
   '/study-library/live-class/embed': typeof StudyLibraryLiveClassEmbedIndexRoute
@@ -482,6 +490,7 @@ export interface FileRoutesByTo {
   '/assessment/examination/$assessmentId/assessmentPreview': typeof AssessmentExaminationAssessmentIdAssessmentPreviewRoute
   '/assessment/examination/$assessmentId': typeof AssessmentExaminationAssessmentIdIndexRoute
   '/assessment/reports/student-report': typeof AssessmentReportsStudentReportIndexRoute
+  '/m/$mediaId/$phoneNumber': typeof MMediaIdPhoneNumberIndexRoute
   '/study-library/courses/course-details': typeof StudyLibraryCoursesCourseDetailsIndexRoute
   '/study-library/live-class/$username': typeof StudyLibraryLiveClassUsernameIndexRoute
   '/study-library/live-class/embed': typeof StudyLibraryLiveClassEmbedIndexRoute
@@ -541,6 +550,7 @@ export interface FileRoutesById {
   '/assessment/examination/$assessmentId/assessmentPreview': typeof AssessmentExaminationAssessmentIdAssessmentPreviewRoute
   '/assessment/examination/$assessmentId/': typeof AssessmentExaminationAssessmentIdIndexRoute
   '/assessment/reports/student-report/': typeof AssessmentReportsStudentReportIndexRoute
+  '/m/$mediaId/$phoneNumber/': typeof MMediaIdPhoneNumberIndexRoute
   '/study-library/courses/course-details/': typeof StudyLibraryCoursesCourseDetailsIndexRoute
   '/study-library/live-class/$username/': typeof StudyLibraryLiveClassUsernameIndexRoute
   '/study-library/live-class/embed/': typeof StudyLibraryLiveClassEmbedIndexRoute
@@ -601,6 +611,7 @@ export interface FileRouteTypes {
     | '/assessment/examination/$assessmentId/assessmentPreview'
     | '/assessment/examination/$assessmentId'
     | '/assessment/reports/student-report'
+    | '/m/$mediaId/$phoneNumber'
     | '/study-library/courses/course-details'
     | '/study-library/live-class/$username'
     | '/study-library/live-class/embed'
@@ -659,6 +670,7 @@ export interface FileRouteTypes {
     | '/assessment/examination/$assessmentId/assessmentPreview'
     | '/assessment/examination/$assessmentId'
     | '/assessment/reports/student-report'
+    | '/m/$mediaId/$phoneNumber'
     | '/study-library/courses/course-details'
     | '/study-library/live-class/$username'
     | '/study-library/live-class/embed'
@@ -717,6 +729,7 @@ export interface FileRouteTypes {
     | '/assessment/examination/$assessmentId/assessmentPreview'
     | '/assessment/examination/$assessmentId/'
     | '/assessment/reports/student-report/'
+    | '/m/$mediaId/$phoneNumber/'
     | '/study-library/courses/course-details/'
     | '/study-library/live-class/$username/'
     | '/study-library/live-class/embed/'
@@ -776,6 +789,7 @@ export interface RootRouteChildren {
   AssessmentExaminationAssessmentIdAssessmentPreviewRoute: typeof AssessmentExaminationAssessmentIdAssessmentPreviewRoute
   AssessmentExaminationAssessmentIdIndexRoute: typeof AssessmentExaminationAssessmentIdIndexRoute
   AssessmentReportsStudentReportIndexRoute: typeof AssessmentReportsStudentReportIndexRoute
+  MMediaIdPhoneNumberIndexRoute: typeof MMediaIdPhoneNumberIndexRoute
   StudyLibraryCoursesCourseDetailsIndexRoute: typeof StudyLibraryCoursesCourseDetailsIndexRoute
   StudyLibraryLiveClassUsernameIndexRoute: typeof StudyLibraryLiveClassUsernameIndexRoute
   StudyLibraryLiveClassEmbedIndexRoute: typeof StudyLibraryLiveClassEmbedIndexRoute
@@ -1118,6 +1132,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StudyLibraryCoursesCourseDetailsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/m/$mediaId/$phoneNumber/': {
+      id: '/m/$mediaId/$phoneNumber/'
+      path: '/m/$mediaId/$phoneNumber'
+      fullPath: '/m/$mediaId/$phoneNumber'
+      preLoaderRoute: typeof MMediaIdPhoneNumberIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/assessment/reports/student-report/': {
       id: '/assessment/reports/student-report/'
       path: '/assessment/reports/student-report'
@@ -1236,6 +1257,7 @@ const rootRouteChildren: RootRouteChildren = {
     AssessmentExaminationAssessmentIdIndexRoute,
   AssessmentReportsStudentReportIndexRoute:
     AssessmentReportsStudentReportIndexRoute,
+  MMediaIdPhoneNumberIndexRoute: MMediaIdPhoneNumberIndexRoute,
   StudyLibraryCoursesCourseDetailsIndexRoute:
     StudyLibraryCoursesCourseDetailsIndexRoute,
   StudyLibraryLiveClassUsernameIndexRoute:
