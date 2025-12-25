@@ -53,11 +53,11 @@ export const SlideMaterial = () => {
 
   const isPrevLocked = prevSlide
     ? slideEvaluations[prevSlide.id] &&
-      isItemLocked(slideEvaluations[prevSlide.id])
+    isItemLocked(slideEvaluations[prevSlide.id])
     : false;
   const isNextLocked = nextSlide
     ? slideEvaluations[nextSlide.id] &&
-      isItemLocked(slideEvaluations[nextSlide.id])
+    isItemLocked(slideEvaluations[nextSlide.id])
     : false;
 
   const canGoPrev = currentIndex > 0 && !isPrevLocked;
@@ -264,13 +264,13 @@ export const SlideMaterial = () => {
               options:
                 Array.isArray(question.options) && question.options.length > 0
                   ? question.options.map((opt, idx) => ({
-                      id: opt.id || String(idx),
-                      text: { content: opt.text?.content || "Option" },
-                    }))
+                    id: opt.id || String(idx),
+                    text: { content: opt.text?.content || "Option" },
+                  }))
                   : [
-                      // If no options, provide a default for numeric/text input
-                      { id: "input", text: { content: "(Enter your answer)" } },
-                    ],
+                    // If no options, provide a default for numeric/text input
+                    { id: "input", text: { content: "(Enter your answer)" } },
+                  ],
               auto_evaluation_json: question.auto_evaluation_json,
               explanation_text: question.explanation_text,
             };
@@ -319,15 +319,15 @@ export const SlideMaterial = () => {
                 options:
                   Array.isArray(question.options) && question.options.length > 0
                     ? question.options.map((opt, idx) => ({
-                        id: opt.id || String(idx),
-                        text: { content: opt.text?.content || "Option" },
-                      }))
+                      id: opt.id || String(idx),
+                      text: { content: opt.text?.content || "Option" },
+                    }))
                     : [
-                        {
-                          id: "input",
-                          text: { content: "(Enter your answer)" },
-                        },
-                      ],
+                      {
+                        id: "input",
+                        text: { content: "(Enter your answer)" },
+                      },
+                    ],
               };
             });
             setContent(
@@ -544,27 +544,37 @@ export const SlideMaterial = () => {
     }
   };
 
-  useEffect(() => {
-    loadGenerationRef.current += 1;
-    const currentGeneration = loadGenerationRef.current;
+  const prevSlideIdRef = useRef<string | null>(null);
 
-    if (activeItem) {
-      setHeading(activeItem.title || "");
-      loadContent(currentGeneration);
-    } else {
-      setHeading("No content");
-      if (currentGeneration === loadGenerationRef.current) {
-        setContent(
-          <div className="flex h-[500px] flex-col items-center justify-center rounded-lg py-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div className="bg-neutral-50 rounded-full p-6 transition-transform duration-300 group-hover:scale-105">
-              <EmptySlideMaterial />
+  useEffect(() => {
+    // Only reload content if the slide ID actually changed
+    if (activeItem?.id !== prevSlideIdRef.current) {
+      loadGenerationRef.current += 1;
+      const currentGeneration = loadGenerationRef.current;
+
+      if (activeItem) {
+        setHeading(activeItem.title || "");
+        loadContent(currentGeneration);
+        prevSlideIdRef.current = activeItem.id;
+      } else {
+        setHeading("No content");
+        prevSlideIdRef.current = null;
+        if (currentGeneration === loadGenerationRef.current) {
+          setContent(
+            <div className="flex h-[500px] flex-col items-center justify-center rounded-lg py-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <div className="bg-neutral-50 rounded-full p-6 transition-transform duration-300 group-hover:scale-105">
+                <EmptySlideMaterial />
+              </div>
+              <p className="mt-6 text-neutral-500 animate-in fade-in duration-700 delay-200 text-center">
+                No study material has been added yet
+              </p>
             </div>
-            <p className="mt-6 text-neutral-500 animate-in fade-in duration-700 delay-200 text-center">
-              No study material has been added yet
-            </p>
-          </div>
-        );
+          );
+        }
       }
+    } else if (activeItem) {
+      // Slide ID is the same, just update heading (no content reload)
+      setHeading(activeItem.title || "");
     }
   }, [activeItem]);
 
