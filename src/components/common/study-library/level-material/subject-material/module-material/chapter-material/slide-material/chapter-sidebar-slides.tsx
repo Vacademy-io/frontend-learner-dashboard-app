@@ -255,10 +255,9 @@ export const getSlideTypeDisplay = (slide: Slide): string => {
           default:
             if (slide.video_slide.embedded_type) {
               const embeddedType = String(slide.video_slide.embedded_type);
-              embeddedInfo = ` with ${
-                embeddedType.charAt(0).toUpperCase() +
+              embeddedInfo = ` with ${embeddedType.charAt(0).toUpperCase() +
                 embeddedType.slice(1).toLowerCase()
-              }`;
+                }`;
             }
         }
       }
@@ -395,11 +394,10 @@ const SlideItem = ({
     if (!statusDetails.badge) return null;
     return (
       <div
-        className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-xs font-medium transition-all duration-200 ${
-          statusDetails.badge === "done"
+        className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-xs font-medium transition-all duration-200 ${statusDetails.badge === "done"
             ? "bg-success-50 border border-success-200 text-success-600"
             : "bg-primary-50 border border-primary-200 text-primary-600"
-        }`}
+          }`}
       >
         {statusDetails.badge === "done" ? "✓" : "•"}
       </div>
@@ -530,9 +528,8 @@ const SlideItem = ({
           <div
             role="listitem"
             aria-current={isActive ? "true" : undefined}
-            className={`w-full transition-all duration-200 ease-in-out animate-fade-in-up group/slide ${
-              isLocked ? "cursor-not-allowed opacity-60" : "cursor-pointer"
-            }`}
+            className={`w-full transition-all duration-200 ease-in-out animate-fade-in-up group/slide ${isLocked ? "cursor-not-allowed opacity-60" : "cursor-pointer"
+              }`}
             onClick={isLocked ? undefined : onClick}
             style={{
               animationDelay: `${index * 50}ms`,
@@ -542,10 +539,9 @@ const SlideItem = ({
               className={`
                 flex w-full items-center gap-2 rounded-lg px-3 py-2 min-h-[68px]
                 transition-all duration-200 ease-in-out will-change-transform will-change-opacity
-                ${
-                  isActive
-                    ? "text-primary-700 bg-primary-50 shadow-md"
-                    : "bg-white text-gray-700 hover:bg-gray-50 hover:shadow-sm"
+                ${isActive
+                  ? "text-primary-700 bg-primary-50 shadow-md"
+                  : "bg-white text-gray-700 hover:bg-gray-50 hover:shadow-sm"
                 }
               `}
             >
@@ -554,10 +550,9 @@ const SlideItem = ({
                 <div
                   className={`
                     flex w-6 h-6 items-center justify-center rounded-md text-sm font-bold transition-all duration-200
-                    ${
-                      isActive
-                        ? "bg-primary-500 text-white"
-                        : "bg-gray-100 text-gray-500 group-hover/slide:bg-gray-200"
+                    ${isActive
+                      ? "bg-primary-500 text-white"
+                      : "bg-gray-100 text-gray-500 group-hover/slide:bg-gray-200"
                     }
                   `}
                 >
@@ -569,9 +564,9 @@ const SlideItem = ({
 
                 {/* Content area - compact layout */}
                 <div className="min-w-0 flex-1 space-y-1">
-                  {/* Title - allow up to two lines for readability */}
+                  {/* Title - show full text without truncation */}
                   <div className="flex items-start gap-1.5">
-                    <h4 className="flex-1 text-sm font-semibold leading-snug line-clamp-2">
+                    <h4 className="flex-1 text-sm font-semibold leading-snug">
                       {getSlideTitle()}
                     </h4>
                     {isLocked ? (
@@ -592,7 +587,7 @@ const SlideItem = ({
                             className={`w-1.5 h-1.5 rounded-full ${typeColors.dot}`}
                           ></span>
                           {slide.source_type === "VIDEO" &&
-                          mediaKind === "audio"
+                            mediaKind === "audio"
                             ? "Audio"
                             : getSlideTypeDisplay(slide)}
                         </span>
@@ -612,13 +607,12 @@ const SlideItem = ({
                       <div className="flex items-center gap-1">
                         <div className="relative w-10 h-1 bg-gray-200 rounded-full overflow-hidden">
                           <div
-                            className={`absolute left-0 top-0 h-full rounded-full transition-all duration-300 ${
-                              isCompleted
+                            className={`absolute left-0 top-0 h-full rounded-full transition-all duration-300 ${isCompleted
                                 ? "bg-gradient-to-r from-success-400 to-success-500"
                                 : isActive
-                                ? "bg-gradient-to-r from-primary-400 to-primary-600"
-                                : "bg-gradient-to-r from-blue-400 to-blue-500"
-                            }`}
+                                  ? "bg-gradient-to-r from-primary-400 to-primary-600"
+                                  : "bg-gradient-to-r from-blue-400 to-blue-500"
+                              }`}
                             style={{
                               width: `${Math.min(
                                 slide.percentage_completed > 100
@@ -631,13 +625,12 @@ const SlideItem = ({
                         </div>
 
                         <span
-                          className={`text-[11px] font-semibold min-w-[22px] text-right transition-colors duration-200 ${
-                            isCompleted
+                          className={`text-[11px] font-semibold min-w-[22px] text-right transition-colors duration-200 ${isCompleted
                               ? "text-success-600"
                               : isActive
-                              ? "text-primary-600"
-                              : "text-blue-500"
-                          }`}
+                                ? "text-primary-600"
+                                : "text-blue-500"
+                            }`}
                         >
                           {slide.percentage_completed > 100
                             ? 100
@@ -679,9 +672,8 @@ const SlideItem = ({
                 {/* Status indicator */}
                 <div className="shrink-0">
                   <div
-                    className={`p-0.5 rounded-md transition-all duration-200 ${
-                      isActive ? statusDetails.bgColor : "hover:bg-gray-50"
-                    }`}
+                    className={`p-0.5 rounded-md transition-all duration-200 ${isActive ? statusDetails.bgColor : "hover:bg-gray-50"
+                      }`}
                   >
                     <StatusIcon
                       className={`w-3 h-3 transition-colors duration-200 ${statusDetails.color}`}

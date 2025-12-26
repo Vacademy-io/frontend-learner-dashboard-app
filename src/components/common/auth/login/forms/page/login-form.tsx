@@ -735,7 +735,7 @@ export function LoginForm({
       <div className="w-full min-h-[60vh] flex items-center justify-center p-4">
         <div className="w-full max-w-lg xl:max-w-xl">
           {/* Prominent Institute Branding above the card */}
-          {domainRouting.instituteId && (
+          {domainRouting.instituteId ? (
             <div className="mb-4">
               <AuthPageBranding
                 branding={{
@@ -745,6 +745,44 @@ export function LoginForm({
                   instituteThemeCode: domainRouting.instituteThemeCode,
                 }}
               />
+            </div>
+          ) : (
+            // Fallback SSDC logo when domain routing is not configured
+            <div className="mb-8 flex flex-col items-center gap-3">
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3 }}
+                className="flex flex-col items-center"
+              >
+                <motion.div
+                  initial={{ scale: 0.8 }}
+                  animate={{ scale: 1 }}
+                  transition={{ duration: 0.3, delay: 0.1 }}
+                  className="w-16 h-16 sm:w-20 sm:h-20 mb-3"
+                >
+                  <img
+                    src="/ssdc-logo.svg"
+                    alt="SSDC Logo"
+                    className="w-full h-full object-contain"
+                    onError={(e) => {
+                      // Fallback to PNG if SVG fails
+                      const target = e.target as HTMLImageElement;
+                      if (target.src.includes('.svg')) {
+                        target.src = "/ssdc-logo.png";
+                      }
+                    }}
+                  />
+                </motion.div>
+                <motion.h2
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3, delay: 0.2 }}
+                  className="text-lg sm:text-xl font-semibold text-gray-900"
+                >
+                  SSDC Horizon
+                </motion.h2>
+              </motion.div>
             </div>
           )}
 
@@ -783,7 +821,8 @@ export function LoginForm({
                       Continue with Google
                     </Button>
                   )}
-                  {authProviders?.github && (
+                  {/* GitHub login commented out */}
+                  {/* {authProviders?.github && (
                     <Button
                       variant="outline"
                       className="w-full relative h-11"
@@ -793,11 +832,11 @@ export function LoginForm({
                       <GitHubLogoIcon className="mr-2 h-4 w-4" />
                       Continue with GitHub
                     </Button>
-                  )}
+                  )} */}
                 </motion.div>
 
-                {/* Divider */}
-                {(authProviders?.google || authProviders?.github) && (
+                {/* Divider - updated to only check Google since GitHub is commented out */}
+                {authProviders?.google && (
                   <div className="relative">
                     <div className="absolute inset-0 flex items-center">
                       <span className="w-full border-t" />

@@ -25,6 +25,7 @@ import { useDoubtSidebarStore } from "@/stores/study-library/doubt-sidebar-store
 import QuizViewer from "./quiz-viewer";
 import { Slide } from "@/hooks/study-library/use-slides";
 import { getStudentDisplaySettings } from "@/services/student-display-settings";
+import { ConcentrationSettings } from "@/types/student-display-settings";
 
 export const SlideMaterial = () => {
   const { activeItem, items, setActiveItem, slideEvaluations } =
@@ -37,6 +38,20 @@ export const SlideMaterial = () => {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const { uploadFile, getPublicUrl } = useFileUpload();
+
+  // Settings state
+  const [concentrationSettings, setConcentrationSettings] = useState<ConcentrationSettings | undefined>(undefined);
+
+  // Fetch settings
+  useEffect(() => {
+    getStudentDisplaySettings()
+      .then((settings) => {
+        if (settings?.concentration) {
+          setConcentrationSettings(settings.concentration);
+        }
+      })
+      .catch((err) => console.error("Failed to load display settings for concentration:", err));
+  }, []);
 
   const playerRef = useRef<HTMLVideoElement | null>(null);
 
@@ -197,6 +212,7 @@ export const SlideMaterial = () => {
                       videoUrl={videoUrl}
                       onTimeUpdate={handleVideoTimeUpdate}
                       ref={playerRef}
+                      concentrationSettings={concentrationSettings}
                     />
                   </div>
                 </div>
@@ -218,6 +234,7 @@ export const SlideMaterial = () => {
                       ref={playerRef}
                       ms={activeItem.progress_marker}
                       questions={videoSlide?.questions || []}
+                      concentrationSettings={concentrationSettings}
                     />
                   </div>
                 </div>
@@ -586,7 +603,7 @@ export const SlideMaterial = () => {
           <div className="flex items-center gap-2.5">
             <div className="w-1 h-6 bg-primary-500 rounded-full"></div>
             <div className="flex flex-col min-w-0">
-              <h3 className="text-sm sm:text-base font-semibold text-neutral-900 leading-tight animate-in fade-in slide-in-from-left-4 duration-500 truncate max-w-[60vw] sm:max-w-none">
+              <h3 className="text-sm sm:text-base font-semibold text-neutral-900 leading-tight animate-in fade-in slide-in-from-left-4 duration-500">
                 {heading || "No content"}
               </h3>
               <p className="text-xs font-medium text-neutral-500 uppercase tracking-wide animate-in fade-in slide-in-from-left-4 duration-500 delay-75">

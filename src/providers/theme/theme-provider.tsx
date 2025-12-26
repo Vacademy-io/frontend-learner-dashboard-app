@@ -15,13 +15,13 @@ type ThemeContextType = {
 
 const ThemeContext = createContext<ThemeContextType>({
   primaryColor: import.meta.env.VITE_DEFAULT_THEME_COLOR ?? "neutral",
-  setPrimaryColor: () => {},
+  setPrimaryColor: () => { },
   getPrimaryColorCode: () => "#6B7280",
 });
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [primaryColor, setPrimaryColor] = useState(
-    import.meta.env.VITE_DEFAULT_THEME_COLOR ?? "neutral"
+    import.meta.env.VITE_DEFAULT_THEME_COLOR ?? "primary"
   );
 
   const getPrimaryColorCode = () => {

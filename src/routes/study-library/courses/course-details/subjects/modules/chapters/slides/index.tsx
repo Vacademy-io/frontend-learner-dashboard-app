@@ -630,7 +630,7 @@ function Slides() {
               {/* Subject */}
               <button
                 onClick={handleSubjectRoute}
-                className="hover:text-primary-600 hover:underline transition-colors truncate max-w-[80px] sm:max-w-[100px]"
+                className="hover:text-primary-600 hover:underline transition-colors"
               >
                 {toTitleCase(subjectName || "Subject")}
               </button>
@@ -639,14 +639,14 @@ function Slides() {
               {/* Module */}
               <button
                 onClick={handleModuleRoute}
-                className="hover:text-primary-600 hover:underline transition-colors truncate max-w-[80px] sm:max-w-[100px]"
+                className="hover:text-primary-600 hover:underline transition-colors"
               >
                 {toTitleCase(moduleName || "Module")}
               </button>
               <ChevronRightIcon className="w-3 h-3 text-gray-300 flex-shrink-0" />
 
               {/* Chapter (Active) */}
-              <span className="text-gray-900 font-semibold truncate max-w-[100px] sm:max-w-[120px]">
+              <span className="text-gray-900 font-semibold">
                 {toTitleCase(chapterName || "Chapter")}
               </span>
             </div>
