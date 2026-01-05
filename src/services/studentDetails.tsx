@@ -38,14 +38,78 @@ export const getStudentDetails = (instituteId?: string, userId?: string) => {
 // 🔐 Fetch and store student details + sessions
 export const fetchAndStoreStudentDetails = async (
   instituteId: string,
-  userId: string
+  userId: string,
+  fallbackUser?: {
+    id: string;
+    username: string;
+    email: string;
+    full_name: string;
+    roles: string[];
+  }
 ) => {
   try {
     const { queryFn } = getStudentDetails(instituteId, userId);
-    const response = await queryFn();
+    let response;
+
+    try {
+      response = await queryFn();
+    } catch (apiError) {
+      console.warn("API call for student details failed, attempting fallback...", apiError);
+      if (!fallbackUser) throw apiError;
+      // If API fails completely, simulate a partial "fail" state to trigger fallback logic below
+      response = { status: 404, data: [] };
+    }
 
     if (response.status === 200) {
       const students: Student[] = response.data;
+
+      // Handle empty list from API (common race condition for new users)
+      if (students.length === 0 && fallbackUser) {
+        console.warn("Student details API returned empty list. Using fallback user data.");
+        const fallbackStudent: any = {
+          id: userId,
+          user_id: userId,
+          username: fallbackUser.username,
+          email: fallbackUser.email,
+          full_name: fallbackUser.full_name,
+          institute_id: instituteId,
+          package_session_id: "",
+          status: "ACTIVE",
+          // Defaults for required fields to avoid crashes
+          address_line: "",
+          region: "",
+          city: "",
+          pin_code: "",
+          mobile_number: "",
+          date_of_birth: "",
+          gender: "",
+          linked_institute_name: "",
+          institute_enrollment_id: "",
+          session_expiry_days: "",
+          face_file_id: "",
+          expiry_date: "",
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          country: "",
+          mother_name: "",
+          father_name: "",
+          parents_mobile_number: "",
+          parents_email: ""
+        };
+
+        await Preferences.set({
+          key: "students",
+          value: JSON.stringify([fallbackStudent]),
+        });
+
+        await Preferences.set({
+          key: "StudentDetails",
+          value: JSON.stringify(fallbackStudent),
+        });
+
+        // Skip session mapping for fallback as we don't have package_session_id
+        return 201;
+      }
 
       await Preferences.set({
         key: "students",
@@ -69,12 +133,17 @@ export const fetchAndStoreStudentDetails = async (
         key: "InstituteDetails",
       });
 
-      if (!instituteData.value) throw new Error("No institute data found!");
+      if (!instituteData.value) {
+        console.warn("No institute data found, skipping session mapping");
+        return response.status;
+      }
 
       const institute: Institute = JSON.parse(instituteData.value);
 
-      if (!institute.batches_for_sessions)
-        throw new Error("No batches found in institute details!");
+      if (!institute.batches_for_sessions) {
+        console.warn("No batches found in institute details, skipping session mapping");
+        return response.status;
+      }
 
       const packageSessionIds = students.map((s) => s.package_session_id);
 
@@ -113,11 +182,56 @@ export const fetchAndStoreStudentDetails = async (
         key: "students",
         value: JSON.stringify([studentData]),
       });
+    } else if (fallbackUser) {
+      // Handle non-200/201 status codes (e.g. 404) with fallback
+      console.warn(`Student details API returned status ${response.status}. Using fallback user data.`);
+      const fallbackStudent: any = {
+        id: userId,
+        user_id: userId,
+        username: fallbackUser.username,
+        email: fallbackUser.email,
+        full_name: fallbackUser.full_name,
+        institute_id: instituteId,
+        package_session_id: "",
+        status: "ACTIVE",
+        // Defaults
+        address_line: "",
+        region: "",
+        city: "",
+        pin_code: "",
+        mobile_number: "",
+        date_of_birth: "",
+        gender: "",
+        linked_institute_name: "",
+        institute_enrollment_id: "",
+        session_expiry_days: "",
+        face_file_id: "",
+        expiry_date: "",
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        country: "",
+        mother_name: "",
+        father_name: "",
+        parents_mobile_number: "",
+        parents_email: ""
+      };
+
+      await Preferences.set({
+        key: "students",
+        value: JSON.stringify([fallbackStudent]),
+      });
+
+      await Preferences.set({
+        key: "StudentDetails",
+        value: JSON.stringify(fallbackStudent),
+      });
     }
 
     return response.status;
   } catch (error) {
     console.error("Failed to fetch and store student details:", error);
+    // Do not throw if we have fallback data? Too risky to swallow all errors.
+    // If we are here, it means even the refined try-catch above failed or fallbackUser was undefined.
     throw error;
   }
 };
