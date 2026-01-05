@@ -66,8 +66,8 @@ const isAuthenticated = async () => {
   });
 
   const hasToken = !isNullOrEmptyOrUndefined(token);
-  const hasStudentDetails = !isNullOrEmptyOrUndefined(studentDetails);
-  const hasInstituteDetails = !isNullOrEmptyOrUndefined(instituteDetails);
+  const hasStudentDetails = !isNullOrEmptyOrUndefined(studentDetails?.value);
+  const hasInstituteDetails = !isNullOrEmptyOrUndefined(instituteDetails?.value);
 
   console.log(`🔍 Authentication check:`, {
     hasToken,

@@ -63,6 +63,14 @@ export const fetchAndStoreInstituteDetails = async (
       key: "InstituteId",
       value: instituteId,
     });
+
+    // Also store in localStorage
+    try {
+      localStorage.setItem("InstituteId", instituteId);
+    } catch (error) {
+      console.warn("Failed to write InstituteId to localStorage:", error);
+    }
+
     console.log('[fetchAndStoreInstituteDetails] Institute ID stored in preferences');
 
     // Call API to get institute details
@@ -112,6 +120,13 @@ export const fetchAndStoreInstituteDetails = async (
       value: JSON.stringify(instituteDetails), // Convert object to string before storing
     });
 
+    // Also store in localStorage
+    try {
+      localStorage.setItem("InstituteDetails", JSON.stringify(instituteDetails));
+    } catch (error) {
+      console.warn("Failed to write InstituteDetails to localStorage:", error);
+    }
+
     // Re-register push token for the new institute context
     try {
       const { pushNotificationService } = await import('@/services/push-notifications/push-notification-service');
@@ -148,6 +163,13 @@ export const fetchAndStoreInstituteDetails = async (
       key: "InstituteDetails",
       value: JSON.stringify(fallbackInstituteDetails),
     });
+
+    // Also store in localStorage
+    try {
+      localStorage.setItem("InstituteDetails", JSON.stringify(fallbackInstituteDetails));
+    } catch (error) {
+      console.warn("Failed to write fallback InstituteDetails to localStorage:", error);
+    }
 
     return fallbackInstituteDetails;
   }

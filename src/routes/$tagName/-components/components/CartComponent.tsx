@@ -9,10 +9,8 @@ import { getMembershipPlans, MembershipPlan } from "../../-services/membership-p
 import { INSTITUTE_ID } from "@/constants/urls";
 import { toast } from "sonner";
 import { CheckoutForm } from "./CheckoutForm";
-import { loginEnrolledUser } from "@/services/signup-api";
-import { performFullAuthCycle } from "@/services/auth-cycle-service";
 import { BASE_URL_LEARNER_DASHBOARD } from "@/constants/urls";
-import { getTokenDecodedData, getTokenFromStorage } from "@/lib/auth/sessionUtility";
+import { getTokenFromStorage } from "@/lib/auth/sessionUtility";
 import { TokenKey } from "@/constants/auth/tokens";
 import { Preferences } from "@capacitor/preferences";
 
@@ -328,73 +326,13 @@ export const CartComponent: React.FC<CartComponentProps> = ({
 
           console.log(`[CartComponent] Payment verification response (Attempt ${attempts}):`, response.data);
 
-          const pendingUsername = localStorage.getItem("pendingUsername");
-          const pendingPassword = localStorage.getItem("pendingUserPassword");
-          const pendingAccessToken = localStorage.getItem("pendingAccessToken");
-          const pendingRefreshToken = localStorage.getItem("pendingRefreshToken");
-
-          // Target URL calculation
-          // const targetCoursesUrl = new URL("/study-library/courses", window.location.origin).toString();
-          // Redirect directly to dashboard as requested
+          const { checkAndRecoverSession } = await import("@/services/auth-cycle-service");
+          const sessionRecovered = await checkAndRecoverSession(effectiveInstituteId);
           const targetCoursesUrl = new URL("/dashboard", window.location.origin).toString();
 
-          // =========================================================================
-          // FLOW: Automated Login Support
-          // Purpose: Restore the user's session immediately after payment so they
-          // land on the courses page fully authenticated, skipping the login screen.
-          // =========================================================================
-
-          console.log("[CartComponent] Checking for pending auth credentials...", {
-            hasToken: !!pendingAccessToken,
-            hasCreds: !!(pendingUsername && pendingPassword)
-          });
-
-          // Case 1: Direct Token-based Automated Login
-          // If we have saved tokens from before the redirect, try to use them.
-          if (pendingAccessToken && pendingRefreshToken) {
-            console.log("[CartComponent] Automated Login: Attempting with existing pending tokens");
-            try {
-              // Perform the full auth cycle: Store tokens -> Fetch Student Details -> Fetch Institute Details
-              await performFullAuthCycle(
-                { accessToken: pendingAccessToken, refreshToken: pendingRefreshToken },
-                effectiveInstituteId
-              );
-
-              const userId = getTokenDecodedData(pendingAccessToken)?.user;
-              console.log("[CartComponent] Automated token login successful. StudentId (userId):", userId);
-
-              cleanupAndCompleteRedirect(targetCoursesUrl);
-              return; // Stop here, we are done.
-            } catch (tokenError) {
-              console.error("[CartComponent] Automated token login failed:", tokenError);
-              // Fall through to try credentials or generic success handling
-              toast.error("Auto-login with tokens failed. Retrying with credentials...");
-            }
-          }
-
-          // Case 2: Credential-based Automated Login (Matches Login API Flow)
-          // If token login failed or wasn't possible, try using stored username/password (guest checkout flow).
-          if (pendingUsername && pendingPassword) {
-            console.log("[CartComponent] Automated Login: Using credentials to obtain fresh tokens");
-
-            try {
-              // Call the Login API provided by user
-              const loginResponse = await loginEnrolledUser(pendingUsername, pendingPassword, effectiveInstituteId);
-
-              console.log("[CartComponent] Login API successful, performing auth cycle...");
-
-              // Perform Full Auth Cycle
-              await performFullAuthCycle(loginResponse, effectiveInstituteId);
-
-              const userId = getTokenDecodedData(loginResponse.accessToken)?.user;
-              console.log("[CartComponent] Automated credential login successful. StudentId (userId):", userId);
-
-              cleanupAndCompleteRedirect(targetCoursesUrl);
-              return; // Stop here, we are done.
-            } catch (loginError) {
-              console.error("[CartComponent] Automated credential login failed:", loginError);
-              toast.error("Auto-login failed. Please login manually.");
-            }
+          if (sessionRecovered) {
+            cleanupAndCompleteRedirect(targetCoursesUrl);
+            return;
           }
 
           // Case 3: Fallback Verification (Payment is confirmed, but Auto-Login failed/skipped)

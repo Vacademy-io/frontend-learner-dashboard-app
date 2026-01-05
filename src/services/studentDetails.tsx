@@ -107,6 +107,14 @@ export const fetchAndStoreStudentDetails = async (
           value: JSON.stringify(fallbackStudent),
         });
 
+        // Also store in localStorage for synchronous access
+        try {
+          localStorage.setItem("students", JSON.stringify([fallbackStudent]));
+          localStorage.setItem("StudentDetails", JSON.stringify(fallbackStudent));
+        } catch (error) {
+          console.warn("Failed to write student details to localStorage:", error);
+        }
+
         // Skip session mapping for fallback as we don't have package_session_id
         return 201;
       }
@@ -115,6 +123,13 @@ export const fetchAndStoreStudentDetails = async (
         key: "students",
         value: JSON.stringify(students),
       });
+
+      // Also store in localStorage
+      try {
+        localStorage.setItem("students", JSON.stringify(students));
+      } catch (error) {
+        console.warn("Failed to write students to localStorage:", error);
+      }
 
       if (students.length > 0) {
         // Ensure the stored student data has the correct institute_id
@@ -127,6 +142,13 @@ export const fetchAndStoreStudentDetails = async (
           key: "StudentDetails",
           value: JSON.stringify(studentData),
         });
+
+        // Also store in localStorage
+        try {
+          localStorage.setItem("StudentDetails", JSON.stringify(studentData));
+        } catch (error) {
+          console.warn("Failed to write StudentDetails to localStorage:", error);
+        }
       }
 
       const instituteData = await Preferences.get({
@@ -182,6 +204,14 @@ export const fetchAndStoreStudentDetails = async (
         key: "students",
         value: JSON.stringify([studentData]),
       });
+
+      // Also store in localStorage
+      try {
+        localStorage.setItem("StudentDetails", JSON.stringify(studentData));
+        localStorage.setItem("students", JSON.stringify([studentData]));
+      } catch (error) {
+        console.warn("Failed to write student details to localStorage:", error);
+      }
     } else if (fallbackUser) {
       // Handle non-200/201 status codes (e.g. 404) with fallback
       console.warn(`Student details API returned status ${response.status}. Using fallback user data.`);
@@ -225,6 +255,14 @@ export const fetchAndStoreStudentDetails = async (
         key: "StudentDetails",
         value: JSON.stringify(fallbackStudent),
       });
+
+      // Also store in localStorage
+      try {
+        localStorage.setItem("students", JSON.stringify([fallbackStudent]));
+        localStorage.setItem("StudentDetails", JSON.stringify(fallbackStudent));
+      } catch (error) {
+        console.warn("Failed to write fallback student details to localStorage:", error);
+      }
     }
 
     return response.status;

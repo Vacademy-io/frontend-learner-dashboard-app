@@ -260,9 +260,8 @@ export const CheckoutForm: React.FC<CheckoutFormProps> = ({
                         order_id: orderId,
                         redirect_url: window.location.href,
                         phone_pe_request: {
-                            // Force redirect to public /courses page to ensure CartComponent loads and handles auto-login
-                            // redirect_url: window.location.href
-                            redirect_url: new URL("/courses", window.location.origin).toString()
+                            // Redirect back to current page (Catalogue/Courses) to let CartComponent handle status verification and auto-login
+                            redirect_url: window.location.href
                         }
                     },
                     custom_field_values: [],
@@ -319,13 +318,14 @@ export const CheckoutForm: React.FC<CheckoutFormProps> = ({
                     // Store as fallback for post-redirect verification in CartComponent if needed
                     localStorage.setItem("pendingUsername", userUsername);
                     localStorage.setItem("pendingUserPassword", userPassword);
+                    localStorage.setItem("pendingInstituteId", instituteId || INSTITUTE_ID);
                 } catch (loginError) {
                     console.error("[CheckoutForm] Pre-redirect auto-login failed:", loginError);
                 }
             }
 
-            // Use dynamic origin to avoid port mismatch issues (localhost:5173 vs 5073)
-            const targetCoursesUrl = new URL("/study-library/courses", window.location.origin).toString();
+            // Use dynamic origin for redirection
+            const targetDashboardUrl = new URL("/dashboard", window.location.origin).toString();
 
             // Store credentials and tokens BEFORE ANY REDIRECT
             if (userUsername && userPassword) {
@@ -338,6 +338,7 @@ export const CheckoutForm: React.FC<CheckoutFormProps> = ({
                 console.log("[CheckoutForm] Storing pending tokens for CartComponent auto-login");
                 localStorage.setItem("pendingAccessToken", directAccessToken);
                 localStorage.setItem("pendingRefreshToken", directRefreshToken);
+                localStorage.setItem("pendingInstituteId", instituteId || INSTITUTE_ID);
             }
 
             // Check for redirect URL from response (e.g. PhonePe)
@@ -356,9 +357,9 @@ export const CheckoutForm: React.FC<CheckoutFormProps> = ({
                 localStorage.removeItem("pendingRefreshToken");
 
                 if (directAccessToken && directRefreshToken) {
-                    window.location.href = `${targetCoursesUrl}?accessToken=${directAccessToken}&refreshToken=${directRefreshToken}`;
+                    window.location.href = `${targetDashboardUrl}?accessToken=${directAccessToken}&refreshToken=${directRefreshToken}`;
                 } else {
-                    window.location.href = targetCoursesUrl;
+                    window.location.href = targetDashboardUrl;
                 }
             } else {
                 console.warn("No redirect URL found in response structure:", response.data);
