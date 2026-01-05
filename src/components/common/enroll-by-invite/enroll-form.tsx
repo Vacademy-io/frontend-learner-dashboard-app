@@ -514,7 +514,7 @@ const EnrollByInvite = ({ vendor: propVendor }: EnrollByInviteProps = {}) => {
 
         toast.success("Login successful! Redirecting to dashboard...");
         setTimeout(() => {
-          window.location.href = "http://test.localhost:5173/study-library/courses";
+          window.location.href = `${BASE_URL_LEARNER_DASHBOARD}/study-library/courses`;
         }, 1500);
       } catch (error) {
         console.error("[EnrollByInvite] Auto-login failed:", error);
@@ -524,7 +524,7 @@ const EnrollByInvite = ({ vendor: propVendor }: EnrollByInviteProps = {}) => {
       // If no credentials, user might be already logged in or it's an existing user
       // We still wait a bit then redirect
       setTimeout(() => {
-        window.location.href = "http://test.localhost:5173/study-library/courses";
+        window.location.href = `${BASE_URL_LEARNER_DASHBOARD}/study-library/courses`;
       }, 2000);
     }
   };
