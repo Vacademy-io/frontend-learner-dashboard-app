@@ -482,8 +482,8 @@ const EnrollByInvite = ({ vendor: propVendor }: EnrollByInviteProps = {}) => {
 
   const handleAutoLogin = async (response: any) => {
     // Check for direct tokens first (most automatic flow)
-    const directAccessToken = response?.accessToken || response?.token?.accessToken || response?.responseData?.accessToken || response?.payment_response?.response_data?.accessToken;
-    const directRefreshToken = response?.refreshToken || response?.token?.refreshToken || response?.responseData?.refreshToken || response?.payment_response?.response_data?.refreshToken;
+    const directAccessToken = response?.payment_response?.response_data?.accessToken;
+    const directRefreshToken = response?.payment_response?.response_data?.refreshToken;
 
     if (directAccessToken && directRefreshToken) {
       try {

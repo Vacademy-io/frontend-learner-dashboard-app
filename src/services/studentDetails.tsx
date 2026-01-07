@@ -3,6 +3,15 @@ import authenticatedAxiosInstance from "@/lib/auth/axiosInstance";
 import { STUDENT_DETAIL } from "@/constants/urls";
 import { Batch, Institute, Student } from "@/types/user/user-detail";
 
+// 🔧 Type Definitions
+interface FallbackUser {
+  id: string;
+  username: string;
+  email: string;
+  full_name: string;
+  roles: string[];
+}
+
 // 🔍 API call to fetch student details
 export const fetchStudentDetails = async (
   instituteId: string,
@@ -35,241 +44,242 @@ export const getStudentDetails = (instituteId?: string, userId?: string) => {
   };
 };
 
+// 🛠️ Helper: Create fallback student object
+const createFallbackStudent = (
+  userId: string,
+  instituteId: string,
+  fallbackUser: FallbackUser
+): Student => {
+  return {
+    id: userId,
+    user_id: userId,
+    username: fallbackUser.username,
+    email: fallbackUser.email,
+    full_name: fallbackUser.full_name,
+    institute_id: instituteId,
+    package_session_id: "",
+    status: "ACTIVE",
+    address_line: "",
+    region: "",
+    city: "",
+    pin_code: "",
+    mobile_number: "",
+    date_of_birth: "",
+    gender: "",
+    linked_institute_name: "",
+    institute_enrollment_id: "",
+    session_expiry_days: "",
+    face_file_id: "",
+    expiry_date: "",
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    country: "",
+    mother_name: "",
+    father_name: "",
+    parents_mobile_number: "",
+    parents_email: "",
+  } as Student;
+};
+
+// 🛠️ Helper: Sync data to localStorage (best effort)
+const syncToLocalStorage = (key: string, data: any): void => {
+  try {
+    localStorage.setItem(key, JSON.stringify(data));
+  } catch (error) {
+    console.warn(`Failed to sync ${key} to localStorage:`, error);
+    // TODO: Implement retry mechanism or quota management
+  }
+};
+
+// 🛠️ Helper: Store fallback student data
+const storeFallbackStudent = async (
+  userId: string,
+  instituteId: string,
+  fallbackUser: FallbackUser
+): Promise<void> => {
+  console.warn("⚠️ Using fallback student data for user:", userId);
+
+  const fallbackStudent = createFallbackStudent(userId, instituteId, fallbackUser);
+
+  // Store in Capacitor Preferences
+  await Preferences.set({
+    key: "students",
+    value: JSON.stringify([fallbackStudent]),
+  });
+
+  await Preferences.set({
+    key: "StudentDetails",
+    value: JSON.stringify(fallbackStudent),
+  });
+
+  // Store empty session list to prevent undefined errors downstream
+  await Preferences.set({
+    key: "sessionList",
+    value: JSON.stringify([]),
+  });
+
+  // Sync to localStorage for faster synchronous access
+  syncToLocalStorage("students", [fallbackStudent]);
+  syncToLocalStorage("StudentDetails", fallbackStudent);
+  syncToLocalStorage("sessionList", []);
+
+  console.log("✅ Fallback student data stored successfully");
+};
+
+// 🛠️ Helper: Store student data in all storage locations
+const storeStudentData = async (
+  students: Student[],
+  instituteId: string
+): Promise<void> => {
+  // Store students array
+  await Preferences.set({
+    key: "students",
+    value: JSON.stringify(students),
+  });
+  syncToLocalStorage("students", students);
+
+  // Store primary student details
+  if (students.length > 0) {
+    const studentData = {
+      ...students[0],
+      institute_id: instituteId,
+    };
+
+    await Preferences.set({
+      key: "StudentDetails",
+      value: JSON.stringify(studentData),
+    });
+    syncToLocalStorage("StudentDetails", studentData);
+  }
+};
+
+// 🛠️ Helper: Store session mappings
+const storeSessionMappings = async (
+  students: Student[],
+  institute: Institute
+): Promise<void> => {
+  if (!institute.batches_for_sessions || institute.batches_for_sessions.length === 0) {
+    console.warn("⚠️ No batches found in institute details, skipping session mapping");
+    return;
+  }
+
+  const packageSessionIds = students.map((s) => s.package_session_id);
+  const matchedSessions = institute.batches_for_sessions.filter(
+    (batch: Batch) => packageSessionIds.includes(batch.id)
+  );
+
+  // Store matched sessions
+  await Preferences.set({
+    key: "sessionList",
+    value: JSON.stringify(matchedSessions),
+  });
+
+  // Store institute batches as fallback
+  await Preferences.set({
+    key: "instituteBatchesForSessions",
+    value: JSON.stringify(institute.batches_for_sessions),
+  });
+
+  await storeMappedSessions();
+};
+
 // 🔐 Fetch and store student details + sessions
 export const fetchAndStoreStudentDetails = async (
   instituteId: string,
   userId: string,
-  fallbackUser?: {
-    id: string;
-    username: string;
-    email: string;
-    full_name: string;
-    roles: string[];
-  }
+  fallbackUser?: FallbackUser
 ) => {
   try {
     const { queryFn } = getStudentDetails(instituteId, userId);
     let response;
+    let shouldUseFallback = false;
 
+    // Attempt API call
     try {
       response = await queryFn();
     } catch (apiError) {
-      console.warn("API call for student details failed, attempting fallback...", apiError);
-      if (!fallbackUser) throw apiError;
-      // If API fails completely, simulate a partial "fail" state to trigger fallback logic below
-      response = { status: 404, data: [] };
+      console.error("❌ API call failed:", apiError);
+      if (!fallbackUser) {
+        throw apiError; // No fallback available, propagate error
+      }
+      shouldUseFallback = true;
     }
 
+    // Handle API call failure with fallback
+    if (shouldUseFallback && fallbackUser) {
+      await storeFallbackStudent(userId, instituteId, fallbackUser);
+      return 201;
+    }
+
+    // Ensure response is defined before proceeding
+    if (!response) {
+      console.error("❌ No response received from student details API");
+      return 500;
+    }
+
+    // Handle successful response with empty data (race condition for new users)
     if (response.status === 200) {
       const students: Student[] = response.data;
 
-      // Handle empty list from API (common race condition for new users)
       if (students.length === 0 && fallbackUser) {
-        console.warn("Student details API returned empty list. Using fallback user data.");
-        const fallbackStudent: any = {
-          id: userId,
-          user_id: userId,
-          username: fallbackUser.username,
-          email: fallbackUser.email,
-          full_name: fallbackUser.full_name,
-          institute_id: instituteId,
-          package_session_id: "",
-          status: "ACTIVE",
-          // Defaults for required fields to avoid crashes
-          address_line: "",
-          region: "",
-          city: "",
-          pin_code: "",
-          mobile_number: "",
-          date_of_birth: "",
-          gender: "",
-          linked_institute_name: "",
-          institute_enrollment_id: "",
-          session_expiry_days: "",
-          face_file_id: "",
-          expiry_date: "",
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          country: "",
-          mother_name: "",
-          father_name: "",
-          parents_mobile_number: "",
-          parents_email: ""
-        };
-
-        await Preferences.set({
-          key: "students",
-          value: JSON.stringify([fallbackStudent]),
-        });
-
-        await Preferences.set({
-          key: "StudentDetails",
-          value: JSON.stringify(fallbackStudent),
-        });
-
-        // Also store in localStorage for synchronous access
-        try {
-          localStorage.setItem("students", JSON.stringify([fallbackStudent]));
-          localStorage.setItem("StudentDetails", JSON.stringify(fallbackStudent));
-        } catch (error) {
-          console.warn("Failed to write student details to localStorage:", error);
-        }
-
-        // Skip session mapping for fallback as we don't have package_session_id
+        console.warn("⚠️ API returned empty list, using fallback for new user");
+        await storeFallbackStudent(userId, instituteId, fallbackUser);
         return 201;
       }
 
-      await Preferences.set({
-        key: "students",
-        value: JSON.stringify(students),
-      });
+      // Store student data
+      await storeStudentData(students, instituteId);
 
-      // Also store in localStorage
-      try {
-        localStorage.setItem("students", JSON.stringify(students));
-      } catch (error) {
-        console.warn("Failed to write students to localStorage:", error);
-      }
-
-      if (students.length > 0) {
-        // Ensure the stored student data has the correct institute_id
-        const studentData = {
-          ...students[0],
-          institute_id: instituteId, // Override with the selected institute ID
-        };
-
-        await Preferences.set({
-          key: "StudentDetails",
-          value: JSON.stringify(studentData),
-        });
-
-        // Also store in localStorage
-        try {
-          localStorage.setItem("StudentDetails", JSON.stringify(studentData));
-        } catch (error) {
-          console.warn("Failed to write StudentDetails to localStorage:", error);
-        }
-      }
-
+      // Get institute data for session mapping
       const instituteData = await Preferences.get({
         key: "InstituteDetails",
       });
 
       if (!instituteData.value) {
-        console.warn("No institute data found, skipping session mapping");
+        console.warn("⚠️ No institute data found, skipping session mapping");
         return response.status;
       }
 
       const institute: Institute = JSON.parse(instituteData.value);
+      await storeSessionMappings(students, institute);
 
-      if (!institute.batches_for_sessions) {
-        console.warn("No batches found in institute details, skipping session mapping");
-        return response.status;
-      }
+      return response.status;
+    }
 
-      const packageSessionIds = students.map((s) => s.package_session_id);
-
-      const matchedSessions = institute.batches_for_sessions.filter(
-        (batch: Batch) => packageSessionIds.includes(batch.id)
-      );
-
-      // Store the matched sessions
-      await Preferences.set({
-        key: "sessionList",
-        value: JSON.stringify(matchedSessions),
-      });
-
-      // Also store the institute batches for sessions as a fallback
-      // This ensures the profile page can still display basic institute information
-      await Preferences.set({
-        key: "instituteBatchesForSessions",
-        value: JSON.stringify(institute.batches_for_sessions),
-      });
-
-      await storeMappedSessions();
-    } else if (response.status === 201) {
+    // Handle 201 status (single student response)
+    if (response.status === 201) {
       const student: Student = response.data[0];
-
-      // Ensure the stored student data has the correct institute_id
       const studentData = {
         ...student,
-        institute_id: instituteId, // Override with the selected institute ID
+        institute_id: instituteId,
       };
 
       await Preferences.set({
         key: "StudentDetails",
         value: JSON.stringify(studentData),
       });
+
       await Preferences.set({
         key: "students",
         value: JSON.stringify([studentData]),
       });
 
-      // Also store in localStorage
-      try {
-        localStorage.setItem("StudentDetails", JSON.stringify(studentData));
-        localStorage.setItem("students", JSON.stringify([studentData]));
-      } catch (error) {
-        console.warn("Failed to write student details to localStorage:", error);
-      }
-    } else if (fallbackUser) {
-      // Handle non-200/201 status codes (e.g. 404) with fallback
-      console.warn(`Student details API returned status ${response.status}. Using fallback user data.`);
-      const fallbackStudent: any = {
-        id: userId,
-        user_id: userId,
-        username: fallbackUser.username,
-        email: fallbackUser.email,
-        full_name: fallbackUser.full_name,
-        institute_id: instituteId,
-        package_session_id: "",
-        status: "ACTIVE",
-        // Defaults
-        address_line: "",
-        region: "",
-        city: "",
-        pin_code: "",
-        mobile_number: "",
-        date_of_birth: "",
-        gender: "",
-        linked_institute_name: "",
-        institute_enrollment_id: "",
-        session_expiry_days: "",
-        face_file_id: "",
-        expiry_date: "",
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        country: "",
-        mother_name: "",
-        father_name: "",
-        parents_mobile_number: "",
-        parents_email: ""
-      };
+      syncToLocalStorage("StudentDetails", studentData);
+      syncToLocalStorage("students", [studentData]);
 
-      await Preferences.set({
-        key: "students",
-        value: JSON.stringify([fallbackStudent]),
-      });
+      return response.status;
+    }
 
-      await Preferences.set({
-        key: "StudentDetails",
-        value: JSON.stringify(fallbackStudent),
-      });
-
-      // Also store in localStorage
-      try {
-        localStorage.setItem("students", JSON.stringify([fallbackStudent]));
-        localStorage.setItem("StudentDetails", JSON.stringify(fallbackStudent));
-      } catch (error) {
-        console.warn("Failed to write fallback student details to localStorage:", error);
-      }
+    // Handle other status codes with fallback
+    if (fallbackUser) {
+      console.warn(`⚠️ Unexpected status ${response.status}, using fallback`);
+      await storeFallbackStudent(userId, instituteId, fallbackUser);
+      return 201;
     }
 
     return response.status;
   } catch (error) {
-    console.error("Failed to fetch and store student details:", error);
-    // Do not throw if we have fallback data? Too risky to swallow all errors.
-    // If we are here, it means even the refined try-catch above failed or fallbackUser was undefined.
+    console.error("❌ Failed to fetch and store student details:", error);
     throw error;
   }
 };
@@ -278,7 +288,6 @@ export const fetchAndStoreStudentDetails = async (
 const storeMappedSessions = async () => {
   try {
     const studentData = await Preferences.get({ key: "students" });
-
     const students: Student[] = studentData.value
       ? JSON.parse(studentData.value)
       : [];
@@ -287,7 +296,10 @@ const storeMappedSessions = async () => {
       key: "InstituteDetails",
     });
 
-    if (!instituteData.value) throw new Error("No institute data found!");
+    if (!instituteData.value) {
+      console.warn("⚠️ No institute data found for session mapping");
+      return;
+    }
 
     const institute: Institute = JSON.parse(instituteData.value);
     const sessionIds = students.map((s) => s.package_session_id);
@@ -364,6 +376,7 @@ export const getMappedSessions = async (): Promise<Batch[] | null> => {
   }
 };
 
+// 📋 Get all sessions from storage
 export const getAllSessionListFromStorage = async (): Promise<
   Batch[] | null
 > => {
