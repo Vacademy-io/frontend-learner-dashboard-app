@@ -392,7 +392,7 @@ export const HeaderComponent: React.FC<HeaderProps & {
     return (
       <header className="fixed top-0 left-0 right-0 z-50 bg-white shadow-sm border-b w-full">
         <div className={`w-full ${isHeaderStylesEnabled && !isMobile ? 'px-20' : 'px-4 sm:px-6 lg:px-8'}`}>
-          <div className={`flex items-center pt-2 pb-2 ${isCourseCatalogeTypeEnabled ? 'h-19 md:h-14 md:justify-between' : 'h-19 justify-between'}`}>
+          <div className={`flex items-center pt-2 pb-2 ${isCourseCatalogeTypeEnabled ? 'md:justify-between h-14' : 'justify-between  h-19'}  `}>
             {/* Mobile menu button - Left side when courseCatalogeType.enabled is true */}
             {isCourseCatalogeTypeEnabled && (
               <button
@@ -468,8 +468,8 @@ export const HeaderComponent: React.FC<HeaderProps & {
                       onClick={() => handleNavigation(item.route, item.label, openInSameTab)}
                     className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                       isActive 
-                          ? 'text-primary-600 border-b-2 border-primary-200'
-                          : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                        ? 'text-primary-600 border-b-2 border-primary-200'
+                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
                         }`}
                     >
                       {item.label}
@@ -556,8 +556,8 @@ export const HeaderComponent: React.FC<HeaderProps & {
                       }}
                     className={`px-4 py-2 sm:px-6 sm:py-2.5 rounded-md text-sm sm:text-base font-semibold transition-colors min-w-[80px] ${
                       index === 0
-                          ? "text-white shadow-sm"
-                          : "border-2 hover:bg-opacity-10"
+                        ? "text-white shadow-sm"
+                        : "border-2 hover:bg-opacity-10"
                         }`}
                       style={{
                         color: index === 0 ? 'white' : domainRouting.instituteThemeCode ? `hsl(var(--primary))` : '#2563eb',
@@ -580,8 +580,8 @@ export const HeaderComponent: React.FC<HeaderProps & {
               ref={setMobileMenuRef}
             className={`md:hidden fixed top-[60px] left-0 right-0 z-[60] bg-white shadow-lg transition-all duration-500 ease-in-out ${
               isMobileMenuOpen 
-                  ? 'max-h-[500px] opacity-100 border-t border-gray-200'
-                  : 'max-h-0 opacity-0 border-t-0 pointer-events-none'
+                ? 'max-h-[500px] opacity-100 border-t border-gray-200'
+                : 'max-h-0 opacity-0 border-t-0 pointer-events-none'
                 }`}
             >
             <div className={`transform transition-transform duration-500 ease-in-out ${
@@ -725,8 +725,8 @@ export const HeaderComponent: React.FC<HeaderProps & {
                         }}
                     className={`block w-full text-left px-3 py-2 rounded-md text-base font-medium transition-colors ${
                       isActive 
-                            ? 'text-primary-600 border-b-2 border-primary-200'
-                            : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                          ? 'text-primary-600 border-b-2 border-primary-200'
+                          : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
                           }`}
                       >
                         {item.label}
@@ -757,8 +757,8 @@ export const HeaderComponent: React.FC<HeaderProps & {
                           }}
                       className={`block w-full text-left px-4 py-3 rounded-md text-base font-semibold transition-colors ${
                         index === 0
-                              ? "text-white hover:opacity-90"
-                              : "hover:bg-opacity-10"
+                            ? "text-white hover:opacity-90"
+                            : "hover:bg-opacity-10"
                             }`}
                           style={{
                             color: index === 0 ? 'white' : domainRouting.instituteThemeCode ? `hsl(var(--primary))` : '#2563eb',
