@@ -429,7 +429,7 @@ export const HeaderComponent: React.FC<HeaderProps & {
                   src={jsonLogoUrl}
                   alt="Logo"
                   onClick={domainRouting.homeIconClickRoute ? handleInstituteLogoClick : undefined}
-                  className={`${isCourseCatalogeTypeEnabled ? "sm:h-14" : "sm:h-20"}  "h-10"  w-auto object-contain rounded-lg shadow-sm transition-all duration-300 hover:scale-105${domainRouting.homeIconClickRoute ? " cursor-pointer" : ""}`}
+                  className={`${isCourseCatalogeTypeEnabled ? "sm:h-14" : "sm:h-20"}  h-10  w-auto object-contain rounded-lg shadow-sm transition-all duration-300 hover:scale-105${domainRouting.homeIconClickRoute ? " cursor-pointer" : ""}`}
 
                   onError={(e) => {
                     e.currentTarget.style.display = "none";
