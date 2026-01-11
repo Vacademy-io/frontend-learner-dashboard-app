@@ -211,17 +211,10 @@ function mergeWithDefaults(
         d.notifications.allowBatchStream,
     },
     certificates: {
-      enabled:
-        incoming?.certificates?.enabled ??
-        d.certificates.enabled,
+      enabled: incoming?.certificates?.enabled ?? d.certificates.enabled,
       generationThresholdPercent:
         incoming?.certificates?.generationThresholdPercent ??
         d.certificates.generationThresholdPercent,
-    },
-    chatbot: {
-      name: incoming?.chatbot?.name ?? d.chatbot.name,
-      avatarUrl: incoming?.chatbot?.avatarUrl ?? d.chatbot.avatarUrl,
-      visible: incoming?.chatbot?.visible ?? d.chatbot.visible,
     },
     courseSettings: {
       quiz: {

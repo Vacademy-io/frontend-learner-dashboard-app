@@ -1,6 +1,4 @@
 import React from "react";
-import { MessageCircle } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import {
   Tooltip,
   TooltipContent,
@@ -8,6 +6,7 @@ import {
 } from "@/components/ui/tooltip";
 import { useChatbotContext } from "./useChatbotContext";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
+import { avatarUrl } from "@/services/chatbot-settings";
 
 export const ChatbotTrigger: React.FC = () => {
   const { isOpen, setIsOpen, shouldShowChatbot, chatbotSettings } =
@@ -27,21 +26,21 @@ export const ChatbotTrigger: React.FC = () => {
         >
           {/* <MessageCircle className="h-4 w-4" /> */}
           <Avatar className="size-8 bg-background shrink-0">
-            {chatbotSettings.avatarUrl ? (
+            {avatarUrl ? (
               <AvatarImage
-                src={chatbotSettings.avatarUrl}
-                alt={chatbotSettings.name}
+                src={avatarUrl}
+                alt={chatbotSettings.assistant_name}
                 className="object-cover"
               />
             ) : null}
             <AvatarFallback className="text-primary font-bold">
-              {chatbotSettings.name.substring(0, 2).toUpperCase()}
+              {chatbotSettings.assistant_name.substring(0, 2).toUpperCase()}
             </AvatarFallback>
           </Avatar>
         </div>
       </TooltipTrigger>
       <TooltipContent className="bg-primary-400 text-white" side="bottom">
-        <p>{chatbotSettings.name}</p>
+        <p>{chatbotSettings.assistant_name}</p>
       </TooltipContent>
     </Tooltip>
   );

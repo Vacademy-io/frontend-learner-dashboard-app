@@ -1,6 +1,7 @@
 import { getUserId } from "@/constants/getUserId";
 import { Preferences } from "@capacitor/preferences";
 import axios from "axios";
+import { getUserBasicDetails } from "./getBasicUserDetails";
 
 const AI_SERVICE_BASE_URL = "https://backend-stage.vacademy.io/ai-service";
 
@@ -40,8 +41,8 @@ export interface InitSessionRequest {
   user_id: string;
   institute_id: string;
   user_name?: string;
-  context_type: ContextType;
-  context_meta: ContextMeta;
+  context_type?: ContextType;
+  context_meta?: ContextMeta;
   initial_message?: string;
 }
 
@@ -127,22 +128,17 @@ class ChatbotAPIService {
     return this.userId;
   }
 
-  async initSession(
-    contextType: ContextType,
-    contextMeta: ContextMeta,
-    initialMessage?: string,
-    userName?: string
-  ): Promise<InitSessionResponse> {
+  async initSession(initialMessage?: string): Promise<InitSessionResponse> {
     const userId = await this.getUserId();
+    const userDetails = await getUserBasicDetails([userId]);
+    const name = userDetails?.[0]?.name || "";
     const instituteId = await this.getInstituteId();
 
     const request: InitSessionRequest = {
       user_id: userId,
       institute_id: instituteId,
-      //       context_type: contextType,
-      //       context_meta: contextMeta,
       initial_message: initialMessage,
-      user_name: userName,
+      user_name: name || "Learner",
     };
 
     console.log("Initializing session with:", request);

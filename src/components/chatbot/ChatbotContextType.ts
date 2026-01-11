@@ -1,7 +1,7 @@
 import React, { createContext } from "react";
 import { ChatMessage } from "./types";
-import { StudentChatbotSettings } from "@/types/student-display-settings";
 import { AIStatus } from "@/services/chatbot-api";
+import { ChatbotSettingsData } from "@/services/chatbot-settings";
 
 export interface ChatbotContextType {
   isOpen: boolean;
@@ -16,7 +16,7 @@ export interface ChatbotContextType {
   closeSession: () => void;
   shouldShowChatbot: () => boolean;
   messagesEndRef: React.RefObject<HTMLDivElement>;
-  chatbotSettings: StudentChatbotSettings;
+  chatbotSettings: ChatbotSettingsData;
   instituteName: string;
   hasError: boolean;
   isSessionClosed: boolean;

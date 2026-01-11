@@ -30,34 +30,50 @@ import { cn } from "@/lib/utils";
 import ReactMarkdown from "react-markdown";
 import remarkBreaks from "remark-breaks";
 import remarkGfm from "remark-gfm";
+import { avatarUrl } from "@/services/chatbot-settings";
 
 const markdownComponents = {
-  h3: ({ ...props }) => (
-    <h3
-      className="mb-5 mt-0 text-[.5rem] font-bold text-slate-900"
-      {...props}
-    />
+  h1: ({ ...props }) => (
+    <h1 className="text-3xl font-bold mt-6 mb-4" {...props} />
   ),
-  table: ({ ...props }) => (
-    <div className="my-6 overflow-x-auto">
-      <table
-        className="w-full border-collapse border border-slate-200 text-[0.95rem]"
+  h2: ({ ...props }) => (
+    <h2 className="text-2xl font-bold mt-5 mb-3" {...props} />
+  ),
+  h3: ({ ...props }) => (
+    <h3 className="text-xl font-semibold mt-4 mb-2" {...props} />
+  ),
+  p: ({ ...props }) => <p className="text-base leading-7 mb-4" {...props} />,
+  ul: ({ ...props }) => (
+    <ul className="list-disc list-inside space-y-2 mb-4" {...props} />
+  ),
+  ol: ({ ...props }) => (
+    <ol className="list-decimal list-inside space-y-2 mb-4" {...props} />
+  ),
+  li: ({ ...props }) => <li className="text-base" {...props} />,
+  strong: ({ ...props }) => (
+    <strong className="font-bold text-gray-900" {...props} />
+  ),
+  em: ({ ...props }) => <em className="italic text-gray-700" {...props} />,
+  code: ({ inline, ...props }: { inline?: boolean }) =>
+    inline ? (
+      <code
+        className="bg-gray-100 px-1.5 py-0.5 rounded text-sm font-mono"
         {...props}
       />
-    </div>
-  ),
-  thead: ({ ...props }) => <thead className="bg-slate-50" {...props} />,
-  th: ({ ...props }) => (
-    <th
-      className="border border-slate-200 px-4 py-2.5 text-left font-bold text-slate-900"
+    ) : (
+      <code
+        className="block bg-gray-100 p-3 rounded-lg text-sm font-mono overflow-x-auto mb-4"
+        {...props}
+      />
+    ),
+  blockquote: ({ ...props }) => (
+    <blockquote
+      className="border-l-4 border-gray-300 pl-4 italic text-gray-600 my-4"
       {...props}
     />
   ),
-  td: ({ ...props }) => (
-    <td
-      className="border border-slate-200 px-4 py-2.5 text-slate-800"
-      {...props}
-    />
+  a: ({ ...props }) => (
+    <a className="text-blue-600 hover:underline" {...props} />
   ),
 };
 
@@ -119,20 +135,22 @@ export const ChatbotWidget = () => {
               <CardHeader className="bg-primary text-primary-foreground p-4 flex flex-row items-center justify-between space-y-0">
                 <div className="flex items-center space-x-2">
                   <Avatar className="h-8 w-8 bg-background">
-                    {chatbotSettings.avatarUrl ? (
+                    {avatarUrl ? (
                       <AvatarImage
-                        src={chatbotSettings.avatarUrl}
-                        alt={chatbotSettings.name}
+                        src={avatarUrl}
+                        alt={chatbotSettings.assistant_name}
                         className="object-cover"
                       />
                     ) : null}
                     <AvatarFallback className="text-primary font-bold">
-                      {chatbotSettings.name.substring(0, 2).toUpperCase()}
+                      {chatbotSettings.assistant_name
+                        .substring(0, 2)
+                        .toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
                   <div>
                     <CardTitle className="text-md font-bold">
-                      {chatbotSettings.name}
+                      {chatbotSettings.assistant_name}
                     </CardTitle>
                     <p className="text-xs text-primary-foreground/80">
                       {instituteName} AI Assistant
@@ -193,15 +211,15 @@ export const ChatbotWidget = () => {
                       >
                         {msg.role === "assistant" && (
                           <Avatar className="h-8 w-8 mr-2 mt-1 shrink-0">
-                            {chatbotSettings.avatarUrl ? (
+                            {avatarUrl ? (
                               <AvatarImage
-                                src={chatbotSettings.avatarUrl}
-                                alt={chatbotSettings.name}
+                                src={avatarUrl}
+                                alt={chatbotSettings.assistant_name}
                                 className="object-cover"
                               />
                             ) : null}
                             <AvatarFallback className="text-primary font-bold">
-                              {chatbotSettings.name
+                              {chatbotSettings.assistant_name
                                 .substring(0, 2)
                                 .toUpperCase()}
                             </AvatarFallback>
@@ -223,83 +241,8 @@ export const ChatbotWidget = () => {
                             ) : (
                               <div className="prose prose-sm dark:prose-invert max-w-none prose-p:my-2 prose-li:my-0">
                                 <ReactMarkdown
-                                  components={{
-                                    h1: ({ node, ...props }) => (
-                                      <h1
-                                        className="text-3xl font-bold mt-6 mb-4"
-                                        {...props}
-                                      />
-                                    ),
-                                    h2: ({ node, ...props }) => (
-                                      <h2
-                                        className="text-2xl font-bold mt-5 mb-3"
-                                        {...props}
-                                      />
-                                    ),
-                                    h3: ({ node, ...props }) => (
-                                      <h3
-                                        className="text-xl font-semibold mt-4 mb-2"
-                                        {...props}
-                                      />
-                                    ),
-                                    p: ({ node, ...props }) => (
-                                      <p
-                                        className="text-base leading-7 mb-4"
-                                        {...props}
-                                      />
-                                    ),
-                                    ul: ({ node, ...props }) => (
-                                      <ul
-                                        className="list-disc list-inside space-y-2 mb-4"
-                                        {...props}
-                                      />
-                                    ),
-                                    ol: ({ node, ...props }) => (
-                                      <ol
-                                        className="list-decimal list-inside space-y-2 mb-4"
-                                        {...props}
-                                      />
-                                    ),
-                                    li: ({ node, ...props }) => (
-                                      <li className="text-base" {...props} />
-                                    ),
-                                    strong: ({ node, ...props }) => (
-                                      <strong
-                                        className="font-bold text-gray-900"
-                                        {...props}
-                                      />
-                                    ),
-                                    em: ({ node, ...props }) => (
-                                      <em
-                                        className="italic text-gray-700"
-                                        {...props}
-                                      />
-                                    ),
-                                    code: ({ node, inline, ...props }) =>
-                                      inline ? (
-                                        <code
-                                          className="bg-gray-100 px-1.5 py-0.5 rounded text-sm font-mono"
-                                          {...props}
-                                        />
-                                      ) : (
-                                        <code
-                                          className="block bg-gray-100 p-3 rounded-lg text-sm font-mono overflow-x-auto mb-4"
-                                          {...props}
-                                        />
-                                      ),
-                                    blockquote: ({ node, ...props }) => (
-                                      <blockquote
-                                        className="border-l-4 border-gray-300 pl-4 italic text-gray-600 my-4"
-                                        {...props}
-                                      />
-                                    ),
-                                    a: ({ node, ...props }) => (
-                                      <a
-                                        className="text-blue-600 hover:underline"
-                                        {...props}
-                                      />
-                                    ),
-                                  }}
+                                  // @ts-expect-error : types issue with react-markdown
+                                  components={markdownComponents}
                                   remarkPlugins={[remarkBreaks, remarkGfm]}
                                 >
                                   {msg.content}
@@ -374,15 +317,17 @@ export const ChatbotWidget = () => {
                     {(isLoading || aiStatus === "thinking") && (
                       <div className="mr-auto flex max-w-[80%] items-end space-x-2">
                         <Avatar className="h-8 w-8 mr-2 shrink-0">
-                          {chatbotSettings.avatarUrl ? (
+                          {avatarUrl ? (
                             <AvatarImage
-                              src={chatbotSettings.avatarUrl}
-                              alt={chatbotSettings.name}
+                              src={avatarUrl}
+                              alt={chatbotSettings.assistant_name}
                               className="object-cover"
                             />
                           ) : null}
                           <AvatarFallback className="text-primary font-bold">
-                            {chatbotSettings.name.substring(0, 2).toUpperCase()}
+                            {chatbotSettings.assistant_name
+                              .substring(0, 2)
+                              .toUpperCase()}
                           </AvatarFallback>
                         </Avatar>
                         <div className="rounded-lg bg-muted px-4 py-3 text-sm text-foreground">
@@ -470,16 +415,16 @@ export const ChatbotWidget = () => {
           "h-14 w-14 rounded-full shadow-2xl flex items-center justify-center focus:outline-none",
           isOpen
             ? "bg-primary text-primary-foreground"
-            : chatbotSettings.avatarUrl
+            : avatarUrl
             ? "bg-transparent p-0"
             : "bg-primary text-primary-foreground"
         )}
       >
         {isOpen ? (
           <X className="h-6 w-6" />
-        ) : chatbotSettings.avatarUrl ? (
+        ) : avatarUrl ? (
           <img
-            src={chatbotSettings.avatarUrl}
+            src={avatarUrl}
             alt="Chat"
             className="w-full h-full object-cover rounded-full shadow-2xl"
           />

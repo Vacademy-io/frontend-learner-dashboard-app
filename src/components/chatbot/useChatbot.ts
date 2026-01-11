@@ -2,10 +2,6 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useLocation } from "@tanstack/react-router";
 import axios from "axios";
 import { ChatMessage, ChatbotContext } from "./types";
-import { getStudentDisplaySettings } from "@/services/student-display-settings";
-import { StudentChatbotSettings } from "@/types/student-display-settings";
-import { DEFAULT_STUDENT_DISPLAY_SETTINGS } from "@/constants/display-settings/student-defaults";
-import { Preferences } from "@capacitor/preferences";
 import {
   chatbotAPI,
   ContextType,
@@ -16,6 +12,11 @@ import {
 import { useContentStore } from "@/stores/study-library/chapter-sidebar-store";
 import { useInstituteDetailsStore } from "@/stores/study-library/useInstituteDetails";
 import { useCourseDetailsStore } from "@/stores/study-library/useCourseDetailsStore";
+import {
+  ChatbotSettingsData,
+  DEFAULT_CHATBOT_SETTINGS,
+  getChatbotSettings,
+} from "@/services/chatbot-settings";
 
 export const useChatbot = () => {
   const location = useLocation();
@@ -23,8 +24,9 @@ export const useChatbot = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [inputValue, setInputValue] = useState("");
-  const [chatbotSettings, setChatbotSettings] =
-    useState<StudentChatbotSettings>(DEFAULT_STUDENT_DISPLAY_SETTINGS.chatbot);
+  const [chatbotSettings, setChatbotSettings] = useState<ChatbotSettingsData>(
+    DEFAULT_CHATBOT_SETTINGS
+  );
   const [instituteName, setInstituteName] = useState<string>("Vacademy");
   const [isExpanded, setIsExpanded] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -72,21 +74,10 @@ export const useChatbot = () => {
   useEffect(() => {
     const fetchSettings = async () => {
       try {
-        // Fetch Institute Name
-        const { value } = await Preferences.get({ key: "InstituteDetails" });
-        if (value) {
-          try {
-            const parsed = JSON.parse(value);
-            if (parsed?.institute_name) {
-              setInstituteName(parsed.institute_name);
-            }
-          } catch (e) {
-            console.error("Error parsing institute details", e);
-          }
-        }
-
-        const settings = await getStudentDisplaySettings();
-        setChatbotSettings(settings.chatbot);
+        getChatbotSettings().then((settings) => {
+          setChatbotSettings(settings);
+          setInstituteName(settings.institute_name);
+        });
       } catch (error) {
         console.error("Failed to fetch chatbot settings:", error);
       }
@@ -96,7 +87,7 @@ export const useChatbot = () => {
 
   const shouldShowChatbot = () => {
     // Check global visibility setting first
-    if (!chatbotSettings.visible) return false;
+    if (!chatbotSettings.enable) return false;
 
     // Show chatbot on all pages (can be restricted by route if needed later)
     return true;
@@ -313,11 +304,7 @@ export const useChatbot = () => {
 
       const contextMeta = buildContextMeta();
 
-      console.log("Context:", { contextType, contextMeta });
-
-      const response = await chatbotAPI.initSession(contextType, contextMeta);
-
-      console.log("Session response:", response);
+      const response = await chatbotAPI.initSession();
 
       setSessionId(response.session_id);
       setAiStatus(response.status);
@@ -418,7 +405,7 @@ export const useChatbot = () => {
       console.error("Failed to initialize session:", error);
       setHasError(true);
 
-      let errorMessage = `Hi! I'm ${chatbotSettings.name}, your AI assistant. `;
+      let errorMessage = `Hi! I'm ${chatbotSettings.assistant_name}, your AI assistant. `;
       if (axios.isAxiosError(error)) {
         if (error.code === "ERR_NETWORK") {
           errorMessage +=
@@ -453,7 +440,7 @@ export const useChatbot = () => {
   }, [
     isInitializing,
     sessionId,
-    chatbotSettings.name,
+    chatbotSettings.assistant_name,
     getContextType,
     getContext,
     buildContextMeta,
@@ -492,7 +479,7 @@ export const useChatbot = () => {
     if (!content.trim() || !sessionId) return;
 
     const newMessage: ChatMessage = {
-      id: `temp-${Date.now()}`,
+      id: Date.now(),
       role: "user",
       content,
       timestamp: Date.now(),

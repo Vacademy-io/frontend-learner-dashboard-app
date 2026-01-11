@@ -25,6 +25,7 @@ import ReactMarkdown from "react-markdown";
 import remarkBreaks from "remark-breaks";
 import remarkGfm from "remark-gfm";
 import { Check } from "phosphor-react";
+import { avatarUrl } from "@/services/chatbot-settings";
 
 interface ChatbotPanelProps {
   onOpenChange?: (isOpen: boolean) => void;
@@ -154,20 +155,22 @@ export const ChatbotPanel: React.FC<ChatbotPanelProps> = ({ onOpenChange }) => {
               <CardHeader className="bg-primary text-primary-foreground px-4 py-3 flex flex-row items-center justify-between space-y-0 border-b shrink-0">
                 <div className="flex items-center space-x-2 flex-1 min-w-0">
                   <Avatar className="h-8 w-8 bg-background shrink-0">
-                    {chatbotSettings.avatarUrl ? (
+                    {avatarUrl ? (
                       <AvatarImage
-                        src={chatbotSettings.avatarUrl}
-                        alt={chatbotSettings.name}
+                        src={avatarUrl}
+                        alt={chatbotSettings.assistant_name}
                         className="object-cover"
                       />
                     ) : null}
                     <AvatarFallback className="text-primary font-bold">
-                      {chatbotSettings.name.substring(0, 2).toUpperCase()}
+                      {chatbotSettings.assistant_name
+                        .substring(0, 2)
+                        .toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
                   <div className="min-w-0">
                     <CardTitle className="text-sm font-bold truncate">
-                      {chatbotSettings.name}
+                      {chatbotSettings.assistant_name}
                     </CardTitle>
                     <p className="text-xs text-primary-foreground/80 truncate">
                       {instituteName}
@@ -242,15 +245,15 @@ export const ChatbotPanel: React.FC<ChatbotPanelProps> = ({ onOpenChange }) => {
                       >
                         {msg.role === "assistant" && (
                           <Avatar className="h-8 w-8 mr-2 mt-1 shrink-0">
-                            {chatbotSettings.avatarUrl ? (
+                            {avatarUrl ? (
                               <AvatarImage
-                                src={chatbotSettings.avatarUrl}
-                                alt={chatbotSettings.name}
+                                src={avatarUrl}
+                                alt={chatbotSettings.assistant_name}
                                 className="object-cover"
                               />
                             ) : null}
                             <AvatarFallback className="text-primary font-bold">
-                              {chatbotSettings.name
+                              {chatbotSettings.assistant_name
                                 .substring(0, 2)
                                 .toUpperCase()}
                             </AvatarFallback>
@@ -378,15 +381,17 @@ export const ChatbotPanel: React.FC<ChatbotPanelProps> = ({ onOpenChange }) => {
                     {(isLoading || aiStatus === "thinking") && (
                       <div className="mr-auto flex max-w-[80%] items-end space-x-2">
                         <Avatar className="h-8 w-8 mr-2 shrink-0">
-                          {chatbotSettings.avatarUrl ? (
+                          {avatarUrl ? (
                             <AvatarImage
-                              src={chatbotSettings.avatarUrl}
-                              alt={chatbotSettings.name}
+                              src={avatarUrl}
+                              alt={chatbotSettings.assistant_name}
                               className="object-cover"
                             />
                           ) : null}
                           <AvatarFallback className="text-primary font-bold">
-                            {chatbotSettings.name.substring(0, 2).toUpperCase()}
+                            {chatbotSettings.assistant_name
+                              .substring(0, 2)
+                              .toUpperCase()}
                           </AvatarFallback>
                         </Avatar>
                         <div className="rounded-lg bg-muted px-4 py-3 text-sm text-foreground">
