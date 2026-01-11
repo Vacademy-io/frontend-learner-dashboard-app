@@ -1,4 +1,4 @@
-export type MessageRole = 'user' | 'assistant';
+export type MessageRole = "user" | "assistant" | "tool_call" | "tool_result";
 
 export interface ChatbotContext {
   route: string;
@@ -12,11 +12,16 @@ export interface ChatbotContext {
 }
 
 export interface ChatMessage {
-  id: string;
+  id: number;
   role: MessageRole;
   content: string;
   timestamp: number;
   context?: ChatbotContext;
+  metadata?: {
+    tool_name?: string;
+    tool_arguments?: object;
+    tool_call_id?: string;
+  };
 }
 
 export interface ChatResponse {

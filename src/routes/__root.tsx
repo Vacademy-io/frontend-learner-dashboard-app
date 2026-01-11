@@ -28,7 +28,8 @@ import {
   resolveDomainRouting,
   getCurrentDomainInfo,
 } from "@/services/domain-routing";
-import { ChatbotWidget } from "@/components/chatbot/ChatbotWidget";
+import { ChatbotPanel } from "@/components/chatbot/ChatbotPanel";
+import { ChatbotProvider } from "@/components/chatbot/ChatbotContext";
 
 // Define public routes that don't require authentication
 const PUBLIC_ROUTES = [
@@ -91,57 +92,65 @@ const isPublicRoute = (pathname: string): boolean => {
   // Special handling for dynamic routes
   const isDynamicLiveClassRoute =
     /^\/study-library\/live-class\/[^/]+\/?$/.test(pathname);
-  
+
   // Course catalogue dynamic routes - any single path segment (tagName)
-  const isCourseCatalogueRoute = /^\/[^/]+\/?$/.test(pathname) && 
-    !pathname.startsWith('/login') && 
-    !pathname.startsWith('/signup') && 
-    !pathname.startsWith('/register') &&
-    !pathname.startsWith('/privacy-policy') &&
-    !pathname.startsWith('/terms-and-conditions') &&
-    !pathname.startsWith('/referral') &&
-    !pathname.startsWith('/live-class-guest') &&
-    !pathname.startsWith('/study-library') &&
-    !pathname.startsWith('/learner-invitation-response') &&
-    !pathname.startsWith('/institute-selection') &&
-    !pathname.startsWith('/delete-user') &&
-    !pathname.startsWith('/change-password') &&
-    !pathname.startsWith('/logout') &&
-    !pathname.startsWith('/courses') &&
-    !pathname.startsWith('/assessment') &&
-    !pathname.startsWith('/dashboard') &&
-    !pathname.startsWith('/homework') &&
-    !pathname.startsWith('/learning-centre') &&
-    !pathname.startsWith('/user-profile') &&
-    !pathname.startsWith('/study-library') &&
-    !pathname.startsWith('/Coursetile');
+  const isCourseCatalogueRoute =
+    /^\/[^/]+\/?$/.test(pathname) &&
+    !pathname.startsWith("/login") &&
+    !pathname.startsWith("/signup") &&
+    !pathname.startsWith("/register") &&
+    !pathname.startsWith("/privacy-policy") &&
+    !pathname.startsWith("/terms-and-conditions") &&
+    !pathname.startsWith("/referral") &&
+    !pathname.startsWith("/live-class-guest") &&
+    !pathname.startsWith("/study-library") &&
+    !pathname.startsWith("/learner-invitation-response") &&
+    !pathname.startsWith("/institute-selection") &&
+    !pathname.startsWith("/delete-user") &&
+    !pathname.startsWith("/change-password") &&
+    !pathname.startsWith("/logout") &&
+    !pathname.startsWith("/courses") &&
+    !pathname.startsWith("/assessment") &&
+    !pathname.startsWith("/dashboard") &&
+    !pathname.startsWith("/homework") &&
+    !pathname.startsWith("/learning-centre") &&
+    !pathname.startsWith("/user-profile") &&
+    !pathname.startsWith("/study-library") &&
+    !pathname.startsWith("/Coursetile");
 
   // Course details dynamic routes - /{tagName}/{courseId}
   // Check if it's exactly two path segments and not a system route
-  const pathSegments = pathname.split('/').filter(segment => segment.length > 0);
-  const isCourseDetailsRoute = pathSegments.length === 2 && 
-    !pathname.startsWith('/login') && 
-    !pathname.startsWith('/signup') && 
-    !pathname.startsWith('/register') &&
-    !pathname.startsWith('/privacy-policy') &&
-    !pathname.startsWith('/terms-and-conditions') &&
-    !pathname.startsWith('/referral') &&
-    !pathname.startsWith('/live-class-guest') &&
-    !pathname.startsWith('/study-library') &&
-    !pathname.startsWith('/learner-invitation-response') &&
-    !pathname.startsWith('/institute-selection') &&
-    !pathname.startsWith('/delete-user') &&
-    !pathname.startsWith('/change-password') &&
-    !pathname.startsWith('/logout') &&
-    !pathname.startsWith('/courses') &&
-    !pathname.startsWith('/assessment') &&
-    !pathname.startsWith('/dashboard') &&
-    !pathname.startsWith('/homework') &&
-    !pathname.startsWith('/learning-centre') &&
-    !pathname.startsWith('/user-profile');
+  const pathSegments = pathname
+    .split("/")
+    .filter((segment) => segment.length > 0);
+  const isCourseDetailsRoute =
+    pathSegments.length === 2 &&
+    !pathname.startsWith("/login") &&
+    !pathname.startsWith("/signup") &&
+    !pathname.startsWith("/register") &&
+    !pathname.startsWith("/privacy-policy") &&
+    !pathname.startsWith("/terms-and-conditions") &&
+    !pathname.startsWith("/referral") &&
+    !pathname.startsWith("/live-class-guest") &&
+    !pathname.startsWith("/study-library") &&
+    !pathname.startsWith("/learner-invitation-response") &&
+    !pathname.startsWith("/institute-selection") &&
+    !pathname.startsWith("/delete-user") &&
+    !pathname.startsWith("/change-password") &&
+    !pathname.startsWith("/logout") &&
+    !pathname.startsWith("/courses") &&
+    !pathname.startsWith("/assessment") &&
+    !pathname.startsWith("/dashboard") &&
+    !pathname.startsWith("/homework") &&
+    !pathname.startsWith("/learning-centre") &&
+    !pathname.startsWith("/user-profile");
 
-  const result = directMatch || isDynamicLiveClassRoute || isCourseCatalogueRoute || isCourseDetailsRoute;
-  
+  const result =
+    directMatch ||
+    isDynamicLiveClassRoute ||
+    isCourseCatalogueRoute ||
+    isCourseDetailsRoute;
+
   console.log("[isPublicRoute] Debug:", {
     pathname,
     pathSegments,
@@ -149,7 +158,7 @@ const isPublicRoute = (pathname: string): boolean => {
     isDynamicLiveClassRoute,
     isCourseCatalogueRoute,
     isCourseDetailsRoute,
-    result
+    result,
   });
 
   return result;
@@ -169,7 +178,9 @@ const RootComponent = () => {
     if (instituteId === HOLISTIC_INSTITUTE_ID) {
       setPrimaryColor("holistic");
     } else {
-      setPrimaryColor(themeCode ?? import.meta.env.VITE_DEFAULT_THEME_COLOR ?? "neutral");
+      setPrimaryColor(
+        themeCode ?? import.meta.env.VITE_DEFAULT_THEME_COLOR ?? "neutral"
+      );
     }
   };
 
@@ -211,8 +222,10 @@ const RootComponent = () => {
         applyUiType(override);
       } else {
         getStudentDisplaySettings(false)
-          .then((s) => applyUiType(((s?.ui?.type as StudentUIType) || "default")))
-          .catch(() => { /* ignore */ });
+          .then((s) => applyUiType((s?.ui?.type as StudentUIType) || "default"))
+          .catch(() => {
+            /* ignore */
+          });
       }
     } catch (e) {
       console.warn("Failed to read DEBUG_UI_TYPE", e);
@@ -223,16 +236,29 @@ const RootComponent = () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const w = window as any;
       w.setStudentUIType = (type: StudentUIType) => {
-        try { localStorage.setItem(DEBUG_KEY, type); } catch (e) { console.warn("setStudentUIType: failed to persist", e); }
+        try {
+          localStorage.setItem(DEBUG_KEY, type);
+        } catch (e) {
+          console.warn("setStudentUIType: failed to persist", e);
+        }
         applyUiType(type);
       };
       w.getStudentUIType = () => {
-        try { return localStorage.getItem(DEBUG_KEY) || "(using settings)"; } catch (e) { console.warn("getStudentUIType: failed", e); return "(using settings)"; }
+        try {
+          return localStorage.getItem(DEBUG_KEY) || "(using settings)";
+        } catch (e) {
+          console.warn("getStudentUIType: failed", e);
+          return "(using settings)";
+        }
       };
       w.clearStudentUIType = () => {
-        try { localStorage.removeItem(DEBUG_KEY); } catch (e) { console.warn("clearStudentUIType: failed to clear", e); }
+        try {
+          localStorage.removeItem(DEBUG_KEY);
+        } catch (e) {
+          console.warn("clearStudentUIType: failed to clear", e);
+        }
         getStudentDisplaySettings(false)
-          .then((s) => applyUiType(((s?.ui?.type as StudentUIType) || "default")))
+          .then((s) => applyUiType((s?.ui?.type as StudentUIType) || "default"))
           .catch(() => applyUiType("default"));
       };
     } catch (e) {
@@ -246,9 +272,17 @@ const RootComponent = () => {
   useEffect(() => {
     // Skip in popup windows to avoid navigating inside the popup
     const isPopupWindow = (() => {
-      try { if (window.opener && !window.opener.closed) return true; } catch {}
-      try { if (window.name && window.name.toLowerCase() === 'oauth_popup') return true; } catch {}
-      try { const q = new URLSearchParams(window.location.search); if (q.get('popup') === '1') return true; } catch {}
+      try {
+        if (window.opener && !window.opener.closed) return true;
+      } catch {}
+      try {
+        if (window.name && window.name.toLowerCase() === "oauth_popup")
+          return true;
+      } catch {}
+      try {
+        const q = new URLSearchParams(window.location.search);
+        if (q.get("popup") === "1") return true;
+      } catch {}
       return false;
     })();
 
@@ -262,9 +296,9 @@ const RootComponent = () => {
       if (processed) return;
       processed = true;
       try {
-        const next = new URL('/login', window.location.origin);
-        next.searchParams.set('accessToken', accessToken);
-        next.searchParams.set('refreshToken', refreshToken);
+        const next = new URL("/login", window.location.origin);
+        next.searchParams.set("accessToken", accessToken);
+        next.searchParams.set("refreshToken", refreshToken);
         window.location.assign(next.toString());
       } catch (err) {
         void err;
@@ -273,13 +307,22 @@ const RootComponent = () => {
 
     const storageHandler = (e: StorageEvent) => {
       if (!e) return;
-      if (e.key === 'OAUTH_RESULT' && e.newValue) {
-        let parsed: { isModalLogin?: boolean; type?: string; data?: { accessToken?: string; refreshToken?: string } } | null = null;
+      if (e.key === "OAUTH_RESULT" && e.newValue) {
+        let parsed: {
+          isModalLogin?: boolean;
+          type?: string;
+          data?: { accessToken?: string; refreshToken?: string };
+        } | null = null;
         try {
           parsed = JSON.parse(e.newValue);
           // Only process page-level OAuth (isModalLogin === false), NOT modal OAuth
-          if (parsed?.isModalLogin === false && parsed?.type === 'oauth_success' && parsed?.data) {
-            const data: { accessToken?: string; refreshToken?: string } = parsed.data || {};
+          if (
+            parsed?.isModalLogin === false &&
+            parsed?.type === "oauth_success" &&
+            parsed?.data
+          ) {
+            const data: { accessToken?: string; refreshToken?: string } =
+              parsed.data || {};
             const { accessToken, refreshToken } = data;
             if (accessToken && refreshToken) {
               redirectWithTokens(accessToken, refreshToken);
@@ -290,7 +333,11 @@ const RootComponent = () => {
         } finally {
           // Clean up if it was a page-level login
           if (parsed?.isModalLogin === false) {
-            try { localStorage.removeItem('OAUTH_RESULT'); } catch (err) { void err; }
+            try {
+              localStorage.removeItem("OAUTH_RESULT");
+            } catch (err) {
+              void err;
+            }
           }
         }
       }
@@ -298,14 +345,19 @@ const RootComponent = () => {
 
     let bc: BroadcastChannel | null = null;
     try {
-      if (typeof BroadcastChannel !== 'undefined') {
-        bc = new BroadcastChannel('OAUTH_CHANNEL');
+      if (typeof BroadcastChannel !== "undefined") {
+        bc = new BroadcastChannel("OAUTH_CHANNEL");
         bc.onmessage = (ev: MessageEvent) => {
           const msg = ev?.data;
-          if (!msg || typeof msg !== 'object') return;
+          if (!msg || typeof msg !== "object") return;
           // Only process page-level OAuth (isModalLogin === false), NOT modal OAuth
-          if (msg.isModalLogin === false && msg.type === 'oauth_success' && msg.data) {
-            const data: { accessToken?: string; refreshToken?: string } = msg.data || {};
+          if (
+            msg.isModalLogin === false &&
+            msg.type === "oauth_success" &&
+            msg.data
+          ) {
+            const data: { accessToken?: string; refreshToken?: string } =
+              msg.data || {};
             const { accessToken, refreshToken } = data;
             if (accessToken && refreshToken) {
               redirectWithTokens(accessToken, refreshToken);
@@ -319,12 +371,17 @@ const RootComponent = () => {
 
     // Immediate check in case popup wrote before listeners attached
     try {
-      const existing = localStorage.getItem('OAUTH_RESULT');
+      const existing = localStorage.getItem("OAUTH_RESULT");
       if (existing) {
         const parsed = JSON.parse(existing);
         // Only process page-level OAuth (isModalLogin === false), NOT modal OAuth
-        if (parsed?.isModalLogin === false && parsed?.type === 'oauth_success' && parsed?.data) {
-          const data: { accessToken?: string; refreshToken?: string } = parsed.data || {};
+        if (
+          parsed?.isModalLogin === false &&
+          parsed?.type === "oauth_success" &&
+          parsed?.data
+        ) {
+          const data: { accessToken?: string; refreshToken?: string } =
+            parsed.data || {};
           const { accessToken, refreshToken } = data;
           if (accessToken && refreshToken) {
             redirectWithTokens(accessToken, refreshToken);
@@ -332,25 +389,29 @@ const RootComponent = () => {
         }
         // Only remove if it was a page-level login
         if (parsed?.isModalLogin === false) {
-          localStorage.removeItem('OAUTH_RESULT');
+          localStorage.removeItem("OAUTH_RESULT");
         }
       }
     } catch (err) {
       void err;
     }
 
-    window.addEventListener('storage', storageHandler);
+    window.addEventListener("storage", storageHandler);
     return () => {
-      window.removeEventListener('storage', storageHandler);
-      try { if (bc) bc.close(); } catch (err) { void err; }
+      window.removeEventListener("storage", storageHandler);
+      try {
+        if (bc) bc.close();
+      } catch (err) {
+        void err;
+      }
     };
   }, []);
 
   return (
-    <>
+    <ChatbotProvider>
       <Outlet />
-      <ChatbotWidget />
-    </>
+      <ChatbotPanel />
+    </ChatbotProvider>
   );
 };
 
@@ -360,7 +421,7 @@ export const Route = createRootRouteWithContext<{
   beforeLoad: async ({ location }) => {
     console.log("[__root] Checking route:", location.pathname);
     console.log("[__root] Is public route:", isPublicRoute(location.pathname));
-    
+
     // Skip all logic for public routes - they should work without any redirects
     if (isPublicRoute(location.pathname)) {
       console.log("[__root] Route is public, skipping authentication check");
