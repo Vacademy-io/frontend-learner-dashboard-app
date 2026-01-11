@@ -2,9 +2,7 @@ import { getUserId } from "@/constants/getUserId";
 import { Preferences } from "@capacitor/preferences";
 import axios from "axios";
 
-const AI_SERVICE_BASE_URL =
-  import.meta.env.VITE_AI_SERVICE_BASE_URL ||
-  "http://localhost:8077/ai-service";
+const AI_SERVICE_BASE_URL = "https://backend-stage.vacademy.io/ai-service";
 
 export type ContextType = "slide" | "course_details" | "general";
 export type MessageType = "user" | "assistant" | "tool_call" | "tool_result";
