@@ -49,6 +49,21 @@ const CourseCatalougePage: React.FC<CourseCatalougePageProps> = ({ instituteId }
     const autoOpenLogin = urlParams.get('login') === 'true';
     const autoOpenDonation = urlParams.get('donation') === 'true';
 
+    const getSortPayload = (sort: string) => {
+        switch (sort) {
+            case "Newest":
+                return { createdAt: "DESC" };
+            case "Oldest":
+                return { createdAt: "ASC" };
+            // case "Popularity":
+            //     return { minPlanActualPrice: "ASC" };
+            // case "Rating":
+            //     return { rating: "DESC" };
+            default:
+                return { createdAt: "DESC" };
+        }
+    };
+
     //api call to store the courses details
 
     const fetchPackages = async (search = "") => {
@@ -63,6 +78,7 @@ const CourseCatalougePage: React.FC<CourseCatalougePageProps> = ({ instituteId }
                     tag: [],
                     min_percentage_completed: 0,
                     max_percentage_completed: 0,
+                    sort_columns: getSortPayload(sortOption),
                 },
                 {
                     params: {
@@ -108,6 +124,7 @@ const CourseCatalougePage: React.FC<CourseCatalougePageProps> = ({ instituteId }
                     tag: selectedTags,
                     min_percentage_completed: 0,
                     max_percentage_completed: 0,
+                    sort_columns: getSortPayload(sortOption),
                 },
                 {
                     params: {
@@ -165,25 +182,14 @@ const CourseCatalougePage: React.FC<CourseCatalougePageProps> = ({ instituteId }
 
         const fetchInstructor = async () => {
             try {
-                const response = await axios.post(
-                    `${urlInstructor}`,
+                const response = await axios.get(
+                    `${urlInstructor}/${instituteId}`,
                     {
-                        roles: [
-                            "TEACHER",
-                            "ADMIN",
-                            "COURSE CREATOR",
-                            "ASSESSMENT CREATOR",
-                            "EVALUATOR",
-                        ],
-                        status: ["ACTIVE"],
-                    },
-                    {
-                        headers: {
-                            Accept: "*/*",
-                            "Content-Type": "application/json",
-                        },
                         params: {
                             instituteId,
+                        },
+                        headers: {
+                            accept: "*/*",
                         },
                     }
                 );
@@ -198,6 +204,14 @@ const CourseCatalougePage: React.FC<CourseCatalougePageProps> = ({ instituteId }
 
     useEffect(() => {
         const redirectToDashboardIfAuthenticated = async () => {
+            // CRITICAL FIX: If pending payment exists, do not redirect.
+            // Let CartComponent handle the flow.
+            const pendingOrderId = localStorage.getItem("pendingOrderId");
+            if (pendingOrderId) {
+                console.log("[CourseCataloguePage] Pending payment detected. Skipping auto-redirect.");
+                return;
+            }
+
             const token = await getTokenFromStorage(TokenKey.accessToken);
             const studentDetails = await Preferences.get({
                 key: "StudentDetails",

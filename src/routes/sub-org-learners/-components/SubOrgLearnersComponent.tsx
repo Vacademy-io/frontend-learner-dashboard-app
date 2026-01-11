@@ -9,19 +9,25 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
-import { Plus, Trash2, Users, RefreshCw } from 'lucide-react';
+import { Plus, Trash2, Users, RefreshCw, X, Check, ChevronsUpDown } from 'lucide-react';
+import { Command, CommandEmpty, CommandGroup, CommandItem, CommandList } from '@/components/ui/command';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
+import PhoneInput from "react-phone-input-2";
+import "react-phone-input-2/lib/bootstrap.css";
 
 interface SubOrgLearnersComponentProps {
   adminMappings: AdminMappings[];
+  instituteDetails: any;
 }
 
-export function SubOrgLearnersComponent({ adminMappings }: SubOrgLearnersComponentProps) {
+export function SubOrgLearnersComponent({ adminMappings, instituteDetails }: SubOrgLearnersComponentProps) {
   const [selectedPackageSession, setSelectedPackageSession] = useState<string>('');
   const [members, setMembers] = useState<StudentMapping[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isAdding, setIsAdding] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
 
@@ -35,7 +41,7 @@ export function SubOrgLearnersComponent({ adminMappings }: SubOrgLearnersCompone
     expiry_date: format(new Date(Date.now() + 365 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd'), // 1 year from now
     institute_enrollment_number: '',
     status: 'ACTIVE' as const,
-    comma_separated_org_roles: 'LEARNER,STUDENT',
+    comma_separated_org_roles: ''
   });
 
   useEffect(() => {
@@ -74,8 +80,13 @@ export function SubOrgLearnersComponent({ adminMappings }: SubOrgLearnersCompone
       return;
     }
 
-    if (!formData.email || !formData.full_name) {
-      toast.error('Email and full name are required');
+    if (!formData.email || !formData.full_name || !formData.mobile_number) {
+      toast.error('Email, full name, and mobile number are required');
+      return;
+    }
+
+    if (!formData.comma_separated_org_roles) {
+      toast.error('At least one organization role is required');
       return;
     }
 
@@ -103,6 +114,7 @@ export function SubOrgLearnersComponent({ adminMappings }: SubOrgLearnersCompone
       return;
     }
 
+    setIsAdding(true);
     try {
       const memberData: AddMemberRequest = {
         user: {
@@ -114,10 +126,10 @@ export function SubOrgLearnersComponent({ adminMappings }: SubOrgLearnersCompone
         package_session_id: selectedPackageSession,
         sub_org_id: selectedMapping.sub_org_id,
         institute_id: selectedMapping.institute_id,
-        enrolled_date: formData.enrolled_date,
-        expiry_date: formData.expiry_date,
+        enrolled_date: selectedMapping.enrolled_date ? String(selectedMapping.enrolled_date) : formData.enrolled_date,
+        expiry_date: selectedMapping.expiry_date ? String(selectedMapping.expiry_date) : formData.expiry_date,
         institute_enrollment_number: formData.institute_enrollment_number || undefined,
-        status: formData.status,
+        status: 'ACTIVE',
         comma_separated_org_roles: formData.comma_separated_org_roles,
       };
 
@@ -133,13 +145,15 @@ export function SubOrgLearnersComponent({ adminMappings }: SubOrgLearnersCompone
         expiry_date: format(new Date(Date.now() + 365 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd'),
         institute_enrollment_number: '',
         status: 'ACTIVE',
-        comma_separated_org_roles: 'LEARNER,STUDENT',
+        comma_separated_org_roles: '',
       });
 
       setIsAddModalOpen(false);
       loadMembers(); // Refresh the list
     } catch (error) {
       console.error('Error adding member:', error);
+    } finally {
+      setIsAdding(false);
     }
   };
 
@@ -190,7 +204,6 @@ export function SubOrgLearnersComponent({ adminMappings }: SubOrgLearnersCompone
       setSelectedMembers([]);
     }
   };
-
   // Validation functions
   const validateEmail = (email: string): boolean => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -209,6 +222,32 @@ export function SubOrgLearnersComponent({ adminMappings }: SubOrgLearnersCompone
   const validateUsername = (username: string): boolean => {
     // Username must be lowercase only (no capital letters)
     return /^[a-z0-9_]+$/.test(username) && username === username.toLowerCase();
+  };
+
+  // Get package session name from package session ID
+  const getPackageSessionName = (packageSessionId: string): string => {
+    if (!instituteDetails?.batches_for_sessions) {
+      return packageSessionId;
+    }
+
+    const batch = instituteDetails.batches_for_sessions.find(
+      (b: any) => b.id === packageSessionId
+    );
+
+    if (!batch) {
+      return packageSessionId;
+    }
+
+    const packageName = batch.package_dto?.package_name || '';
+    let levelName = batch.level?.level_name || '';
+    let sessionName = batch.session?.session_name || '';
+
+    if (batch.level?.id === 'DEFAULT') levelName = '';
+    if (batch.session?.id === 'DEFAULT') sessionName = '';
+
+    // Format: "Package Name - Level Name - Session Name"
+    const parts = [packageName, levelName, sessionName].filter(Boolean);
+    return parts.length > 0 ? parts.join(' - ') : packageSessionId;
   };
 
   const getStatusColor = (status: string) => {
@@ -233,8 +272,8 @@ export function SubOrgLearnersComponent({ adminMappings }: SubOrgLearnersCompone
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Sub-Organization Learner Management</h1>
-          <p className="text-gray-600 mt-1">Manage learners for your sub-organization</p>
+          <h1 className="text-2xl font-bold text-gray-900">{(adminMappings.find(m => m.package_session_id === selectedPackageSession) || adminMappings[0])?.sub_org_details?.institute_name || 'Sub Organization'}</h1>
+          <p className="text-gray-600 mt-1">Manage learners for your {(adminMappings.find(m => m.package_session_id === selectedPackageSession) || adminMappings[0])?.sub_org_details?.institute_name || 'Sub Organization'}</p>
         </div>
         <div className="flex items-center gap-3">
           <Button onClick={loadMembers} variant="outline" size="sm">
@@ -275,21 +314,29 @@ export function SubOrgLearnersComponent({ adminMappings }: SubOrgLearnersCompone
                     id="full_name"
                     value={formData.full_name}
                     onChange={(e) => setFormData(prev => ({ ...prev, full_name: e.target.value }))}
-                    placeholder="John Doe"
+                    placeholder="Enter full name"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="mobile_number">Mobile Number <span className="text-xs text-gray-500">(with country code)</span></Label>
-                  <Input
-                    id="mobile_number"
-                    value={formData.mobile_number}
-                    onChange={(e) => setFormData(prev => ({ ...prev, mobile_number: e.target.value }))}
-                    placeholder="+1 234 567 8900"
-                    className={formData.mobile_number && !validatePhoneNumber(formData.mobile_number) ? "border-red-500" : ""}
-                  />
+                  <Label htmlFor="mobile_number">Mobile Number * <span className="text-xs text-gray-500">(with country code)</span></Label>
+                  <div className={formData.mobile_number && !validatePhoneNumber(formData.mobile_number) ? "phone-input-error" : ""}>
+                    <PhoneInput
+                      country={'au'}
+                      value={formData.mobile_number}
+                      onChange={(phone) => setFormData(prev => ({ ...prev, mobile_number: phone.startsWith('+') ? phone : `+${phone}` }))}
+                      enableSearch={true}
+                      placeholder="+1 234 567 8900"
+                      inputClass="!w-full h-10 !rounded-md !border-input"
+                      buttonClass="!rounded-l-md !border-input"
+                      countryCodeEditable={false}
+                      enableAreaCodes={true}
+                      disableCountryGuess={false}
+                      preferredCountries={["us", "gb", "in", "au"]}
+                    />
+                  </div>
                   {formData.mobile_number && !validatePhoneNumber(formData.mobile_number) && (
                     <p className="text-xs text-red-600 mt-1">
-                      Please enter a valid phone number with country code
+                      Please enter a valid phone number
                     </p>
                   )}
                 </div>
@@ -308,7 +355,7 @@ export function SubOrgLearnersComponent({ adminMappings }: SubOrgLearnersCompone
                     </p>
                   )}
                 </div>
-                <div>
+                {/* <div>
                   <Label htmlFor="enrolled_date">Enrolled Date</Label>
                   <Input
                     id="enrolled_date"
@@ -316,8 +363,8 @@ export function SubOrgLearnersComponent({ adminMappings }: SubOrgLearnersCompone
                     value={formData.enrolled_date}
                     onChange={(e) => setFormData(prev => ({ ...prev, enrolled_date: e.target.value }))}
                   />
-                </div>
-                <div>
+                </div> */}
+                {/* <div>
                   <Label htmlFor="expiry_date">Expiry Date</Label>
                   <Input
                     id="expiry_date"
@@ -325,17 +372,17 @@ export function SubOrgLearnersComponent({ adminMappings }: SubOrgLearnersCompone
                     value={formData.expiry_date}
                     onChange={(e) => setFormData(prev => ({ ...prev, expiry_date: e.target.value }))}
                   />
-                </div>
+                </div> */}
                 <div>
                   <Label htmlFor="enrollment_number">Enrollment Number</Label>
                   <Input
                     id="enrollment_number"
                     value={formData.institute_enrollment_number}
                     onChange={(e) => setFormData(prev => ({ ...prev, institute_enrollment_number: e.target.value }))}
-                    placeholder="ENR001"
+                    placeholder="Enter the enrollment number"
                   />
                 </div>
-                <div>
+                {/* <div>
                   <Label htmlFor="status">Status</Label>
                   <Select value={formData.status} onValueChange={(value: any) => setFormData(prev => ({ ...prev, status: value }))}>
                     <SelectTrigger className="w-full">
@@ -348,22 +395,95 @@ export function SubOrgLearnersComponent({ adminMappings }: SubOrgLearnersCompone
                       <SelectItem value="PENDING_FOR_APPROVAL">Pending Approval</SelectItem>
                     </SelectContent>
                   </Select>
-                </div>
+                </div> */}
                 <div>
-                  <Label htmlFor="roles">Organization Roles</Label>
-                  <Input
-                    id="roles"
-                    value={formData.comma_separated_org_roles}
-                    onChange={(e) => setFormData(prev => ({ ...prev, comma_separated_org_roles: e.target.value }))}
-                    placeholder="LEARNER,STUDENT"
-                  />
+                  <Label htmlFor="roles">Organization Roles *</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <div className="flex min-h-[40px] w-full flex-wrap items-center justify-between rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer">
+                        <div className="flex flex-wrap gap-1">
+                          {formData.comma_separated_org_roles.split(',').filter(Boolean).length > 0 ? (
+                            formData.comma_separated_org_roles.split(',').filter(Boolean).map((role) => (
+                              <Badge key={role} variant="secondary" className="mr-1 mb-1">
+                                {role}
+                                <button
+                                  className="ml-1 ring-offset-background rounded-full outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter") {
+                                      const currentRoles = formData.comma_separated_org_roles.split(',').filter(Boolean);
+                                      const newRoles = currentRoles.filter((r) => r !== role);
+                                      setFormData(prev => ({ ...prev, comma_separated_org_roles: newRoles.join(',') }));
+                                    }
+                                  }}
+                                  onMouseDown={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                  }}
+                                  onClick={() => {
+                                    const currentRoles = formData.comma_separated_org_roles.split(',').filter(Boolean);
+                                    const newRoles = currentRoles.filter((r) => r !== role);
+                                    setFormData(prev => ({ ...prev, comma_separated_org_roles: newRoles.join(',') }));
+                                  }}
+                                >
+                                  <X className="h-3 w-3 text-muted-foreground hover:text-foreground" />
+                                </button>
+                              </Badge>
+                            ))
+                          ) : (
+                            <span className="text-muted-foreground">Select the Roles</span>
+                          )}
+                        </div>
+                        <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-50" />
+                      </div>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                      <Command>
+                        <CommandList>
+                          <CommandEmpty>No role found.</CommandEmpty>
+                          <CommandGroup>
+                            {['LEARNER', 'ADMIN'].map((role) => {
+                              const currentRoles = formData.comma_separated_org_roles.split(',').filter(Boolean);
+                              const isSelected = currentRoles.includes(role);
+                              return (
+                                <CommandItem
+                                  key={role}
+                                  value={role}
+                                  onSelect={(currentValue) => {
+                                    const selectedRole = currentValue.toUpperCase(); // Command might lowercase values, ensure uppercase for consistency if needed, but 'value' prop handles matching too. standardizing on map value
+                                    // Actually command passes the value as lowercase usually to onSelect. Stick to using the map 'role' variable.
+                                    console.log(selectedRole); // using the variable to avoid lint error
+
+                                    let newRoles;
+                                    if (isSelected) {
+                                      newRoles = currentRoles.filter((r) => r !== role);
+                                    } else {
+                                      newRoles = [...currentRoles, role];
+                                    }
+                                    setFormData(prev => ({ ...prev, comma_separated_org_roles: newRoles.join(',') }));
+                                  }}
+                                >
+                                  <Check
+                                    className={cn(
+                                      "mr-2 h-4 w-4",
+                                      isSelected ? "opacity-100" : "opacity-0"
+                                    )}
+                                  />
+                                  {role}
+                                </CommandItem>
+                              );
+                            })}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
                 </div>
                 <div className="flex flex-col sm:flex-row justify-end gap-3 pt-4">
-                  <Button variant="outline" onClick={() => setIsAddModalOpen(false)} className="w-full sm:w-auto">
+                  <Button variant="outline" onClick={() => setIsAddModalOpen(false)} className="w-full sm:w-auto" disabled={isAdding}>
                     Cancel
                   </Button>
-                  <Button onClick={handleAddMember} className="w-full sm:w-auto">
-                    Add Learner
+                  <Button onClick={handleAddMember} className="w-full sm:w-auto" disabled={isAdding}>
+                    {isAdding ? 'Adding...' : 'Add Learner'}
                   </Button>
                 </div>
               </div>
@@ -373,7 +493,7 @@ export function SubOrgLearnersComponent({ adminMappings }: SubOrgLearnersCompone
       </div>
 
       {/* Package Session Selector */}
-      {adminMappings.length > 1 && (
+      {adminMappings.length > 1 ? (
         <Card>
           <CardHeader>
             <CardTitle className="text-lg">Select Package Session</CardTitle>
@@ -386,14 +506,25 @@ export function SubOrgLearnersComponent({ adminMappings }: SubOrgLearnersCompone
               <SelectContent>
                 {adminMappings.map((mapping) => (
                   <SelectItem key={mapping.package_session_id} value={mapping.package_session_id}>
-                    Package Session: {mapping.package_session_id}
+                    {getPackageSessionName(mapping.package_session_id)}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </CardContent>
         </Card>
-      )}
+      ) : adminMappings.length === 1 && selectedPackageSession ? (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Package Session</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-gray-700 font-medium">
+              {getPackageSessionName(selectedPackageSession)}
+            </p>
+          </CardContent>
+        </Card>
+      ) : null}
 
       {/* Members Table */}
       <Card>
@@ -404,6 +535,11 @@ export function SubOrgLearnersComponent({ adminMappings }: SubOrgLearnersCompone
                 <Users className="w-5 h-5" />
                 Learners ({members.length})
               </CardTitle>
+              {selectedPackageSession && (
+                <p className="text-sm text-gray-600 mt-1">
+                  {getPackageSessionName(selectedPackageSession)}
+                </p>
+              )}
               {selectedMembers.length > 0 && (
                 <p className="text-sm text-gray-600 mt-1">
                   {selectedMembers.length} learner{selectedMembers.length > 1 ? 's' : ''} selected
@@ -445,8 +581,8 @@ export function SubOrgLearnersComponent({ adminMappings }: SubOrgLearnersCompone
                     <TableHead>Email</TableHead>
                     <TableHead>Mobile</TableHead>
                     <TableHead>Enrollment Number</TableHead>
-                    <TableHead>Enrolled Date</TableHead>
-                    <TableHead>Expiry Date</TableHead>
+                    {/* <TableHead>Enrolled Date</TableHead> */}
+                    {/* <TableHead>Expiry Date</TableHead> */}
                     <TableHead>Status</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -463,12 +599,12 @@ export function SubOrgLearnersComponent({ adminMappings }: SubOrgLearnersCompone
                       <TableCell>{member.user.email}</TableCell>
                       <TableCell>{member.user.mobile_number || '-'}</TableCell>
                       <TableCell>{member.institute_enrollment_number || '-'}</TableCell>
-                      <TableCell>
+                      {/* <TableCell>
                         {member.enrolled_date ? format(new Date(member.enrolled_date), 'MMM dd, yyyy') : '-'}
                       </TableCell>
                       <TableCell>
                         {member.expiry_date ? format(new Date(member.expiry_date), 'MMM dd, yyyy') : '-'}
-                      </TableCell>
+                      </TableCell> */}
                       <TableCell>
                         <Badge className={getStatusColor(member.status)}>
                           {member.status}

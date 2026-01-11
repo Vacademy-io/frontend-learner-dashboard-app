@@ -9,8 +9,7 @@ import { CourseCatalogueService } from "../../-services/course-catalogue-service
 import { CourseCatalogueData } from "../../-types/course-catalogue-types";
 import { CourseStructureDetails } from "../../-components/CourseStructureDetails"; // Course structure component
 import { EnrollmentPaymentDialog } from "../../-components/EnrollmentPaymentDialog";
-import { getBackendCourseDuration, formatMinutesHuman } from "@/utils/courseTime";
-
+import { getBackendCourseDuration } from "@/utils/courseTime";
 
 interface CourseDetailsPageProps {
   courseId: string;
@@ -57,6 +56,10 @@ interface CourseData {
   enrollInviteId?: string;
   levelId?: string;
   courseId?: string;
+  course_banner_media_id?: string;
+  comma_separeted_tags?: string;
+  course_html_description_html?: string;
+  about_the_course_html?: string;
 }
 
 export const CourseDetailsPage: React.FC<CourseDetailsPageProps> = ({
@@ -69,41 +72,34 @@ export const CourseDetailsPage: React.FC<CourseDetailsPageProps> = ({
   bannerImage,
   level,
 }) => {
-  console.log("=== CourseDetailsPage RENDERED ===");
   const navigate = useNavigate();
   const domainRouting = useDomainRouting();
   const [courseData, setCourseData] = useState<CourseData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Debug logging for image data
-  useEffect(() => {
-    if (courseData) {
-      console.log("[CourseDetailsPage] Course data updated:", {
-        thumbnail: courseData.thumbnail,
-        title: courseData.title,
-        bannerImage: bannerImage
-      });
-    }
-  }, [courseData, bannerImage]);
-
-
   const getCardStyling = () => {
     if (!catalogueData?.globalSettings) {
       return {
-        hover: { shadow: true, scale: 1.05 }
+        hover: { shadow: true, scale: 1.05 },
       };
     }
 
     const globalSettings = catalogueData.globalSettings as any;
-    
+
     // Find course details page styling
-    const detailsPage = globalSettings.pages?.find((page: any) => page.id === "details");
-    return detailsPage?.components?.[0]?.style?.card || { hover: { shadow: true, scale: 1.05 } };
+    const detailsPage = globalSettings.pages?.find(
+      (page: any) => page.id === "details"
+    );
+    return (
+      detailsPage?.components?.[0]?.style?.card || {
+        hover: { shadow: true, scale: 1.05 },
+      }
+    );
   };
   const [showLeadCollection, setShowLeadCollection] = useState(false);
   const [catalogueData, setCatalogueData] = useState<CourseCatalogueData | null>(null);
-  
+
   // Debug catalogue data changes
   useEffect(() => {
     console.log("[CourseDetailsPage] Catalogue data loaded:", !!catalogueData);
@@ -114,20 +110,28 @@ export const CourseDetailsPage: React.FC<CourseDetailsPageProps> = ({
   useEffect(() => {
     const fetchCatalogueData = async () => {
       try {
-        console.log("[CourseDetailsPage] Fetching catalogue data for:", { instituteId, tagName });
-        const data = await CourseCatalogueService.getCourseCatalogueByTag(instituteId, tagName);
-        console.log("[CourseDetailsPage] Catalogue data received:", data);
+        const data = await CourseCatalogueService.getCourseCatalogueByTag(
+          instituteId,
+          tagName
+        );
         setCatalogueData(data);
       } catch (error) {
-        console.error("[CourseDetailsPage] Failed to fetch catalogue data:", error);
+        console.error(
+          "[CourseDetailsPage] Failed to fetch catalogue data:",
+          error
+        );
         console.error("[CourseDetailsPage] Error details:", {
-          message: error instanceof Error ? error.message : 'Unknown error',
+          message: error instanceof Error ? error.message : "Unknown error",
           stack: error instanceof Error ? error.stack : undefined,
-          response: (error as any)?.response?.data
+          response: (error as any)?.response?.data,
         });
         // Set empty catalogue data as fallback
         setCatalogueData({
           globalSettings: {
+            courseCatalogeType: {
+              enabled: false,
+              value: "",
+            },
             mode: "light",
             compactness: "medium",
             audience: "all",
@@ -139,21 +143,21 @@ export const CourseDetailsPage: React.FC<CourseDetailsPageProps> = ({
                 type: "single",
                 showProgress: false,
                 progressType: "bar",
-                transition: "slide"
+                transition: "slide",
               },
-              fields: []
+              fields: [],
             },
             enrquiry: {
               enabled: true,
-              requirePayment: false
+              requirePayment: false,
             },
             payment: {
               enabled: true,
               provider: "razorpay",
-              fields: []
-            }
+              fields: [],
+            },
           },
-          pages: []
+          pages: [],
         });
       }
     };
@@ -163,15 +167,45 @@ export const CourseDetailsPage: React.FC<CourseDetailsPageProps> = ({
     }
   }, [instituteId, tagName]);
 
+  // Apply font from JSON if fonts.enabled is true
+  useEffect(() => {
+    const fonts = catalogueData?.globalSettings?.fonts;
+
+    if (!fonts?.enabled || !fonts?.family) {
+      document.body.style.fontFamily =
+        "'Figtree', system-ui, -apple-system, Segoe UI, Roboto, sans-serif";
+      return;
+    }
+
+    const fontFamily = fonts.family.trim();
+    const primaryFont = fontFamily.split(",")[0].replace(/['"]/g, "").trim();
+
+    // Create Google Fonts link
+    const link = document.createElement("link");
+    link.rel = "stylesheet";
+    link.href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(
+      primaryFont
+    )}:wght@300;400;500;600;700&display=swap`;
+
+    // Append link only once
+    if (!document.querySelector(`link[href="${link.href}"]`)) {
+      document.head.appendChild(link);
+    }
+
+    // Apply font exactly as specified in JSON
+    document.body.style.fontFamily = fontFamily;
+    document.documentElement.style.setProperty("--app-font-family", fontFamily);
+  }, [catalogueData]);
+
   // Fetch course details
   useEffect(() => {
     const fetchCourseDetails = async () => {
       try {
         setIsLoading(true);
         console.log("[CourseDetailsPage] Fetching course details for:", { courseId, tagName, instituteId });
-        
+
         // First, fetch course details from /init API to get full course information
-        const initResponse = await axios.get(`${import.meta.env.VITE_BACKEND_URL || import.meta.env.VITE_API_BASE_URL || "https://backend-stage.vacademy.io"}/admin-core-service/open/v1/learner-study-library/init`, {
+        const initApiResponse = await axios.get(`${import.meta.env.VITE_BACKEND_URL || import.meta.env.VITE_API_BASE_URL || "https://backend-stage.vacademy.io"}/admin-core-service/open/v1/learner-study-library/init`, {
           params: {
             instituteId: instituteId,
             packageId: courseId,
@@ -181,12 +215,12 @@ export const CourseDetailsPage: React.FC<CourseDetailsPageProps> = ({
           },
         });
 
-        console.log("[CourseDetailsPage] Init API response:", initResponse.data);
+        console.log("[CourseDetailsPage] Init API response:", initApiResponse.data);
 
         // Find the course in the init response
-        const initData = initResponse.data;
+        const initData = initApiResponse.data;
         const courseResponse = initData.find((item: any) => item.course.id === courseId);
-        
+
         if (!courseResponse) {
           console.log("[CourseDetailsPage] Course not found in init response");
           setError("Course not found.");
@@ -197,7 +231,6 @@ export const CourseDetailsPage: React.FC<CourseDetailsPageProps> = ({
 
         // Check if course is published to catalogue
         if (course.is_course_published_to_catalaouge !== true) {
-          console.log("[CourseDetailsPage] Course is not published to catalogue, showing error");
           setError("This course is not available for public viewing.");
           return;
         }
@@ -215,23 +248,24 @@ export const CourseDetailsPage: React.FC<CourseDetailsPageProps> = ({
           course_depth: course.course_depth,
           is_course_published_to_catalaouge: course.is_course_published_to_catalaouge
         });
-        
+
         console.log("[CourseDetailsPage] Props from search API:", {
           enrollInviteId,
           packageSessionId
         });
-        
-        
+
+
         // Use banner image from props if available, otherwise use API fields (raw media IDs)
         let thumbnailUrl = "/api/placeholder/800/400";
         if (bannerImage) {
           thumbnailUrl = bannerImage;
-          console.log("[CourseDetailsPage] Using banner image from props:", thumbnailUrl);
         } else {
           // Fallback to API fields (raw media IDs, same priority as course catalog)
-          const thumbnailField = course.course_preview_image_media_id || course.course_banner_media_id || course.thumbnail_file_id;
+          const thumbnailField =
+            course.course_preview_image_media_id ||
+            course.course_banner_media_id ||
+            course.thumbnail_file_id;
           thumbnailUrl = thumbnailField || "/api/placeholder/800/400";
-          console.log("[CourseDetailsPage] Using raw media ID from API:", thumbnailUrl);
         }
 
         // For now, set price to 0 (free) since init API doesn't have pricing info
@@ -242,87 +276,134 @@ export const CourseDetailsPage: React.FC<CourseDetailsPageProps> = ({
         const parseHtmlContent = (htmlString: string) => {
           if (!htmlString) return "";
           // Remove HTML tags and decode entities for display
-          return htmlString.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim();
+          return htmlString
+            .replace(/<[^>]*>/g, "")
+            .replace(/&nbsp;/g, " ")
+            .trim();
         };
 
         // Extract learning outcomes from HTML content
         const extractLearningOutcomes = (htmlContent: string) => {
           if (!htmlContent) return ["Learn practical skills", "Apply knowledge in real projects", "Gain industry insights"];
-          
+
           // Try to extract bullet points or list items
           const listItems = htmlContent.match(/<li[^>]*>(.*?)<\/li>/g);
           if (listItems && listItems.length > 0) {
-            return listItems.map(item => parseHtmlContent(item));
+            return listItems.map((item) => parseHtmlContent(item));
           }
-          
+
           // Try to extract content between <strong> tags
-          const strongItems = htmlContent.match(/<strong[^>]*>(.*?)<\/strong>/g);
+          const strongItems = htmlContent.match(
+            /<strong[^>]*>(.*?)<\/strong>/g
+          );
           if (strongItems && strongItems.length > 0) {
-            return strongItems.map(item => parseHtmlContent(item));
+            return strongItems.map((item) => parseHtmlContent(item));
           }
-          
+
           // Fallback to splitting by sentences
-          return parseHtmlContent(htmlContent).split('.').filter(s => s.trim().length > 10).slice(0, 5);
+          return parseHtmlContent(htmlContent)
+            .split(".")
+            .filter((s) => s.trim().length > 10)
+            .slice(0, 5);
         };
 
         // Parse comma-separated tags
         const parseTags = (tagsString: string) => {
           if (!tagsString) return [];
-          return tagsString.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0);
+          return tagsString
+            .split(",")
+            .map((tag) => tag.trim())
+            .filter((tag) => tag.length > 0);
         };
-
-
-
-        // Debug logging for description fields
-        console.log("[CourseDetailsPage] Description debug:", {
-          course_html_description: course.course_html_description,
-          parsed_html_description: parseHtmlContent(course.course_html_description),
-          final_description: parseHtmlContent(course.course_html_description) || null
-        });
 
         // Transform API response to CourseData interface
         const courseData: CourseData = {
           id: course.id || courseId,
           title: course.package_name || "Untitled Course",
           description: parseHtmlContent(course.course_html_description) || null,
-          duration: courseResponse.sessions?.[0]?.level_with_details?.[0]?.read_time_in_minutes ? getBackendCourseDuration(courseResponse.sessions[0].level_with_details[0].read_time_in_minutes) : null,
-          instructor: courseResponse.sessions?.[0]?.level_with_details?.[0]?.instructors?.[0]?.full_name || null,
+          duration: courseResponse.sessions?.[0]?.level_with_details?.[0]
+            ?.read_time_in_minutes
+            ? getBackendCourseDuration(
+                courseResponse.sessions[0].level_with_details[0]
+                  .read_time_in_minutes
+              )
+            : null,
+          instructor:
+            courseResponse.sessions?.[0]?.level_with_details?.[0]
+              ?.instructors?.[0]?.full_name || null,
           price: finalPrice,
           type: "Course", // Generic type since it's not specified in the API
           level: level || "Basic",
           thumbnail: thumbnailUrl,
           // Add fields for hero section - use placeholder if no valid image
-          previewImage: (course.course_preview_image_media_id && course.course_preview_image_media_id !== null && course.course_preview_image_media_id !== 'null') ? course.course_preview_image_media_id : "/api/placeholder/400/300",
-          bannerImage: (course.course_banner_media_id && course.course_banner_media_id !== null && course.course_banner_media_id !== 'null') ? course.course_banner_media_id : "/api/placeholder/400/300",
-          fullDescription: parseHtmlContent(course.about_the_course) || parseHtmlContent(course.course_html_description) || "",
-          learningOutcomes: extractLearningOutcomes(course.who_should_learn || course.why_learn),
+          previewImage:
+            course.course_preview_image_media_id &&
+            course.course_preview_image_media_id !== null &&
+            course.course_preview_image_media_id !== "null"
+              ? course.course_preview_image_media_id
+              : "/api/placeholder/400/300",
+          bannerImage:
+            course.course_banner_media_id &&
+            course.course_banner_media_id !== null &&
+            course.course_banner_media_id !== "null"
+              ? course.course_banner_media_id
+              : "/api/placeholder/400/300",
+          fullDescription:
+            parseHtmlContent(course.about_the_course) ||
+            parseHtmlContent(course.course_html_description) ||
+            "",
+          learningOutcomes: extractLearningOutcomes(
+            course.who_should_learn || course.why_learn
+          ),
           requirements: [
             "Basic computer skills",
-            "Internet connection", 
+            "Internet connection",
             "Motivation to learn"
           ],
-          whoShouldLearn: parseHtmlContent(course.who_should_learn) || "Anyone interested in learning this subject",
-          whyLearn: parseHtmlContent(course.why_learn) || "Gain valuable skills and knowledge",
-          aboutCourse: parseHtmlContent(course.about_the_course) || parseHtmlContent(course.course_html_description) || null,
-          instructors: courseResponse.sessions?.[0]?.level_with_details?.[0]?.instructors?.map((inst: any) => ({
-            name: inst.full_name || "Unknown Instructor",
-            email: inst.email || "No email provided"
-          })) || [{
-            name: courseResponse.sessions?.[0]?.level_with_details?.[0]?.instructors?.[0]?.full_name || "Unknown Instructor",
-            email: courseResponse.sessions?.[0]?.level_with_details?.[0]?.instructors?.[0]?.email || "No email provided"
-          }],
+          whoShouldLearn:
+            parseHtmlContent(course.who_should_learn) ||
+            "Anyone interested in learning this subject",
+          whyLearn:
+            parseHtmlContent(course.why_learn) ||
+            "Gain valuable skills and knowledge",
+          aboutCourse:
+            parseHtmlContent(course.about_the_course) ||
+            parseHtmlContent(course.course_html_description) ||
+            null,
+          instructors:
+            courseResponse.sessions?.[0]?.level_with_details?.[0]?.instructors?.map(
+              (inst: any) => ({
+                name: inst.full_name || "Unknown Instructor",
+                email: inst.email || "No email provided",
+              })
+            ) || [
+              {
+                name:
+                  courseResponse.sessions?.[0]?.level_with_details?.[0]
+                    ?.instructors?.[0]?.full_name || "Unknown Instructor",
+                email:
+                  courseResponse.sessions?.[0]?.level_with_details?.[0]
+                    ?.instructors?.[0]?.email || "No email provided",
+              },
+            ],
           rating: course.rating || 0,
           tags: parseTags(course.tags || ""),
           curriculum: [], // No curriculum data available from API yet
           courseDepth: course.course_depth || 5, // Default to 5 to show full structure
-          packageSessionId: packageSessionId || course.package_session_id || courseId, // Use passed packageSessionId or fallback to API response
+          packageSessionId:
+            packageSessionId || course.package_session_id || courseId, // Use passed packageSessionId or fallback to API response
           enrollInviteId: enrollInviteId || course.enroll_invite_id, // Use passed enrollInviteId or fallback to API response
           levelId: course.level_id, // Add levelId from API response
-          courseId: course.course_id || courseId // Add courseId from API response or use the route param
-        };
-        
+          courseId: course.course_id || courseId, // Add courseId from API response or use the route param
+          course_banner_media_id: course.course_banner_media_id || "", // Explicitly pass the banner ID for BookDetailsComponent
+          // Preserve raw HTML fields for BookDetailsComponent
+          course_html_description_html: course.course_html_description || course.course_html_description_html || "",
+          about_the_course_html: course.about_the_course || course.about_the_course_html || "",
+          comma_separeted_tags: course.tags || course.comma_separeted_tags || ""
+        } as any;
+
         setCourseData(courseData);
-        
+
         // Debug: Log the courseData that was set
         console.log("[CourseDetailsPage] CourseData set with values:", {
           levelId: courseData.levelId,
@@ -331,12 +412,16 @@ export const CourseDetailsPage: React.FC<CourseDetailsPageProps> = ({
           levelIdFromAPI: course.level_id,
           courseIdFromAPI: course.course_id
         });
-        
+
         // Check if lead collection should be shown based on JSON configuration
         const globalSettings = catalogueData?.globalSettings as any;
         const leadCollectionConfig = globalSettings?.leadCollection;
-        
-        if (leadCollectionConfig?.enabled) {
+
+        // Check if form has already been submitted
+        const leadCollectionSubmittedKey = `leadCollectionSubmitted_${instituteId}_${tagName}`;
+        const hasSubmittedLeadCollection = localStorage.getItem(leadCollectionSubmittedKey) === 'true';
+
+        if (leadCollectionConfig?.enabled && !hasSubmittedLeadCollection) {
           setTimeout(() => {
             setShowLeadCollection(true);
           }, 2000);
@@ -357,31 +442,31 @@ export const CourseDetailsPage: React.FC<CourseDetailsPageProps> = ({
   // Apply institute theme
   useEffect(() => {
     if (instituteThemeCode) {
-      document.documentElement.setAttribute('data-theme', instituteThemeCode);
+      document.documentElement.setAttribute("data-theme", instituteThemeCode);
     }
   }, [instituteThemeCode]);
 
   // Listen for openLeadCollection event from HeaderComponent
   useEffect(() => {
     const handleOpenLeadCollection = () => {
-      console.log("[CourseDetailsPage] Received openLeadCollection event from HeaderComponent");
       setShowLeadCollection(true);
     };
 
     window.addEventListener('openLeadCollection', handleOpenLeadCollection);
-    
+
     return () => {
-      window.removeEventListener('openLeadCollection', handleOpenLeadCollection);
+      window.removeEventListener(
+        "openLeadCollection",
+        handleOpenLeadCollection
+      );
     };
   }, []);
 
   const handleLeadCollectionClose = () => {
-    console.log("[CourseDetailsPage] Closing lead collection modal, catalogueData:", catalogueData);
     setShowLeadCollection(false);
   };
 
   const handleLeadCollectionSubmit = () => {
-    console.log("[CourseDetailsPage] Lead collection form submitted");
     setShowLeadCollection(false);
   };
 
@@ -412,22 +497,18 @@ export const CourseDetailsPage: React.FC<CourseDetailsPageProps> = ({
 
   return (
     <div className="min-h-screen bg-white w-full">
-      {/* Debug Info */}
-      {console.log("CourseDetailsPage render state:", {
-        isLoading,
-        catalogueData: !!catalogueData,
-        showLeadCollection,
-        enrollmentDialogOpen: enrollmentDialogOpen
-      })}
-
       {/* Render header and footer - add them if not in JSON */}
       {!catalogueData && (
         <div className="container mx-auto p-8 text-center">
-          <h2 className="text-2xl font-semibold text-gray-900 mb-4">Loading Course Catalogue...</h2>
-          <p className="text-gray-600">Please wait while we load the course information.</p>
+          <h2 className="text-2xl font-semibold text-gray-900 mb-4">
+            Loading Course Catalogue...
+          </h2>
+          <p className="text-gray-600">
+            Please wait while we load the course information.
+          </p>
         </div>
       )}
-      
+
       {catalogueData && (
         <>
           {/* Header from JSON globalSettings */}
@@ -442,12 +523,15 @@ export const CourseDetailsPage: React.FC<CourseDetailsPageProps> = ({
               globalSettings={catalogueData.globalSettings}
               instituteId={instituteId}
               tagName={tagName}
+              catalogueData={catalogueData}
             />
           )}
-          
+
           {/* Render details page components from JSON */}
           {catalogueData.pages
-            ?.filter(page => page.id === "details" || page.route === "course-details")
+            ?.filter(
+              (page) => page.id === "details" || page.route === "course-details"
+            )
             ?.map((page) => (
               <JsonRenderer
                 key={page.id}
@@ -461,9 +545,8 @@ export const CourseDetailsPage: React.FC<CourseDetailsPageProps> = ({
         </>
       )}
 
-
       {/* Course Content */}
-      <div className="py-8 sm:py-12 bg-gray-50 w-full">
+      {(catalogueData?.globalSettings as any)?.courseCatalogeType?.enabled !== true && <div className="py-8 sm:py-12 pb-24 bg-gray-50 w-full">
         <div className="w-full px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
             {/* Main Content */}
@@ -484,8 +567,16 @@ export const CourseDetailsPage: React.FC<CourseDetailsPageProps> = ({
                     {/* Header */}
                     <div className="flex items-center space-x-2 mb-4">
                       <div className="p-1.5 bg-gradient-to-br from-primary-100 to-primary-200 rounded-lg shadow-sm">
-                        <svg className="w-4 h-4 text-primary-600" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M10 2L3 7v11a1 1 0 001 1h12a1 1 0 001-1V7l-7-5zM8 15V9h4v6H8z" clipRule="evenodd" />
+                        <svg
+                          className="w-4 h-4 text-primary-600"
+                          fill="currentColor"
+                          viewBox="0 0 20 20"
+                        >
+                          <path
+                            fillRule="evenodd"
+                            d="M10 2L3 7v11a1 1 0 001 1h12a1 1 0 001-1V7l-7-5zM8 15V9h4v6H8z"
+                            clipRule="evenodd"
+                          />
                         </svg>
                       </div>
                       <h2 className="text-base font-bold text-gray-900">
@@ -496,28 +587,34 @@ export const CourseDetailsPage: React.FC<CourseDetailsPageProps> = ({
                     {/* Course Stats */}
                     <div className="space-y-3">
                       {/* Price - Only show if payment is enabled */}
-                      {catalogueData?.globalSettings?.payment?.enabled !== false && (
+                      {catalogueData?.globalSettings?.payment?.enabled !==
+                        false && (
                         <div className="flex items-center justify-between p-2.5 bg-gradient-to-r from-primary-50 to-primary-100 rounded-lg border border-primary-200">
-                          <span className="text-xs font-medium text-primary-700">Price</span>
+                          <span className="text-xs font-medium text-primary-700">
+                            Price
+                          </span>
                           <span className="text-lg font-bold text-primary-800">
-                            {courseData.price === 0 ? "Free" : `$${courseData.price}`}
+                            {courseData.price === 0
+                              ? "Free"
+                              : `$${courseData.price}`}
                           </span>
                         </div>
                       )}
 
                       {/* Rating */}
                       <div className="flex items-center justify-between p-2.5 bg-gray-50/80 rounded-lg">
-                        <span className="text-xs font-medium text-gray-700">Rating</span>
+                        <span className="text-xs font-medium text-gray-700">
+                          Rating
+                        </span>
                         <div className="flex items-center space-x-1">
                           <div className="flex items-center">
                             {[1, 2, 3, 4, 5].map((star) => (
                               <svg
                                 key={star}
-                                className={`w-3 h-3 ${
-                                  star <= Math.floor(courseData.rating)
-                                    ? "text-yellow-400"
-                                    : "text-gray-300"
-                                }`}
+                                className={`w-3 h-3 ${star <= Math.floor(courseData.rating)
+                                  ? "text-yellow-400"
+                                  : "text-gray-300"
+                                  }`}
                                 fill="currentColor"
                                 viewBox="0 0 20 20"
                               >
@@ -526,14 +623,18 @@ export const CourseDetailsPage: React.FC<CourseDetailsPageProps> = ({
                             ))}
                           </div>
                           <span className="text-xs font-bold text-gray-900">
-                            {courseData.rating > 0 ? courseData.rating.toFixed(1) : "No rating"}
+                            {courseData.rating > 0
+                              ? courseData.rating.toFixed(1)
+                              : "No rating"}
                           </span>
                         </div>
                       </div>
 
                       {/* Level */}
                       <div className="flex items-center justify-between p-2.5 bg-gray-50/80 rounded-lg">
-                        <span className="text-xs font-medium text-gray-700">Level</span>
+                        <span className="text-xs font-medium text-gray-700">
+                          Level
+                        </span>
                         <span className="text-xs font-bold text-gray-900 bg-white px-2 py-0.5 rounded-md shadow-sm">
                           {courseData.level}
                         </span>
@@ -542,7 +643,9 @@ export const CourseDetailsPage: React.FC<CourseDetailsPageProps> = ({
                       {/* Duration */}
                       {courseData.duration && (
                         <div className="flex items-center justify-between p-2.5 bg-gray-50/80 rounded-lg">
-                          <span className="text-xs font-medium text-gray-700">Duration</span>
+                          <span className="text-xs font-medium text-gray-700">
+                            Duration
+                          </span>
                           <span className="text-xs font-bold text-gray-900 bg-white px-2 py-0.5 rounded-md shadow-sm">
                             {courseData.duration}
                           </span>
@@ -552,7 +655,9 @@ export const CourseDetailsPage: React.FC<CourseDetailsPageProps> = ({
                       {/* Instructor */}
                       {courseData.instructor && (
                         <div className="flex items-center justify-between p-2.5 bg-gray-50/80 rounded-lg">
-                          <span className="text-xs font-medium text-gray-700">Instructor</span>
+                          <span className="text-xs font-medium text-gray-700">
+                            Instructor
+                          </span>
                           <span className="text-xs font-bold text-gray-900 bg-white px-2 py-0.5 rounded-md shadow-sm">
                             {courseData.instructor}
                           </span>
@@ -562,50 +667,52 @@ export const CourseDetailsPage: React.FC<CourseDetailsPageProps> = ({
                       {/* Enroll Button */}
                       <button
                         onClick={() => {
-                          console.log("[CourseDetailsPage] Enroll button clicked!");
                           // Check if payment is disabled and lead collection is enabled
-                          const globalSettings = catalogueData?.globalSettings as any;
-                          const leadCollectionConfig = globalSettings?.leadCollection;
+                          const globalSettings =
+                            catalogueData?.globalSettings as any;
+                          const leadCollectionConfig =
+                            globalSettings?.leadCollection;
                           const paymentConfig = globalSettings?.payment;
-                          
+
                           // Check if payment is explicitly disabled (showPayment=false)
                           const showPayment = paymentConfig?.enabled === true;
                           const leadCollectionEnabled = leadCollectionConfig?.enabled;
-                          
+
                           console.log("Payment config:", paymentConfig);
                           console.log("Lead collection config:", leadCollectionConfig);
                           console.log("Show payment:", showPayment);
                           console.log("Lead collection enabled:", leadCollectionEnabled);
-                          
+
                           // Check if this is a "Get Started" button (when payment is disabled)
                           const isGetStartedButton = catalogueData?.globalSettings?.payment?.enabled === false;
-                          
-                          // If this is a "Get Started" button or payment is disabled, always open lead collection
+
+                          // If this is a "Get Started" button or payment is disabled, check if lead collection is enabled
                           if (isGetStartedButton || !showPayment) {
                             console.log("Get Started button clicked - opening lead collection modal!");
-                            console.log("Setting showLeadCollection to true");
+                            // Force show lead collection
                             setShowLeadCollection(true);
                           } else {
-                            console.log("Enroll button clicked - opening enrollment payment dialog!");
                             setEnrollmentDialogOpen(true);
                           }
                         }}
                         className="w-full text-white py-3 px-4 rounded-lg text-sm font-semibold transition-all duration-200 transform shadow-lg"
                         style={{
-                          backgroundColor: domainRouting.instituteThemeCode ? 
-                            `hsl(var(--primary))` : 
+                          backgroundColor: domainRouting.instituteThemeCode ?
+                            `hsl(var(--primary))` :
                             '#3b82f6'
                         }}
                         onMouseEnter={(e) => {
-                          e.currentTarget.style.transform = 'translateY(-1px)';
-                          e.currentTarget.style.boxShadow = '0 8px 25px rgba(0,0,0,0.15)';
+                          e.currentTarget.style.transform = "translateY(-1px)";
+                          e.currentTarget.style.boxShadow =
+                            "0 8px 25px rgba(0,0,0,0.15)";
                         }}
                         onMouseLeave={(e) => {
-                          e.currentTarget.style.transform = 'translateY(0)';
-                          e.currentTarget.style.boxShadow = '0 4px 15px rgba(0,0,0,0.1)';
+                          e.currentTarget.style.transform = "translateY(0)";
+                          e.currentTarget.style.boxShadow =
+                            "0 4px 15px rgba(0,0,0,0.1)";
                         }}
                       >
-                        {catalogueData?.globalSettings?.payment?.enabled !== false 
+                        {catalogueData?.globalSettings?.payment?.enabled !== false
                           ? (courseData.price === 0 ? "Enroll for Free" : "Enroll Now")
                           : "Get Started"
                         }
@@ -636,7 +743,11 @@ export const CourseDetailsPage: React.FC<CourseDetailsPageProps> = ({
                     <div className="relative">
                       <div className="flex items-center space-x-2 mb-3">
                         <div className="p-1.5 bg-gradient-to-br from-success-100 to-success-200 rounded-lg shadow-sm">
-                          <svg className="w-4 h-4 text-success-600" fill="currentColor" viewBox="0 0 20 20">
+                          <svg
+                            className="w-4 h-4 text-success-600"
+                            fill="currentColor"
+                            viewBox="0 0 20 20"
+                          >
                             <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                           </svg>
                         </div>
@@ -655,32 +766,41 @@ export const CourseDetailsPage: React.FC<CourseDetailsPageProps> = ({
                 )}
 
                 {/* About Course Section */}
-                {courseData.aboutCourse && courseData.aboutCourse.trim() !== "" && (
-                  <div
-                    className="relative bg-white border border-gray-200 rounded-md shadow-sm hover:shadow-md transition-all duration-300 p-3 sm:p-4 group animate-fade-in-up"
-                    style={{ animationDelay: "0.4s" }}
-                  >
-                    <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-md"></div>
-                    <div className="relative">
-                      <div className="flex items-center space-x-2 mb-3">
-                        <div className="p-1.5 bg-gradient-to-br from-blue-100 to-blue-200 rounded-lg shadow-sm">
-                          <svg className="w-4 h-4 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clipRule="evenodd" />
-                          </svg>
+                {courseData.aboutCourse &&
+                  courseData.aboutCourse.trim() !== "" && (
+                    <div
+                      className="relative bg-white border border-gray-200 rounded-md shadow-sm hover:shadow-md transition-all duration-300 p-3 sm:p-4 group animate-fade-in-up"
+                      style={{ animationDelay: "0.4s" }}
+                    >
+                      <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-md"></div>
+                      <div className="relative">
+                        <div className="flex items-center space-x-2 mb-3">
+                          <div className="p-1.5 bg-gradient-to-br from-blue-100 to-blue-200 rounded-lg shadow-sm">
+                            <svg
+                              className="w-4 h-4 text-blue-600"
+                              fill="currentColor"
+                              viewBox="0 0 20 20"
+                            >
+                              <path
+                                fillRule="evenodd"
+                                d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z"
+                                clipRule="evenodd"
+                              />
+                            </svg>
+                          </div>
+                          <h2 className="text-base font-bold text-gray-900">
+                            About this course
+                          </h2>
                         </div>
-                        <h2 className="text-base font-bold text-gray-900">
-                          About this course
-                        </h2>
+                        <div
+                          className="text-sm text-gray-600 leading-relaxed"
+                          dangerouslySetInnerHTML={{
+                            __html: courseData.aboutCourse || "",
+                          }}
+                        />
                       </div>
-                      <div
-                        className="text-sm text-gray-600 leading-relaxed"
-                        dangerouslySetInnerHTML={{
-                          __html: courseData.aboutCourse || "",
-                        }}
-                      />
                     </div>
-                  </div>
-                )}
+                  )}
 
                 {/* Who Should Learn Section */}
                 {courseData.whoShouldLearn && (
@@ -692,7 +812,11 @@ export const CourseDetailsPage: React.FC<CourseDetailsPageProps> = ({
                     <div className="relative">
                       <div className="flex items-center space-x-2 mb-3">
                         <div className="p-1.5 bg-gradient-to-br from-purple-100 to-purple-200 rounded-lg shadow-sm">
-                          <svg className="w-4 h-4 text-purple-600" fill="currentColor" viewBox="0 0 20 20">
+                          <svg
+                            className="w-4 h-4 text-purple-600"
+                            fill="currentColor"
+                            viewBox="0 0 20 20"
+                          >
                             <path d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" />
                           </svg>
                         </div>
@@ -711,46 +835,53 @@ export const CourseDetailsPage: React.FC<CourseDetailsPageProps> = ({
                 )}
 
                 {/* Instructors Section */}
-                {courseData.instructors && courseData.instructors.length > 0 && (
-                  <div
-                    className="relative bg-white border border-gray-200 rounded-md shadow-sm hover:shadow-md transition-all duration-300 p-3 sm:p-4 group animate-fade-in-up"
-                    style={{ animationDelay: "0.6s" }}
-                  >
-                    <div className="absolute inset-0 bg-gradient-to-br from-orange-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-md"></div>
-                    <div className="relative">
-                      <div className="flex items-center space-x-2 mb-3">
-                        <div className="p-1.5 bg-gradient-to-br from-orange-100 to-orange-200 rounded-lg shadow-sm">
-                          <svg className="w-4 h-4 text-orange-600" fill="currentColor" viewBox="0 0 20 20">
-                            <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3z" />
-                          </svg>
-                        </div>
-                        <h2 className="text-base font-bold text-gray-900">
-                          Instructors
-                        </h2>
-                      </div>
-                      <div className="space-y-2">
-                        {courseData.instructors.map((instructor, index) => (
-                          <div
-                            key={index}
-                            className="flex items-center gap-3 p-2.5 bg-gray-50/80 rounded-lg hover:bg-gray-100/80 transition-all duration-300"
-                          >
-                            <div className="w-8 h-8 bg-gradient-to-br from-primary-500 to-primary-600 text-white text-xs font-semibold rounded-full flex items-center justify-center">
-                              {instructor.name ? instructor.name.charAt(0).toUpperCase() : 'I'}
-                            </div>
-                            <div>
-                              <h3 className="text-sm font-semibold text-gray-900">
-                                {instructor.name || 'Instructor'}
-                              </h3>
-                              <p className="text-xs text-gray-600">
-                                {instructor.email || 'No email provided'}
-                              </p>
-                            </div>
+                {courseData.instructors &&
+                  courseData.instructors.length > 0 && (
+                    <div
+                      className="relative bg-white border border-gray-200 rounded-md shadow-sm hover:shadow-md transition-all duration-300 p-3 sm:p-4 group animate-fade-in-up"
+                      style={{ animationDelay: "0.6s" }}
+                    >
+                      <div className="absolute inset-0 bg-gradient-to-br from-orange-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-md"></div>
+                      <div className="relative">
+                        <div className="flex items-center space-x-2 mb-3">
+                          <div className="p-1.5 bg-gradient-to-br from-orange-100 to-orange-200 rounded-lg shadow-sm">
+                            <svg
+                              className="w-4 h-4 text-orange-600"
+                              fill="currentColor"
+                              viewBox="0 0 20 20"
+                            >
+                              <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3z" />
+                            </svg>
                           </div>
-                        ))}
+                          <h2 className="text-base font-bold text-gray-900">
+                            Instructors
+                          </h2>
+                        </div>
+                        <div className="space-y-2">
+                          {courseData.instructors.map((instructor, index) => (
+                            <div
+                              key={index}
+                              className="flex items-center gap-3 p-2.5 bg-gray-50/80 rounded-lg hover:bg-gray-100/80 transition-all duration-300"
+                            >
+                              <div className="w-8 h-8 bg-gradient-to-br from-primary-500 to-primary-600 text-white text-xs font-semibold rounded-full flex items-center justify-center">
+                                {instructor.name
+                                  ? instructor.name.charAt(0).toUpperCase()
+                                  : "I"}
+                              </div>
+                              <div>
+                                <h3 className="text-sm font-semibold text-gray-900">
+                                  {instructor.name || "Instructor"}
+                                </h3>
+                                <p className="text-xs text-gray-600">
+                                  {instructor.email || "No email provided"}
+                                </p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                )}
+                  )}
 
                 {/* Tags Section */}
                 {courseData.tags && courseData.tags.length > 0 && (
@@ -762,8 +893,16 @@ export const CourseDetailsPage: React.FC<CourseDetailsPageProps> = ({
                     <div className="relative">
                       <div className="flex items-center space-x-2 mb-3">
                         <div className="p-1.5 bg-gradient-to-br from-indigo-100 to-indigo-200 rounded-lg shadow-sm">
-                          <svg className="w-4 h-4 text-indigo-600" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M17.707 9.293a1 1 0 010 1.414l-7 7a1 1 0 01-1.414 0l-7-7A.997.997 0 012 10V5a3 3 0 013-3h5c.256 0 .512.098.707.293l7 7zM5 6a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                          <svg
+                            className="w-4 h-4 text-indigo-600"
+                            fill="currentColor"
+                            viewBox="0 0 20 20"
+                          >
+                            <path
+                              fillRule="evenodd"
+                              d="M17.707 9.293a1 1 0 010 1.414l-7 7a1 1 0 01-1.414 0l-7-7A.997.997 0 012 10V5a3 3 0 013-3h5c.256 0 .512.098.707.293l7 7zM5 6a1 1 0 100-2 1 1 0 000 2z"
+                              clipRule="evenodd"
+                            />
                           </svg>
                         </div>
                         <h2 className="text-base font-bold text-gray-900">
@@ -804,8 +943,16 @@ export const CourseDetailsPage: React.FC<CourseDetailsPageProps> = ({
                     {/* Header */}
                     <div className="flex items-center space-x-2 mb-4">
                       <div className="p-1.5 bg-gradient-to-br from-primary-100 to-primary-200 rounded-lg shadow-sm">
-                        <svg className="w-4 h-4 text-primary-600" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M10 2L3 7v11a1 1 0 001 1h12a1 1 0 001-1V7l-7-5zM8 15V9h4v6H8z" clipRule="evenodd" />
+                        <svg
+                          className="w-4 h-4 text-primary-600"
+                          fill="currentColor"
+                          viewBox="0 0 20 20"
+                        >
+                          <path
+                            fillRule="evenodd"
+                            d="M10 2L3 7v11a1 1 0 001 1h12a1 1 0 001-1V7l-7-5zM8 15V9h4v6H8z"
+                            clipRule="evenodd"
+                          />
                         </svg>
                       </div>
                       <h2 className="text-base font-bold text-gray-900">
@@ -817,27 +964,28 @@ export const CourseDetailsPage: React.FC<CourseDetailsPageProps> = ({
                     <div className="space-y-3">
                       {/* Price - Only show if payment is enabled */}
                       {catalogueData?.globalSettings?.payment?.enabled !== false && (
-                      <div className="flex items-center justify-between p-2.5 bg-gradient-to-r from-primary-50 to-primary-100 rounded-lg border border-primary-200">
-                        <span className="text-xs font-medium text-primary-700">Price</span>
-                        <span className="text-lg font-bold text-primary-800">
-                          {courseData.price === 0 ? "Free" : `$${courseData.price}`}
-                        </span>
-                      </div>
+                        <div className="flex items-center justify-between p-2.5 bg-gradient-to-r from-primary-50 to-primary-100 rounded-lg border border-primary-200">
+                          <span className="text-xs font-medium text-primary-700">Price</span>
+                          <span className="text-lg font-bold text-primary-800">
+                            {courseData.price === 0 ? "Free" : `$${courseData.price}`}
+                          </span>
+                        </div>
                       )}
 
                       {/* Rating */}
                       <div className="flex items-center justify-between p-2.5 bg-gray-50/80 rounded-lg">
-                        <span className="text-xs font-medium text-gray-700">Rating</span>
+                        <span className="text-xs font-medium text-gray-700">
+                          Rating
+                        </span>
                         <div className="flex items-center space-x-1">
                           <div className="flex items-center">
                             {[1, 2, 3, 4, 5].map((star) => (
                               <svg
                                 key={star}
-                                className={`w-3 h-3 ${
-                                  star <= Math.floor(courseData.rating)
-                                    ? "text-yellow-400"
-                                    : "text-gray-300"
-                                }`}
+                                className={`w-3 h-3 ${star <= Math.floor(courseData.rating)
+                                  ? "text-yellow-400"
+                                  : "text-gray-300"
+                                  }`}
                                 fill="currentColor"
                                 viewBox="0 0 20 20"
                               >
@@ -846,14 +994,18 @@ export const CourseDetailsPage: React.FC<CourseDetailsPageProps> = ({
                             ))}
                           </div>
                           <span className="text-xs font-bold text-gray-900">
-                            {courseData.rating > 0 ? courseData.rating.toFixed(1) : "No rating"}
+                            {courseData.rating > 0
+                              ? courseData.rating.toFixed(1)
+                              : "No rating"}
                           </span>
                         </div>
                       </div>
 
                       {/* Level */}
                       <div className="flex items-center justify-between p-2.5 bg-gray-50/80 rounded-lg">
-                        <span className="text-xs font-medium text-gray-700">Level</span>
+                        <span className="text-xs font-medium text-gray-700">
+                          Level
+                        </span>
                         <span className="text-xs font-bold text-gray-900 bg-white px-2 py-0.5 rounded-md shadow-sm">
                           {courseData.level}
                         </span>
@@ -862,7 +1014,9 @@ export const CourseDetailsPage: React.FC<CourseDetailsPageProps> = ({
                       {/* Duration */}
                       {courseData.duration && (
                         <div className="flex items-center justify-between p-2.5 bg-gray-50/80 rounded-lg">
-                          <span className="text-xs font-medium text-gray-700">Duration</span>
+                          <span className="text-xs font-medium text-gray-700">
+                            Duration
+                          </span>
                           <span className="text-xs font-bold text-gray-900 bg-white px-2 py-0.5 rounded-md shadow-sm">
                             {courseData.duration}
                           </span>
@@ -872,159 +1026,144 @@ export const CourseDetailsPage: React.FC<CourseDetailsPageProps> = ({
                       {/* Instructor */}
                       {courseData.instructor && (
                         <div className="flex items-center justify-between p-2.5 bg-gray-50/80 rounded-lg">
-                          <span className="text-xs font-medium text-gray-700">Instructor</span>
+                          <span className="text-xs font-medium text-gray-700">
+                            Instructor
+                          </span>
                           <span className="text-xs font-bold text-gray-900 bg-white px-2 py-0.5 rounded-md shadow-sm">
                             {courseData.instructor}
                           </span>
                         </div>
                       )}
-
                     </div>
 
                     {/* Enroll Button with JSON Styling */}
                     <div className="mt-4">
-                      <button 
+                      <button
                         onClick={() => {
-                          console.log("[CourseDetailsPage] Enroll button clicked!");
                           // Check if payment is disabled and lead collection is enabled
-                          const globalSettings = catalogueData?.globalSettings as any;
-                          const leadCollectionConfig = globalSettings?.leadCollection;
+                          const globalSettings =
+                            catalogueData?.globalSettings as any;
+                          const leadCollectionConfig =
+                            globalSettings?.leadCollection;
                           const paymentConfig = globalSettings?.payment;
-                          
+
                           // Check if payment is explicitly disabled (showPayment=false)
                           const showPayment = paymentConfig?.enabled === true;
                           const leadCollectionEnabled = leadCollectionConfig?.enabled;
-                          
+
                           console.log("Payment config:", paymentConfig);
                           console.log("Lead collection config:", leadCollectionConfig);
                           console.log("Show payment:", showPayment);
                           console.log("Lead collection enabled:", leadCollectionEnabled);
-                          
+
                           // Check if this is a "Get Started" button (when payment is disabled)
                           const isGetStartedButton = catalogueData?.globalSettings?.payment?.enabled === false;
-                          
-                          // If this is a "Get Started" button or payment is disabled, always open lead collection
+
+                          // If this is a "Get Started" button or payment is disabled, check if lead collection is enabled
                           if (isGetStartedButton || !showPayment) {
                             console.log("Get Started button clicked - opening lead collection modal!");
-                            console.log("Setting showLeadCollection to true");
+                            // Force show lead collection
                             setShowLeadCollection(true);
                           } else {
-                            console.log("Enroll button clicked - opening enrollment payment dialog!");
                             setEnrollmentDialogOpen(true);
                           }
                         }}
                         className="w-full text-white py-3 px-4 rounded-lg text-sm font-semibold transition-all duration-200 transform shadow-lg"
                         style={{
-                          backgroundColor: domainRouting.instituteThemeCode ? 
-                            `hsl(var(--primary))` : 
+                          backgroundColor: domainRouting.instituteThemeCode ?
+                            `hsl(var(--primary))` :
                             '#3b82f6',
                           transform: getCardStyling().hover?.scale ? `scale(${getCardStyling().hover.scale})` : 'scale(1)',
                           boxShadow: getCardStyling().hover?.shadow ? '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)' : '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
                         }}
                         onMouseEnter={(e) => {
-                          e.currentTarget.style.backgroundColor = domainRouting.instituteThemeCode ? 
-                            `hsl(var(--primary))` : 
+                          e.currentTarget.style.backgroundColor = domainRouting.instituteThemeCode ?
+                            `hsl(var(--primary))` :
                             '#2563eb';
                           e.currentTarget.style.opacity = '0.9';
                         }}
                         onMouseLeave={(e) => {
-                          e.currentTarget.style.backgroundColor = domainRouting.instituteThemeCode ? 
-                            `hsl(var(--primary))` : 
+                          e.currentTarget.style.backgroundColor = domainRouting.instituteThemeCode ?
+                            `hsl(var(--primary))` :
                             '#3b82f6';
                           e.currentTarget.style.opacity = '1';
                         }}
                       >
                         🎓 Enroll Now
                       </button>
-                      
+
                       <div className="text-xs text-gray-500 text-center mt-2">
                         Click to register for this course
                       </div>
                     </div>
-
                   </div>
                 </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
+      </div>}
 
       {/* Footer from JSON globalSettings */}
-      {catalogueData && (catalogueData.globalSettings as any).layout?.footer && (catalogueData.globalSettings as any).layout?.footer?.enabled !== false && (
-        <JsonRenderer
-          page={{
-            id: "footer",
-            route: "footer",
-            title: "Footer",
-            components: [(catalogueData.globalSettings as any).layout.footer]
-          }}
-          globalSettings={catalogueData.globalSettings}
-          instituteId={instituteId}
-          tagName={tagName}
-        />
-      )}
+      {catalogueData &&
+        (catalogueData.globalSettings as any).layout?.footer &&
+        (catalogueData.globalSettings as any).layout?.footer?.enabled !==
+          false && (
+          <JsonRenderer
+            page={{
+              id: "footer",
+              route: "footer",
+              title: "Footer",
+              components: [(catalogueData.globalSettings as any).layout.footer],
+            }}
+            globalSettings={catalogueData.globalSettings}
+            instituteId={instituteId}
+            tagName={tagName}
+          />
+        )}
 
       {/* Lead Collection Modal */}
-      {showLeadCollection && (
+      {showLeadCollection && catalogueData?.globalSettings?.leadCollection && (
         <LeadCollectionModal
           isOpen={showLeadCollection}
           onClose={handleLeadCollectionClose}
           onSubmit={handleLeadCollectionSubmit}
-          settings={(() => {
-            const globalSettings = catalogueData?.globalSettings as any;
-            const leadCollectionConfig = globalSettings?.leadCollection;
-            
-            console.log("Lead collection settings being passed:", {
-              catalogueData,
-              globalSettings,
-              leadCollectionConfig,
-              fields: leadCollectionConfig?.fields,
-              formStyle: leadCollectionConfig?.formStyle
-            });
-            
-            return {
-              enabled: true, // Force enable when triggered by buttons
-              mandatory: leadCollectionConfig?.mandatory || false,
-              inviteLink: leadCollectionConfig?.inviteLink || null,
-              formStyle: leadCollectionConfig?.formStyle || {
-                type: 'single',
-                showProgress: false,
-                progressType: 'bar',
-                transition: 'slide'
+          settings={{
+            enabled: catalogueData?.globalSettings?.leadCollection?.enabled || false,
+            mandatory: catalogueData?.globalSettings?.leadCollection?.mandatory || false,
+            inviteLink: catalogueData?.globalSettings?.leadCollection?.inviteLink || null,
+            formStyle: catalogueData?.globalSettings?.leadCollection?.formStyle || {
+              type: 'single',
+              showProgress: false,
+              progressType: 'bar',
+              transition: 'slide'
+            },
+            fields: catalogueData?.globalSettings?.leadCollection?.fields || [
+              {
+                name: "name",
+                label: "Full Name",
+                type: "text",
+                required: true,
+                step: 1
               },
-              fields: leadCollectionConfig?.fields || [
-                {
-                  name: "name",
-                  label: "Full Name",
-                  type: "text",
-                  required: true,
-                  step: 1
-                },
-                {
-                  name: "email",
-                  label: "Email",
-                  type: "email",
-                  required: true,
-                  step: 2
-                },
-                {
-                  name: "phone",
-                  label: "Phone Number",
-                  type: "tel",
-                  required: true,
-                  step: 3
-                }
-              ]
-            };
-          })()}
+              {
+                name: "email",
+                label: "Email",
+                type: "email",
+                required: true,
+                step: 2
+              },
+              {
+                name: "phone",
+                label: "Phone Number",
+                type: "tel",
+                required: true,
+                step: 3
+              }
+            ]
+          }}
           instituteId={instituteId}
-          mandatory={(() => {
-            const mandatoryValue = catalogueData?.globalSettings?.leadCollection?.mandatory;
-            console.log("[CourseDetailsPage] Mandatory value from JSON:", mandatoryValue);
-            console.log("[CourseDetailsPage] Full leadCollection config:", catalogueData?.globalSettings?.leadCollection);
-            return mandatoryValue || false;
-          })()}
+          mandatory={catalogueData?.globalSettings?.leadCollection?.mandatory || false}
         />
       )}
 
@@ -1034,13 +1173,6 @@ export const CourseDetailsPage: React.FC<CourseDetailsPageProps> = ({
           open={enrollmentDialogOpen}
           onOpenChange={(open) => {
             if (open) {
-              console.log('[CourseDetailsPage] Opening enrollment dialog with courseData:', {
-                id: courseData.id,
-                title: courseData.title,
-                price: courseData.price,
-                packageSessionId: courseData.packageSessionId,
-                enrollInviteId: courseData.enrollInviteId
-              });
             }
             setEnrollmentDialogOpen(open);
           }}
@@ -1050,10 +1182,9 @@ export const CourseDetailsPage: React.FC<CourseDetailsPageProps> = ({
             title: courseData.title,
             price: courseData.price,
             packageSessionId: courseData.packageSessionId,
-            enrollInviteId: courseData.enrollInviteId || '',
+            enrollInviteId: courseData.enrollInviteId || "",
           }}
           onSuccess={async (tokens) => {
-            console.log('[CourseDetailsPage] onSuccess called with tokens:', tokens);
             try {
               // Store tokens using the same method as other parts of the app
               const { setTokenInStorage } = await import('@/lib/auth/sessionUtility');
@@ -1064,12 +1195,15 @@ export const CourseDetailsPage: React.FC<CourseDetailsPageProps> = ({
               const { fetchAndStoreStudentDetails } = await import('@/services/studentDetails');
               const { getStudentDisplaySettings } = await import('@/services/student-display-settings');
               const { identifyUser } = await import('@/lib/analytics');
-              
+
               await setTokenInStorage(TokenKey.accessToken, tokens.accessToken);
-              await setTokenInStorage(TokenKey.refreshToken, tokens.refreshToken);
+              await setTokenInStorage(
+                TokenKey.refreshToken,
+                tokens.refreshToken
+              );
               await Preferences.set({ key: "instituteId", value: instituteId });
               await Preferences.set({ key: "InstituteId", value: instituteId });
-              
+
               // Decode token to get user data (same as SessionLoginForm.tsx)
               const tokenData = getTokenDecodedData(tokens.accessToken);
               const userId = tokenData?.user;
@@ -1096,62 +1230,68 @@ export const CourseDetailsPage: React.FC<CourseDetailsPageProps> = ({
                   console.error("Error fetching student details:", error);
                 }
               }
-              
+
               console.log('[CourseDetailsPage] All APIs called successfully, redirecting to /study-library/courses');
               window.location.href = '/study-library/courses';
             } catch (error) {
-              console.error('[CourseDetailsPage] Error in onSuccess flow:', error);
+              console.error(
+                "[CourseDetailsPage] Error in onSuccess flow:",
+                error
+              );
               // Fallback to localStorage if Capacitor Storage fails
-              localStorage.setItem('accessToken', tokens.accessToken);
-              localStorage.setItem('refreshToken', tokens.refreshToken);
-              window.location.href = '/study-library/courses';
+              localStorage.setItem("accessToken", tokens.accessToken);
+              localStorage.setItem("refreshToken", tokens.refreshToken);
+              window.location.href = "/study-library/courses";
             }
           }}
         />
       )}
 
       {/* Mobile Action Buttons - Fixed at bottom for course details page */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200 p-4">
-        <div className="flex flex-col gap-3">
-          {/* Get Started Button */}
-          <button
-            onClick={() => {
-              console.log("[CourseDetailsPage] Mobile Get Started button clicked");
-              setShowLeadCollection(true);
-            }}
-            className="w-full px-4 py-2 text-white font-medium hover:opacity-90 rounded-md transition-colors"
-            style={{
-              backgroundColor: domainRouting.instituteThemeCode ? `hsl(var(--primary))` : '#3b82f6'
-            }}
-          >
-            Get Started
-          </button>
-          
-          {/* Login Text */}
-          <div className="text-center">
-            <span
-              onClick={() => navigate({ to: '/login' })}
-              className="cursor-pointer text-sm transition-colors"
-              onMouseEnter={(e) => {
-                e.currentTarget.style.opacity = '0.8';
+      {(catalogueData?.globalSettings as any)?.courseCatalogeType?.enabled !== true && (
+        <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200 p-4" >
+          <div className="flex flex-col gap-3">
+            {/* Get Started Button */}
+            <button
+              onClick={() => {
+                console.log("[CourseDetailsPage] Mobile Get Started button clicked");
+                const globalSettings = catalogueData?.globalSettings as any;
+                // Always show lead collection when Get Started is clicked, overriding the enabled setting
+                setShowLeadCollection(true);
               }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.opacity = '1';
+              className="w-full px-4 py-2 text-white font-medium hover:opacity-90 rounded-md transition-colors"
+              style={{
+                backgroundColor: domainRouting.instituteThemeCode ? `hsl(var(--primary))` : '#3b82f6'
               }}
             >
-              <span className="text-black">Already have an account? </span>
-              <span 
-                className="underline"
-                style={{
-                  color: domainRouting.instituteThemeCode ? `hsl(var(--primary))` : '#3b82f6'
+              Get Started
+            </button>
+
+            {/* Login Text */}
+            <div className="text-center border-gray-200">
+              <span
+                onClick={() => navigate({ to: '/login' })}
+                className="cursor-pointer text-sm transition-colors"
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.opacity = '0.8';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.opacity = '1';
                 }}
               >
-                Login
+                <span className="text-black">Already have an account? </span>
+                <span
+                  className="underline"
+                  style={{
+                    color: domainRouting.instituteThemeCode ? `hsl(var(--primary))` : '#3b82f6'
+                  }}
+                >
+                  Login
+                </span>
               </span>
-            </span>
+            </div>
           </div>
-        </div>
-      </div>
+        </div>)}
     </div>
   );
 };

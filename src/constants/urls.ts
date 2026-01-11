@@ -1,4 +1,4 @@
-export const BASE_URL =
+export const BASE_URL = 
   import.meta.env.VITE_BACKEND_URL ||
   // Backward compatibility with older env var name used in Docker/docs
   import.meta.env.VITE_API_BASE_URL ||
@@ -96,7 +96,7 @@ export const GET_USERID_URL = `${BASE_URL}/admin-core-service/institute/open_lea
 export const GET_LAST_7_DAYS_PROGRESS = `${BASE_URL}/admin-core-service/learner-tracking/activity-log/learner/v1/daily-time-spent`;
 
 // Live session
-export const LIVE_SESSION_REQUEST_OTP = `${BASE_URL}/notification-service/v1/send-email-otp`;
+export const LIVE_SESSION_REQUEST_OTP =`${BASE_URL}/notification-service/v1/send-email-otp`;
 export const LIVE_SESSION_VERIFY_OTP = `${BASE_URL}/notification-service/v1/verify-email-otp`;
 export const LEAD_COLLECTION_ENROLL_URL = `${BASE_URL}/admin-core-service/v1/learner/enroll/detail`;
 export const LIVE_SESSION_GET_REGISTRATION_DATA = `${BASE_URL}/admin-core-service/live-session/get-registration-data`;
@@ -123,7 +123,8 @@ export const REGISTER_USER = `${BASE_URL}/auth-service/learner/v1/register`;
 export const urlInstituteDetails = `${BASE_URL}/admin-core-service/public/institute/v1/details`;
 export const urlCourseDetails = `${BASE_URL}/admin-core-service/open/packages/v2/search`;
 export const urlPublicCourseDetails = `${BASE_URL}/admin-core-service/learner-packages/v1/search`;
-export const urlInstructor = `${BASE_URL}/auth-service/public/v1/users-of-status`;
+// export const urlInstructor = `${BASE_URL}/auth-service/public/v1/users-of-status`;
+export const urlInstructor = `${BASE_URL}/admin-core-service/open/institute/v1/faculty/by-institute/only-creator`;
 export const FEEDBACK_URL = `${BASE_URL}/admin-core-service/rating`;
 
 export const SUBMIT_QUIZ_SLIDE_ACTIVITY_LOG = `${BASE_URL}/admin-core-service/learner-tracking/activity-log/quiz-slide/add-or-update-quiz-slide-activity-log`;
@@ -167,3 +168,13 @@ export const SUB_ORG_BASE = `${BASE_URL}/admin-core-service/sub-org/v1`;
 export const SUB_ORG_MEMBERS = `${SUB_ORG_BASE}/members`;
 export const SUB_ORG_ADD_MEMBER = `${SUB_ORG_BASE}/add-member`;
 export const SUB_ORG_TERMINATE_MEMBER = `${SUB_ORG_BASE}/terminate-member`;
+
+export const LIST_PLANNING_LOGS = `${BASE_URL}/admin-core-service/planning-logs/v1/list`;
+export const GENERATE_INTERVAL_TYPE_ID = `${BASE_URL}/admin-core-service/planning-logs/v1/generate-interval-type-id`;
+
+// Public Media
+export const GET_PUBLIC_MEDIA_DETAILS = `${BASE_URL}/media-service/public/get-details/id`;
+
+export const GET_AI_PROCESSED_LOGS = `${BASE_URL}/admin-core-service/llm-analytics/processed-logs`;
+
+export const USER_LINKED_DATA = `${BASE_URL}/admin-core-service/v1/student-analysis/user-linked-data`;

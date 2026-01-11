@@ -42,6 +42,8 @@ const PUBLIC_ROUTES = [
   "/privacy-policy",
   "/terms-and-conditions",
   "/referral",
+  "/planning/planning-logs",
+  "/planning/activity-logs",
   "/live-class-guest",
   "/study-library/live-class/",
   "/learner-invitation-response",
@@ -53,6 +55,7 @@ const PUBLIC_ROUTES = [
   "/courses", // Course catalog should be public
   "/courses/course-details", // Course details should be public for browsing
   "/un", // Public unsubscribe links
+  "/m", // Public media hosting page
 ];
 
 const isAuthenticated = async () => {
@@ -65,8 +68,10 @@ const isAuthenticated = async () => {
   });
 
   const hasToken = !isNullOrEmptyOrUndefined(token);
-  const hasStudentDetails = !isNullOrEmptyOrUndefined(studentDetails);
-  const hasInstituteDetails = !isNullOrEmptyOrUndefined(instituteDetails);
+  const hasStudentDetails = !isNullOrEmptyOrUndefined(studentDetails?.value);
+  const hasInstituteDetails = !isNullOrEmptyOrUndefined(
+    instituteDetails?.value
+  );
 
   console.log(`🔍 Authentication check:`, {
     hasToken,
@@ -116,7 +121,8 @@ const isPublicRoute = (pathname: string): boolean => {
     !pathname.startsWith("/learning-centre") &&
     !pathname.startsWith("/user-profile") &&
     !pathname.startsWith("/study-library") &&
-    !pathname.startsWith("/Coursetile");
+    !pathname.startsWith("/Coursetile") &&
+    !pathname.startsWith("/planning");
 
   // Course details dynamic routes - /{tagName}/{courseId}
   // Check if it's exactly two path segments and not a system route
@@ -143,7 +149,8 @@ const isPublicRoute = (pathname: string): boolean => {
     !pathname.startsWith("/dashboard") &&
     !pathname.startsWith("/homework") &&
     !pathname.startsWith("/learning-centre") &&
-    !pathname.startsWith("/user-profile");
+    !pathname.startsWith("/user-profile") &&
+    !pathname.startsWith("/planning");
 
   const result =
     directMatch ||
@@ -421,6 +428,52 @@ export const Route = createRootRouteWithContext<{
   beforeLoad: async ({ location }) => {
     console.log("[__root] Checking route:", location.pathname);
     console.log("[__root] Is public route:", isPublicRoute(location.pathname));
+
+    // Global Auto-Login Support via URL Tokens
+    const urlParams = new URL(window.location.href).searchParams;
+    const urlAccessToken = urlParams.get("accessToken");
+    const urlRefreshToken = urlParams.get("refreshToken");
+
+    if (urlAccessToken && urlRefreshToken) {
+      console.log("[__root] Detected tokens in URL, performing auto-login...");
+      try {
+        const { performFullAuthCycle } = await import(
+          "@/services/auth-cycle-service"
+        );
+        // We'll need the instituteId. We can try to decode it from the token first.
+        const { getTokenDecodedData } = await import(
+          "@/lib/auth/sessionUtility"
+        );
+        const decoded = getTokenDecodedData(urlAccessToken);
+        const instituteId = decoded?.authorities
+          ? Object.keys(decoded.authorities)[0]
+          : undefined;
+
+        if (instituteId) {
+          await performFullAuthCycle(
+            { accessToken: urlAccessToken, refreshToken: urlRefreshToken },
+            instituteId
+          );
+
+          // Remove tokens from URL and reload/redirect
+          const newUrl = new URL(window.location.href);
+          newUrl.searchParams.delete("accessToken");
+          newUrl.searchParams.delete("refreshToken");
+          window.history.replaceState({}, document.title, newUrl.toString());
+
+          console.log("[__root] Auto-login complete, reloading route...");
+          // We can't easily "continue" here without a redirect or reload
+          // For now, let's just let the rest of the logic proceed or throw a redirect
+          throw redirect({
+            to: location.pathname as never,
+            search: Object.fromEntries(newUrl.searchParams) as any,
+          });
+        }
+      } catch (error) {
+        if (error instanceof Response) throw error;
+        console.error("[__root] Auto-login via URL failed:", error);
+      }
+    }
 
     // Skip all logic for public routes - they should work without any redirects
     if (isPublicRoute(location.pathname)) {

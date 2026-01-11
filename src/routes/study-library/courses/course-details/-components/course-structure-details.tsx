@@ -2,7 +2,19 @@ import { useNavHeadingStore } from "@/stores/layout-container/useNavHeadingStore
 import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { PullToRefreshWrapper } from "@/components/design-system/pull-to-refresh";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { toTitleCase } from "@/lib/utils";
+import { cn, toTitleCase } from "@/lib/utils";
+import { useDripConditions } from "@/hooks/use-drip-conditions";
+import { LockedBadge } from "@/components/drip-conditions";
+import { useDripConditionStore } from "@/stores/study-library/drip-conditions-store";
+import { evaluateDripCondition } from "@/utils/drip-conditions";
+import type {
+  LearnerProgressData,
+  DripConditionEvaluation,
+} from "@/utils/drip-conditions";
+import {
+  isItemLocked,
+  shouldFilterItem,
+} from "@/components/drip-conditions/helpers";
 import {
   CaretDown,
   CaretRight,
@@ -10,7 +22,7 @@ import {
   FileText,
   PresentationChart,
   FolderOpen,
-} from "phosphor-react";
+} from "@phosphor-icons/react";
 import { Steps } from "@phosphor-icons/react";
 import {
   Collapsible,
@@ -32,6 +44,7 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   TabType,
   tabs,
@@ -68,6 +81,8 @@ export interface Chapter {
   description: string;
   file_id: string | null;
   chapter_order: number;
+  drip_condition_json?: string | null;
+  drip_condition?: string | null; // JSON string from API
 }
 export interface ChapterMetadata {
   chapter: Chapter;
@@ -103,6 +118,7 @@ export const CourseStructureDetails = ({
   onLoadingChange,
   updateModuleStats,
   paymentType,
+  dripConditionJson,
 }: {
   selectedSession: string;
   selectedLevel: string;
@@ -116,6 +132,7 @@ export const CourseStructureDetails = ({
     modulesData: Record<string, Array<{ chapters?: Array<unknown> }>>
   ) => void;
   paymentType?: string | null;
+  dripConditionJson?: string | null;
 }) => {
   const router = useRouter();
   const searchParams = router.state.location.search;
@@ -183,17 +200,11 @@ export const CourseStructureDetails = ({
     return "bg-neutral-600 text-white";
   };
 
-  // Helper: calculate chapter progress from slides
-  const calculateChapterProgress = (chapterId: string): number => {
-    const slides = slidesMap[chapterId] || [];
-    return calculateOverallCompletion(slides);
-  };
-
   // (unused) Helper retained for potential future UI badges
   // const getChapterProgressStatus = (chapterId: string) => {
   //     const progress = calculateChapterProgress(chapterId);
   //     if (progress === 0) return { status: 'not-started', color: 'text-neutral-400', bgColor: 'bg-neutral-100' };
-  //     if (progress >= 80) return { status: 'completed', color: 'text-green-600', bgColor: 'bg-green-100' };
+  //     if (progress >= 80) return { status: 'completed', color: 'text-primary', bgColor: 'bg-green-100' };
   //     return { status: 'in-progress', color: 'text-primary-600', bgColor: 'bg-primary-100' };
   // };
 
@@ -211,7 +222,7 @@ export const CourseStructureDetails = ({
   // const getModuleProgressStatus = (moduleChapters: Chapter[]) => {
   //     const progress = calculateModuleProgress(moduleChapters);
   //     if (progress === 0) return { status: 'not-started', color: 'text-neutral-400', bgColor: 'bg-neutral-100' };
-  //     if (progress >= 80) return { status: 'completed', color: 'text-green-600', bgColor: 'bg-green-100' };
+  //     if (progress >= 80) return { status: 'completed', color: 'text-primary', bgColor: 'bg-green-100' };
   //     return { status: 'in-progress', color: 'text-primary-600', bgColor: 'bg-primary-100' };
   // };
 
@@ -238,7 +249,7 @@ export const CourseStructureDetails = ({
 
     const isCompleted = percentage >= 80;
     const bgColor = isCompleted ? "bg-green-100" : "bg-primary-100";
-    const textColor = isCompleted ? "text-green-700" : "text-primary-700";
+    const textColor = isCompleted ? "text-primary" : "text-primary-700";
     const icon = isCompleted ? "✓" : `${Math.round(percentage)}%`;
 
     return (
@@ -364,6 +375,32 @@ export const CourseStructureDetails = ({
     Record<string, "idle" | "loading" | "loaded" | "error">
   >({});
   const [isModulesLoading, setIsModulesLoading] = useState<boolean>(false);
+
+  // Helper: calculate chapter progress from slides
+  const calculateChapterProgress = useCallback(
+    (chapterId: string): number => {
+      const slides = slidesMap[chapterId] || [];
+      return calculateOverallCompletion(slides);
+    },
+    [slidesMap]
+  );
+
+  // Get drip condition from store as fallback if not provided via props
+  const getDripCondition = useDripConditionStore(
+    (state) => state.getDripCondition
+  );
+  const isDrippingEnable = useDripConditionStore(
+    (state) => state.isDrippingEnable
+  );
+  const effectiveDripConditionJson =
+    dripConditionJson ||
+    (searchParams.courseId ? getDripCondition(searchParams.courseId) : null);
+
+  const { condition: chapterCondition, hasConditions: hasChapterConditions } =
+    useDripConditions(effectiveDripConditionJson, "chapter");
+  const { condition: slideCondition, hasConditions: hasSlideConditions } =
+    useDripConditions(effectiveDripConditionJson, "slide");
+
   // Drill-down state for Content Structure tab
   const [selectedSubjectId, setSelectedSubjectId] = useState<string | null>(
     null
@@ -390,8 +427,206 @@ export const CourseStructureDetails = ({
   const { userHasDonated } = useEnrollmentStatus(instituteId);
 
   // Log enrollment status changes
-  useEffect(() => {}, [instituteId, userHasDonated, isEnrolledInCourse]);
+  useEffect(() => { }, [instituteId, userHasDonated, isEnrolledInCourse]);
   // const [thumbUrlById, setThumbUrlById] = useState<Record<string, string>>({});
+
+  // Evaluate drip conditions for chapters
+  const chapterEvaluations = useMemo(() => {
+    // Build progress data for all chapters
+    const allChapters = Object.values(subjectModulesMap)
+      .flatMap((modules) => modules)
+      .flatMap((mod) => mod.chapters);
+
+    // Build prerequisite completions map for chapters
+    const prerequisiteCompletions: Record<string, number> = {};
+    allChapters.forEach((chapter) => {
+      const progress = calculateChapterProgress(chapter.id);
+      prerequisiteCompletions[chapter.id] = progress;
+    });
+
+    const progressDataByChapterId: Record<string, LearnerProgressData> = {};
+    allChapters.forEach((chapter, index) => {
+      const previousChapter = index > 0 ? allChapters[index - 1] : null;
+      const progress = calculateChapterProgress(chapter.id);
+      progressDataByChapterId[chapter.id] = {
+        percentageCompleted: progress,
+        previousItemId: previousChapter?.id,
+        previousItemCompletion: previousChapter
+          ? calculateChapterProgress(previousChapter.id)
+          : 0,
+        itemIndex: index, // Add index for count-based exception logic
+        prerequisiteCompletions, // Add prerequisite completions map
+      };
+    });
+
+    // Evaluate drip conditions - check per-chapter conditions first
+    const evaluations: Record<string, DripConditionEvaluation> = {};
+
+    for (const chapter of allChapters) {
+      const progressData = progressDataByChapterId[chapter.id];
+
+      // Check if this chapter has its own drip condition (check both fields)
+      let chapterDripCondition = null;
+      const dripConditionData = chapter.drip_condition;
+
+      if (dripConditionData) {
+        try {
+          const parsed =
+            typeof dripConditionData === "string"
+              ? JSON.parse(dripConditionData)
+              : dripConditionData;
+
+          // Handle array of conditions - filter for enabled chapter conditions
+          if (Array.isArray(parsed)) {
+            chapterDripCondition =
+              parsed.find(
+                (cond) =>
+                  (cond.target === "chapter" || !cond.target) &&
+                  cond.is_enabled !== false
+              ) || null;
+          } else if (parsed && typeof parsed === "object") {
+            // Single condition - check if enabled and for chapters
+            if (
+              (parsed.target === "chapter" || !parsed.target) &&
+              parsed.is_enabled !== false
+            ) {
+              chapterDripCondition = parsed;
+            }
+          }
+        } catch (e) {
+          console.error("Failed to parse chapter drip condition:", e);
+        }
+      }
+
+      // Use chapter-specific condition if available, otherwise fall back to package-level
+      const conditionToUse = chapterDripCondition || chapterCondition;
+      const hasCondition = !!chapterDripCondition || hasChapterConditions;
+
+      // Check global flag first, then per-item condition's is_enabled flag
+      const shouldEvaluate =
+        isDrippingEnable &&
+        hasCondition &&
+        conditionToUse?.is_enabled !== false;
+
+      const evaluation =
+        shouldEvaluate && conditionToUse
+          ? evaluateDripCondition(conditionToUse, progressData)
+          : {
+            isLocked: false,
+            isHidden: false,
+            unlockMessage: null,
+          };
+      evaluations[chapter.id] = evaluation;
+    }
+    return evaluations;
+  }, [
+    hasChapterConditions,
+    chapterCondition,
+    subjectModulesMap,
+    calculateChapterProgress,
+    isDrippingEnable,
+  ]);
+
+  // Evaluate drip conditions for slides
+  const slideEvaluations = useMemo(() => {
+    const evaluations: Record<string, DripConditionEvaluation> = {};
+
+    // Build comprehensive prerequisite completions map with BOTH chapters and slides
+    const prerequisiteCompletions: Record<string, number> = {};
+
+    // 1. Add all chapters and their progress
+    const allChapters = Object.values(subjectModulesMap)
+      .flatMap((modules) => modules)
+      .flatMap((mod) => mod.chapters);
+
+    allChapters.forEach((chapter) => {
+      const progress = calculateChapterProgress(chapter.id);
+      prerequisiteCompletions[chapter.id] = progress;
+    });
+
+    // 2. Add all slides and their progress
+    for (const slides of Object.values(slidesMap)) {
+      slides.forEach((slide) => {
+        prerequisiteCompletions[slide.id] = slide.percentage_completed || 0;
+      });
+    }
+
+    for (const slides of Object.values(slidesMap)) {
+      slides.forEach((slide, index) => {
+        const previousSlide = index > 0 ? slides[index - 1] : null;
+        const progressData: LearnerProgressData = {
+          percentageCompleted: slide.percentage_completed || 0,
+          previousItemId: previousSlide?.id,
+          previousItemCompletion: previousSlide?.percentage_completed || 0,
+          itemIndex: index, // Add index for count-based exception logic
+          prerequisiteCompletions, // Add prerequisite completions map
+        };
+
+        // Check if this slide has its own drip condition (check both fields)
+        let slideDripCondition = null;
+        const dripConditionData =
+          slide.drip_condition || slide.drip_condition_json;
+
+        if (dripConditionData) {
+          try {
+            const parsed =
+              typeof dripConditionData === "string"
+                ? JSON.parse(dripConditionData)
+                : dripConditionData;
+
+            // Handle array of conditions - filter for enabled slide conditions
+            if (Array.isArray(parsed)) {
+              slideDripCondition =
+                parsed.find(
+                  (cond) =>
+                    (cond.target === "slide" || !cond.target) &&
+                    cond.is_enabled !== false
+                ) || null;
+            } else if (parsed && typeof parsed === "object") {
+              // Single condition - check if enabled and for slides
+              if (
+                (parsed.target === "slide" || !parsed.target) &&
+                parsed.is_enabled !== false
+              ) {
+                slideDripCondition = parsed;
+              }
+            }
+          } catch (e) {
+            console.error("Failed to parse slide drip condition:", e);
+          }
+        }
+
+        // Use slide-specific condition if available, otherwise fall back to package-level
+        const conditionToUse = slideDripCondition || slideCondition;
+        const hasCondition = !!slideDripCondition || hasSlideConditions;
+
+        // Check global flag first, then per-item condition's is_enabled flag
+        const shouldEvaluate =
+          isDrippingEnable &&
+          hasCondition &&
+          conditionToUse?.is_enabled !== false;
+
+        const evaluation =
+          shouldEvaluate && conditionToUse
+            ? evaluateDripCondition(conditionToUse, progressData)
+            : {
+              isLocked: false,
+              isHidden: false,
+              unlockMessage: null,
+            };
+
+        evaluations[slide.id] = evaluation;
+      });
+    }
+    return evaluations;
+  }, [
+    hasSlideConditions,
+    slideCondition,
+    slidesMap,
+    isDrippingEnable,
+    subjectModulesMap,
+    calculateChapterProgress,
+  ]);
 
   // Helpers to safely extract optional thumbnail IDs without using any
   const getSubjectThumbnailId = (subject: SubjectType): string | undefined => {
@@ -838,7 +1073,12 @@ export const CourseStructureDetails = ({
                   open={isSubjectOpen}
                   onOpenChange={() => toggleSubject(subject.id)}
                 >
-                  <CollapsibleTrigger className="group flex w-full items-center rounded-lg px-3 py-2 text-left text-sm font-semibold text-neutral-700 transition-all duration-200 hover:bg-primary-50/60 hover:border-primary-200/60 border border-transparent focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-1">
+                  <CollapsibleTrigger className={cn(
+                    "group flex w-full items-center justify-between rounded-lg border bg-card px-4 py-3 text-left text-sm font-semibold shadow-sm transition-all hover:bg-accent hover:text-accent-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
+                    // Vibrant Styles
+                    "[.ui-vibrant_&]:bg-gradient-to-r [.ui-vibrant_&]:from-card [.ui-vibrant_&]:to-primary/5",
+                    "[.ui-vibrant_&]:border-primary/20 [.ui-vibrant_&]:hover:border-primary/40"
+                  )}>
                     <div className="flex min-w-0 flex-1 items-center gap-2.5">
                       {isSubjectOpen ? (
                         <CaretDown
@@ -879,7 +1119,7 @@ export const CourseStructureDetails = ({
                         </span>
                       )}
                       <span
-                        className="truncate font-medium group-hover:text-primary-700 transition-colors"
+                        className="break-words font-medium group-hover:text-primary-700 transition-colors"
                         title={toTitleCase(subject.subject_name)}
                       >
                         {toTitleCase(subject.subject_name)}
@@ -901,7 +1141,11 @@ export const CourseStructureDetails = ({
                               open={isModuleOpen}
                               onOpenChange={() => toggleModule(mod.module.id)}
                             >
-                              <CollapsibleTrigger className="group flex w-full items-center rounded-md px-2.5 py-1.5 text-left text-sm font-medium text-neutral-600 transition-all duration-200 hover:bg-blue-50/70 hover:border-blue-200/60 border border-transparent focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-1">
+                              <CollapsibleTrigger className={cn(
+                                "group flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm font-medium transition-all hover:bg-accent hover:text-accent-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
+                                // Vibrant Styles
+                                "[.ui-vibrant_&]:hover:bg-primary/5 [.ui-vibrant_&]:hover:text-primary"
+                              )}>
                                 <div className="flex min-w-0 flex-1 items-center gap-2">
                                   {isModuleOpen ? (
                                     <CaretDown
@@ -940,7 +1184,7 @@ export const CourseStructureDetails = ({
                                     </span>
                                   )}
                                   <span
-                                    className="truncate group-hover:text-blue-700 transition-colors"
+                                    className="break-words group-hover:text-blue-700 transition-colors"
                                     title={mod.module.module_name}
                                   >
                                     {mod.module.module_name}
@@ -975,67 +1219,102 @@ export const CourseStructureDetails = ({
                                       ch.id
                                     );
 
+                                    // Apply drip conditions
+
+                                    const chapterEval =
+                                      chapterEvaluations[ch.id];
+                                    const shouldHideChapter =
+                                      chapterEval &&
+                                      shouldFilterItem(chapterEval);
+                                    const isChapterLocked =
+                                      chapterEval && isItemLocked(chapterEval);
+
+                                    // Hide chapter if drip condition says so
+                                    if (shouldHideChapter) {
+                                      return null;
+                                    }
+
                                     return (
                                       <Collapsible
                                         key={ch.id}
                                         open={isChapterOpen}
                                         onOpenChange={() => {
+                                          if (isChapterLocked) return;
                                           toggleChapter(ch.id);
                                           getSlidesWithChapterId(ch.id);
                                         }}
                                       >
-                                        <CollapsibleTrigger className="group flex w-full items-center rounded-md px-2 py-1 text-left text-sm text-neutral-600 transition-all duration-200 hover:bg-green-50/70 hover:border-green-200/60 border border-transparent focus:outline-none focus-visible:ring-2 focus-visible:ring-green-400 focus-visible:ring-offset-1">
+                                        <CollapsibleTrigger
+                                          disabled={isChapterLocked}
+                                          className={cn(
+                                            `group flex w-full items-center gap-2 rounded-md px-2 py-1 text-left text-sm transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${isChapterLocked
+                                              ? "cursor-not-allowed opacity-60"
+                                              : "hover:bg-accent hover:text-accent-foreground cursor-pointer"
+                                            }`,
+                                            // Vibrant Styles
+                                            !isChapterLocked && "[.ui-vibrant_&]:hover:bg-primary/5 [.ui-vibrant_&]:hover:text-primary"
+                                          )}
+                                        >
                                           <div className="flex min-w-0 flex-1 items-center gap-1.5">
                                             {isChapterOpen ? (
                                               <CaretDown
                                                 size={14}
-                                                className="shrink-0 text-neutral-500 group-hover:text-green-600 transition-colors"
+                                                className="shrink-0 text-neutral-500 group-hover:text-primary transition-colors"
                                               />
                                             ) : (
                                               <CaretRight
                                                 size={14}
-                                                className="shrink-0 text-neutral-500 group-hover:text-green-600 transition-colors"
+                                                className="shrink-0 text-neutral-500 group-hover:text-primary transition-colors"
                                               />
                                             )}
-                                            <div className="flex items-center justify-center w-4 h-4 rounded bg-green-600 text-white">
+                                            <div className="flex items-center justify-center w-4 h-4 rounded bg-primary text-primary-foreground">
                                               <PresentationChart size={10} />
                                             </div>
                                             {thumbUrlById[
                                               `chapter:${ch.id}`
                                             ] && (
-                                              <img
-                                                src={
-                                                  thumbUrlById[
+                                                <img
+                                                  src={
+                                                    thumbUrlById[
                                                     `chapter:${ch.id}`
-                                                  ]
-                                                }
-                                                alt={toTitleCase(
-                                                  ch.chapter_name
-                                                )}
-                                                className="w-4 h-4 rounded-sm object-cover border border-neutral-200"
-                                                crossOrigin="anonymous"
-                                                referrerPolicy="no-referrer"
-                                                loading="eager"
-                                                onError={(e) => {
-                                                  e.currentTarget.classList.add(
-                                                    "border-red-400"
-                                                  );
-                                                }}
-                                              />
-                                            )}
+                                                    ]
+                                                  }
+                                                  alt={toTitleCase(
+                                                    ch.chapter_name
+                                                  )}
+                                                  className="w-4 h-4 rounded-sm object-cover border border-neutral-200"
+                                                  crossOrigin="anonymous"
+                                                  referrerPolicy="no-referrer"
+                                                  loading="eager"
+                                                  onError={(e) => {
+                                                    e.currentTarget.classList.add(
+                                                      "border-red-400"
+                                                    );
+                                                  }}
+                                                />
+                                              )}
                                             {showContentPrefixes && (
                                               <span className="text-xs w-5 shrink-0 text-center font-mono text-neutral-500 bg-neutral-100 rounded px-0.5">
                                                 C{chIdx + 1}
                                               </span>
                                             )}
                                             <span
-                                              className="truncate text-sm sm:text-base font-semibold text-neutral-800 group-hover:text-green-700 transition-colors"
+                                              className="break-words text-sm sm:text-base font-semibold text-neutral-800 group-hover:text-primary transition-colors"
                                               title={toTitleCase(
                                                 ch.chapter_name
                                               )}
                                             >
                                               {toTitleCase(ch.chapter_name)}
                                             </span>
+                                            {/* Show locked badge if chapter is locked */}
+                                            {isChapterLocked && (
+                                              <LockedBadge
+                                                size="sm"
+                                                unlockMessage={
+                                                  chapterEval?.unlockMessage
+                                                }
+                                              />
+                                            )}
                                             {/* Chapter Progress Indicator */}
                                             <div className="flex items-center gap-1.5 ml-auto shrink-0">
                                               {(() => {
@@ -1065,11 +1344,11 @@ export const CourseStructureDetails = ({
                                                     </div>
                                                     {slidesMap[ch.id] !==
                                                       undefined && (
-                                                      <span className="text-xs text-neutral-500 hidden sm:inline">
-                                                        {completedSlides}/
-                                                        {totalSlides}
-                                                      </span>
-                                                    )}
+                                                        <span className="text-xs text-neutral-500 hidden sm:inline">
+                                                          {completedSlides}/
+                                                          {totalSlides}
+                                                        </span>
+                                                      )}
                                                     {renderCompletionBadge(
                                                       progress
                                                     )}
@@ -1081,14 +1360,32 @@ export const CourseStructureDetails = ({
                                         </CollapsibleTrigger>
                                         <CollapsibleContent>
                                           <div
-                                            className={`space-y-px ml-5 border-l border-green-200/50 py-1 pl-2 relative `}
+                                            className={`space-y-px ml-5 border-l border-border/50 py-1 pl-2 relative `}
                                           >
-                                            <div className="absolute left-0 top-0 w-px h-full bg-green-300/50"></div>
+                                            <div className="absolute left-0 top-0 w-px h-full bg-border/50"></div>
                                             {(() => {
                                               const slidesForChapter =
                                                 slidesMap[ch.id] ?? [];
                                               const filteredSlides =
                                                 filterSlides(slidesForChapter);
+
+                                              // Apply drip conditions to filter out hidden slides
+                                              const visibleSlides =
+                                                filteredSlides.filter(
+                                                  (slide) => {
+                                                    const slideEval =
+                                                      slideEvaluations[
+                                                      slide.id
+                                                      ];
+                                                    const shouldHideSlide =
+                                                      slideEval &&
+                                                      shouldFilterItem(
+                                                        slideEval
+                                                      );
+                                                    return !shouldHideSlide;
+                                                  }
+                                                );
+
                                               const status =
                                                 slidesLoadingStatus[ch.id] ||
                                                 "idle";
@@ -1114,7 +1411,7 @@ export const CourseStructureDetails = ({
                                               }
                                               if (
                                                 status === "loaded" &&
-                                                filteredSlides.length === 0
+                                                visibleSlides.length === 0
                                               ) {
                                                 return (
                                                   <div className="text-xs px-2 py-1 text-neutral-400 italic bg-neutral-50/50 rounded">
@@ -1122,17 +1419,27 @@ export const CourseStructureDetails = ({
                                                   </div>
                                                 );
                                               }
-                                              return filteredSlides.map(
-                                                (slide, sIdx) => (
-                                                  <div
-                                                    key={slide.id}
-                                                    className={
-                                                      getSlideStyling() +
-                                                      " rounded-md"
-                                                    }
-                                                    onClick={
-                                                      isSlideClickable()
-                                                        ? () => {
+                                              return visibleSlides.map(
+                                                (slide, sIdx) => {
+                                                  // Check if slide is locked
+                                                  const slideEval =
+                                                    slideEvaluations[slide.id];
+                                                  const isSlideLocked =
+                                                    slideEval &&
+                                                    isItemLocked(slideEval);
+
+                                                  return (
+                                                    <div
+                                                      key={slide.id}
+                                                      className={cn(
+                                                        getSlideStyling() + " rounded-md",
+                                                        // Vibrant Styles
+                                                        "[.ui-vibrant_&]:hover:bg-primary/5 [.ui-vibrant_&]:hover:border-primary/20 [.ui-vibrant_&]:transition-colors"
+                                                      )}
+                                                      onClick={
+                                                        isSlideClickable() &&
+                                                          !isSlideLocked
+                                                          ? () => {
                                                             handleSlideNavigation(
                                                               subject.id,
                                                               mod.module.id,
@@ -1140,93 +1447,103 @@ export const CourseStructureDetails = ({
                                                               slide.id
                                                             );
                                                           }
-                                                        : undefined
-                                                    }
-                                                  >
-                                                    {showContentPrefixes && (
-                                                      <span className="w-5 shrink-0 text-center font-mono text-neutral-400 bg-neutral-100 rounded px-0.5 text-xs">
-                                                        S{sIdx + 1}
-                                                      </span>
-                                                    )}
-                                                    <div className="shrink-0 group-hover:scale-110 transition-transform">
-                                                      {getIcon(slide, "3")}
-                                                    </div>
-                                                    <span
-                                                      className="truncate text-sm sm:text-base  text-neutral-800 group-hover:text-amber-700 transition-colors"
-                                                      title={slide.title}
+                                                          : undefined
+                                                      }
                                                     >
-                                                      {slide.title}
-                                                    </span>
-                                                    {(() => {
-                                                      const sd =
-                                                        getStatusDetails(
-                                                          slide.percentage_completed ||
-                                                            0
-                                                        );
-                                                      const badgeClass =
-                                                        sd.badge === "done"
-                                                          ? "bg-neutral-800 text-white"
-                                                          : sd.badge ===
-                                                            "active"
-                                                          ? "bg-neutral-700 text-white"
-                                                          : "bg-neutral-600 text-white";
-                                                      return (
-                                                        <Badge
-                                                          variant="secondary"
-                                                          className={`ml-2 hidden sm:inline align-middle text-[10px] font-medium ${badgeClass}`}
-                                                        >
-                                                          {sd.label}
-                                                        </Badge>
-                                                      );
-                                                    })()}
-                                                    {/* Slide Meta Row */}
-                                                    <div className="flex flex-wrap items-center gap-2 ml-auto shrink-0 text-xs text-neutral-600 w-full sm:w-auto sm:ml-auto">
+                                                      {showContentPrefixes && (
+                                                        <span className="w-5 shrink-0 text-center font-mono text-neutral-400 bg-neutral-100 rounded px-0.5 text-xs">
+                                                          S{sIdx + 1}
+                                                        </span>
+                                                      )}
+                                                      <div className="shrink-0 group-hover:scale-110 transition-transform">
+                                                        {getIcon(slide, "3")}
+                                                      </div>
+                                                      <span
+                                                        className="break-words text-sm sm:text-base  text-neutral-800 group-hover:text-amber-700 transition-colors"
+                                                        title={slide.title}
+                                                      >
+                                                        {slide.title}
+                                                      </span>
+                                                      {/* Show locked badge if slide is locked */}
+                                                      {isSlideLocked && (
+                                                        <LockedBadge
+                                                          size="sm"
+                                                          unlockMessage={
+                                                            slideEval?.unlockMessage
+                                                          }
+                                                        />
+                                                      )}
                                                       {(() => {
-                                                        const progress =
-                                                          slide.percentage_completed ||
-                                                          0;
-                                                        const meta =
-                                                          getSlideMetaText(
-                                                            slide
+                                                        const sd =
+                                                          getStatusDetails(
+                                                            slide.percentage_completed ||
+                                                            0
                                                           );
-                                                        const typeLabel =
-                                                          getSlideTypeDisplay(
-                                                            slide
-                                                          );
-
+                                                        const badgeClass =
+                                                          sd.badge === "done"
+                                                            ? "bg-neutral-800 text-white"
+                                                            : sd.badge ===
+                                                              "active"
+                                                              ? "bg-neutral-700 text-white"
+                                                              : "bg-neutral-600 text-white";
                                                         return (
-                                                          <>
-                                                            {typeLabel && (
-                                                              <Badge
-                                                                variant="secondary"
-                                                                className={`${getTypeBadgeClasses(
-                                                                  slide
-                                                                )}`}
-                                                              >
-                                                                {typeLabel}
-                                                              </Badge>
-                                                            )}
-                                                            {meta && (
-                                                              <Badge
-                                                                variant="secondary"
-                                                                className="bg-neutral-600 text-white"
-                                                              >
-                                                                {meta}
-                                                              </Badge>
-                                                            )}
-                                                            <div className="w-16">
-                                                              {renderProgressBar(
-                                                                progress,
-                                                                "sm"
-                                                              )}
-                                                            </div>
-                                                            {/* compact status dot removed for cleaner UI */}
-                                                          </>
+                                                          <Badge
+                                                            variant="secondary"
+                                                            className={`ml-2 hidden sm:inline align-middle text-[10px] font-medium ${badgeClass}`}
+                                                          >
+                                                            {sd.label}
+                                                          </Badge>
                                                         );
                                                       })()}
+                                                      {/* Slide Meta Row */}
+                                                      <div className="flex flex-wrap items-center gap-2 ml-auto shrink-0 text-xs text-neutral-600 w-full sm:w-auto sm:ml-auto">
+                                                        {(() => {
+                                                          const progress =
+                                                            slide.percentage_completed ||
+                                                            0;
+                                                          const meta =
+                                                            getSlideMetaText(
+                                                              slide
+                                                            );
+                                                          const typeLabel =
+                                                            getSlideTypeDisplay(
+                                                              slide
+                                                            );
+
+                                                          return (
+                                                            <>
+                                                              {typeLabel && (
+                                                                <Badge
+                                                                  variant="secondary"
+                                                                  className={`${getTypeBadgeClasses(
+                                                                    slide
+                                                                  )}`}
+                                                                >
+                                                                  {typeLabel}
+                                                                </Badge>
+                                                              )}
+                                                              {meta && (
+                                                                <Badge
+                                                                  variant="secondary"
+                                                                  className="bg-neutral-600 text-white"
+                                                                >
+                                                                  {meta}
+                                                                </Badge>
+                                                              )}
+                                                              <div className="w-16">
+                                                                {renderProgressBar(
+                                                                  progress,
+                                                                  "sm"
+                                                                )}
+                                                              </div>
+                                                              {/* compact status dot removed for cleaner UI */}
+                                                            </>
+                                                          );
+                                                        })()}
+                                                      </div>
                                                     </div>
-                                                  </div>
-                                                )
+                                                  );
+                                                }
                                               );
                                             })()}
                                           </div>
@@ -1288,7 +1605,7 @@ export const CourseStructureDetails = ({
                                     </span>
                                   )}
                                   <span
-                                    className="truncate group-hover:text-blue-700 transition-colors"
+                                    className="break-words group-hover:text-blue-700 transition-colors"
                                     title={toTitleCase(mod.module.module_name)}
                                   >
                                     {toTitleCase(mod.module.module_name)}
@@ -1322,29 +1639,51 @@ export const CourseStructureDetails = ({
                                       ch.id
                                     );
 
+                                    // Apply drip conditions
+
+                                    const chapterEval =
+                                      chapterEvaluations[ch.id];
+                                    const shouldHideChapter =
+                                      chapterEval &&
+                                      shouldFilterItem(chapterEval);
+                                    const isChapterLocked =
+                                      chapterEval && isItemLocked(chapterEval);
+
+                                    // Hide chapter if drip condition says so
+                                    if (shouldHideChapter) {
+                                      return null;
+                                    }
+
                                     return (
                                       <Collapsible
                                         key={ch.id}
                                         open={isChapterOpen}
                                         onOpenChange={() => {
+                                          if (isChapterLocked) return;
                                           toggleChapter(ch.id);
                                           getSlidesWithChapterId(ch.id);
                                         }}
                                       >
-                                        <CollapsibleTrigger className="group flex w-full items-center rounded-md px-2 py-1 text-left text-sm text-neutral-600 transition-all duration-200 hover:bg-green-50/70 hover:border-green-200/60 border border-transparent focus:outline-none focus-visible:ring-2 focus-visible:ring-green-400 focus-visible:ring-offset-1">
+                                        <CollapsibleTrigger
+                                          disabled={isChapterLocked}
+                                          className={`group flex w-full items-center gap-2 rounded-md px-2 py-1 text-left text-sm transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${isChapterLocked
+                                            ? "cursor-not-allowed opacity-60"
+                                            : "hover:bg-accent hover:text-accent-foreground cursor-pointer"
+                                            }`}
+                                        >
                                           <div className="flex min-w-0 flex-1 items-center gap-1.5">
                                             {isChapterOpen ? (
                                               <CaretDown
                                                 size={14}
-                                                className="shrink-0 text-neutral-500 group-hover:text-green-600 transition-colors"
+                                                className="shrink-0 text-neutral-500 group-hover:text-primary transition-colors"
                                               />
                                             ) : (
                                               <CaretRight
                                                 size={14}
-                                                className="shrink-0 text-neutral-500 group-hover:text-green-600 transition-colors"
+                                                className="shrink-0 text-neutral-500 group-hover:text-primary transition-colors"
                                               />
                                             )}
-                                            <div className="flex items-center justify-center w-4 h-4 rounded bg-green-600 text-white">
+                                            <div className="flex items-center justify-center w-4 h-4 rounded bg-primary text-primary-foreground">
                                               <PresentationChart size={10} />
                                             </div>
                                             {showContentPrefixes && (
@@ -1353,13 +1692,22 @@ export const CourseStructureDetails = ({
                                               </span>
                                             )}
                                             <span
-                                              className="truncate group-hover:text-green-700 transition-colors text-xs"
+                                              className="break-words group-hover:text-primary transition-colors text-xs"
                                               title={toTitleCase(
                                                 ch.chapter_name
                                               )}
                                             >
                                               {toTitleCase(ch.chapter_name)}
                                             </span>
+                                            {/* Show locked badge if chapter is locked */}
+                                            {isChapterLocked && (
+                                              <LockedBadge
+                                                size="sm"
+                                                unlockMessage={
+                                                  chapterEval?.unlockMessage
+                                                }
+                                              />
+                                            )}
                                             {/* Chapter Progress Indicator */}
                                             <div className="flex items-center gap-1.5 ml-auto shrink-0">
                                               {(() => {
@@ -1388,11 +1736,11 @@ export const CourseStructureDetails = ({
                                                     </div>
                                                     {slidesMap[ch.id] !==
                                                       undefined && (
-                                                      <span className="text-xs text-neutral-500 hidden sm:inline">
-                                                        {completedSlides}/
-                                                        {totalSlides}
-                                                      </span>
-                                                    )}
+                                                        <span className="text-xs text-neutral-500 hidden sm:inline">
+                                                          {completedSlides}/
+                                                          {totalSlides}
+                                                        </span>
+                                                      )}
                                                     {renderCompletionBadge(
                                                       progress
                                                     )}
@@ -1403,8 +1751,8 @@ export const CourseStructureDetails = ({
                                           </div>
                                         </CollapsibleTrigger>
                                         <CollapsibleContent>
-                                          <div className="space-y-px ml-3 sm:ml-5 border-l border-green-200/50 py-1 pl-2 relative">
-                                            <div className="absolute left-0 top-0 w-px h-full bg-green-300/50"></div>
+                                          <div className="space-y-px ml-3 sm:ml-5 border-l border-border/50 py-1 pl-2 relative">
+                                            <div className="absolute left-0 top-0 w-0.5 h-full bg-border"></div>
                                             {(() => {
                                               const status =
                                                 slidesLoadingStatus[ch.id] ||
@@ -1453,13 +1801,13 @@ export const CourseStructureDetails = ({
                                                     onClick={
                                                       isSlideClickable()
                                                         ? () => {
-                                                            handleSlideNavigation(
-                                                              subject.id,
-                                                              mod.module.id,
-                                                              ch.id,
-                                                              slide.id
-                                                            );
-                                                          }
+                                                          handleSlideNavigation(
+                                                            subject.id,
+                                                            mod.module.id,
+                                                            ch.id,
+                                                            slide.id
+                                                          );
+                                                        }
                                                         : undefined
                                                     }
                                                   >
@@ -1472,7 +1820,7 @@ export const CourseStructureDetails = ({
                                                       {getIcon(slide, "3")}
                                                     </div>
                                                     <span
-                                                      className="truncate text-sm sm:text-base text-neutral-800 group-hover:text-amber-700 transition-colors"
+                                                      className="break-words text-sm sm:text-base text-neutral-800 group-hover:text-amber-700 transition-colors"
                                                       title={slide.title}
                                                     >
                                                       {slide.title}
@@ -1481,15 +1829,15 @@ export const CourseStructureDetails = ({
                                                       const sd =
                                                         getStatusDetails(
                                                           slide.percentage_completed ||
-                                                            0
+                                                          0
                                                         );
                                                       const badgeClass =
                                                         sd.badge === "done"
-                                                          ? "bg-green-50 text-green-700 border-green-200"
+                                                          ? "bg-primary/10 text-primary border-border"
                                                           : sd.badge ===
                                                             "active"
-                                                          ? "bg-primary-50 text-primary-700 border-primary-200"
-                                                          : "bg-neutral-50 text-neutral-600 border-neutral-200";
+                                                            ? "bg-primary-50 text-primary-700 border-primary-200"
+                                                            : "bg-neutral-50 text-neutral-600 border-neutral-200";
                                                       return (
                                                         <Badge
                                                           variant="secondary"
@@ -1504,46 +1852,45 @@ export const CourseStructureDetails = ({
                                                       {getSlideTypeDisplay(
                                                         slide
                                                       ) && (
-                                                        <Badge
-                                                          variant="secondary"
-                                                          className={`hidden sm:inline text-[10px] font-medium border ${getTypeBadgeClasses(
-                                                            slide
-                                                          )}`}
-                                                        >
-                                                          {getSlideTypeDisplay(
-                                                            slide
-                                                          )}
-                                                        </Badge>
-                                                      )}
+                                                          <Badge
+                                                            variant="secondary"
+                                                            className={`hidden sm:inline text-[10px] font-medium border ${getTypeBadgeClasses(
+                                                              slide
+                                                            )}`}
+                                                          >
+                                                            {getSlideTypeDisplay(
+                                                              slide
+                                                            )}
+                                                          </Badge>
+                                                        )}
                                                       {getSlideMetaText(
                                                         slide
                                                       ) && (
-                                                        <Badge
-                                                          variant="outline"
-                                                          className="hidden sm:inline text-[10px] font-normal bg-neutral-50 text-neutral-600 border-neutral-200"
-                                                        >
-                                                          {getSlideMetaText(
-                                                            slide
-                                                          )}
-                                                        </Badge>
-                                                      )}
+                                                          <Badge
+                                                            variant="outline"
+                                                            className="hidden sm:inline text-[10px] font-normal bg-neutral-50 text-neutral-600 border-neutral-200"
+                                                          >
+                                                            {getSlideMetaText(
+                                                              slide
+                                                            )}
+                                                          </Badge>
+                                                        )}
                                                       <div className="w-7 sm:w-8 hidden sm:block">
                                                         {renderProgressBar(
                                                           slide.percentage_completed ||
-                                                            0,
+                                                          0,
                                                           "sm"
                                                         )}
                                                       </div>
                                                       <div
-                                                        className={`w-2 h-2 rounded-full ${
-                                                          (slide.percentage_completed ||
-                                                            0) >= 80
-                                                            ? "bg-green-500"
-                                                            : (slide.percentage_completed ||
-                                                                0) > 0
+                                                        className={`w-2 h-2 rounded-full ${(slide.percentage_completed ||
+                                                          0) >= 80
+                                                          ? "bg-primary/100"
+                                                          : (slide.percentage_completed ||
+                                                            0) > 0
                                                             ? "bg-primary-500"
                                                             : "bg-neutral-300"
-                                                        }`}
+                                                          }`}
                                                       />
                                                     </div>
                                                   </div>
@@ -1590,29 +1937,50 @@ export const CourseStructureDetails = ({
                                 {(mod.chapters ?? []).map((ch, chIdx) => {
                                   const isChapterOpen = openChapters.has(ch.id);
 
+                                  // Apply drip conditions
+
+                                  const chapterEval = chapterEvaluations[ch.id];
+                                  const shouldHideChapter =
+                                    chapterEval &&
+                                    shouldFilterItem(chapterEval);
+                                  const isChapterLocked =
+                                    chapterEval && isItemLocked(chapterEval);
+
+                                  // Hide chapter if drip condition says so
+                                  if (shouldHideChapter) {
+                                    return null;
+                                  }
+
                                   return (
                                     <Collapsible
                                       key={ch.id}
                                       open={isChapterOpen}
                                       onOpenChange={() => {
+                                        if (isChapterLocked) return;
                                         toggleChapter(ch.id);
                                         getSlidesWithChapterId(ch.id);
                                       }}
                                     >
-                                      <CollapsibleTrigger className="group flex w-full items-center rounded-md px-2 py-1 text-left text-sm text-neutral-600 transition-all duration-200 hover:bg-green-50/70 hover:border-green-200/60 border border-transparent focus:outline-none focus-visible:ring-2 focus-visible:ring-green-400 focus-visible:ring-offset-1">
+                                      <CollapsibleTrigger
+                                        disabled={isChapterLocked}
+                                        className={`group flex w-full items-center gap-2 rounded-md px-2 py-1 text-left text-sm transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${isChapterLocked
+                                          ? "cursor-not-allowed opacity-60"
+                                          : "hover:bg-accent hover:text-accent-foreground cursor-pointer"
+                                          }`}
+                                      >
                                         <div className="flex min-w-0 flex-1 items-center gap-1.5">
                                           {isChapterOpen ? (
                                             <CaretDown
                                               size={14}
-                                              className="shrink-0 text-neutral-500 group-hover:text-green-600 transition-colors"
+                                              className="shrink-0 text-neutral-500 group-hover:text-primary transition-colors"
                                             />
                                           ) : (
                                             <CaretRight
                                               size={14}
-                                              className="shrink-0 text-neutral-500 group-hover:text-green-600 transition-colors"
+                                              className="shrink-0 text-neutral-500 group-hover:text-primary transition-colors"
                                             />
                                           )}
-                                          <div className="flex items-center justify-center w-4 h-4 rounded bg-green-600 text-white">
+                                          <div className="flex items-center justify-center w-4 h-4 rounded bg-primary text-primary-foreground">
                                             <PresentationChart size={10} />
                                           </div>
                                           {showContentPrefixes && (
@@ -1621,11 +1989,20 @@ export const CourseStructureDetails = ({
                                             </span>
                                           )}
                                           <span
-                                            className="truncate text-sm sm:text-base font-semibold text-neutral-800 group-hover:text-green-700 transition-colors"
+                                            className="break-words text-sm sm:text-base font-semibold text-neutral-800 group-hover:text-primary transition-colors"
                                             title={toTitleCase(ch.chapter_name)}
                                           >
                                             {toTitleCase(ch.chapter_name)}
                                           </span>
+                                          {/* Show locked badge if chapter is locked */}
+                                          {isChapterLocked && (
+                                            <LockedBadge
+                                              size="sm"
+                                              unlockMessage={
+                                                chapterEval?.unlockMessage
+                                              }
+                                            />
+                                          )}
                                           {/* Chapter Progress Indicator */}
                                           <div className="flex items-center gap-1.5 ml-auto shrink-0">
                                             {(() => {
@@ -1652,11 +2029,11 @@ export const CourseStructureDetails = ({
                                                   </div>
                                                   {slidesMap[ch.id] !==
                                                     undefined && (
-                                                    <span className="text-xs text-neutral-500 hidden sm:inline">
-                                                      {completedSlides}/
-                                                      {totalSlides}
-                                                    </span>
-                                                  )}
+                                                      <span className="text-xs text-neutral-500 hidden sm:inline">
+                                                        {completedSlides}/
+                                                        {totalSlides}
+                                                      </span>
+                                                    )}
                                                   {renderCompletionBadge(
                                                     progress
                                                   )}
@@ -1667,8 +2044,8 @@ export const CourseStructureDetails = ({
                                         </div>
                                       </CollapsibleTrigger>
                                       <CollapsibleContent>
-                                        <div className="space-y-px ml-5 border-l border-green-200/50 py-1 pl-2 relative">
-                                          <div className="absolute left-0 top-0 w-px h-full bg-green-300/50"></div>
+                                        <div className="space-y-px ml-5 border-l border-border/50 py-1 pl-2 relative">
+                                          <div className="absolute left-0 top-0 w-px h-full bg-border/50"></div>
                                           {(() => {
                                             const status =
                                               slidesLoadingStatus[ch.id] ||
@@ -1717,13 +2094,13 @@ export const CourseStructureDetails = ({
                                                   onClick={
                                                     isSlideClickable()
                                                       ? () => {
-                                                          handleSlideNavigation(
-                                                            subject.id,
-                                                            mod.module.id,
-                                                            ch.id,
-                                                            slide.id
-                                                          );
-                                                        }
+                                                        handleSlideNavigation(
+                                                          subject.id,
+                                                          mod.module.id,
+                                                          ch.id,
+                                                          slide.id
+                                                        );
+                                                      }
                                                       : undefined
                                                   }
                                                 >
@@ -1744,14 +2121,14 @@ export const CourseStructureDetails = ({
                                                   {(() => {
                                                     const sd = getStatusDetails(
                                                       slide.percentage_completed ||
-                                                        0
+                                                      0
                                                     );
                                                     const badgeClass =
                                                       sd.badge === "done"
-                                                        ? "bg-green-50 text-green-700 border-green-200"
+                                                        ? "bg-primary/10 text-primary border-border"
                                                         : sd.badge === "active"
-                                                        ? "bg-primary-50 text-primary-700 border-primary-200"
-                                                        : "bg-neutral-50 text-neutral-600 border-neutral-200";
+                                                          ? "bg-primary-50 text-primary-700 border-primary-200"
+                                                          : "bg-neutral-50 text-neutral-600 border-neutral-200";
                                                     return (
                                                       <Badge
                                                         variant="secondary"
@@ -1766,46 +2143,45 @@ export const CourseStructureDetails = ({
                                                     {getSlideTypeDisplay(
                                                       slide
                                                     ) && (
-                                                      <Badge
-                                                        variant="secondary"
-                                                        className={`hidden sm:inline text-[10px] font-medium border ${getTypeBadgeClasses(
-                                                          slide
-                                                        )}`}
-                                                      >
-                                                        {getSlideTypeDisplay(
-                                                          slide
-                                                        )}
-                                                      </Badge>
-                                                    )}
+                                                        <Badge
+                                                          variant="secondary"
+                                                          className={`hidden sm:inline text-[10px] font-medium border ${getTypeBadgeClasses(
+                                                            slide
+                                                          )}`}
+                                                        >
+                                                          {getSlideTypeDisplay(
+                                                            slide
+                                                          )}
+                                                        </Badge>
+                                                      )}
                                                     {getSlideMetaText(
                                                       slide
                                                     ) && (
-                                                      <Badge
-                                                        variant="outline"
-                                                        className="hidden sm:inline text-[10px] font-normal bg-neutral-50 text-neutral-600 border-neutral-200"
-                                                      >
-                                                        {getSlideMetaText(
-                                                          slide
-                                                        )}
-                                                      </Badge>
-                                                    )}
+                                                        <Badge
+                                                          variant="outline"
+                                                          className="hidden sm:inline text-[10px] font-normal bg-neutral-50 text-neutral-600 border-neutral-200"
+                                                        >
+                                                          {getSlideMetaText(
+                                                            slide
+                                                          )}
+                                                        </Badge>
+                                                      )}
                                                     <div className="w-7 sm:w-8 hidden sm:block">
                                                       {renderProgressBar(
                                                         slide.percentage_completed ||
-                                                          0,
+                                                        0,
                                                         "sm"
                                                       )}
                                                     </div>
                                                     <div
-                                                      className={`w-2 h-2 rounded-full ${
-                                                        (slide.percentage_completed ||
-                                                          0) >= 80
-                                                          ? "bg-green-500"
-                                                          : (slide.percentage_completed ||
-                                                              0) > 0
+                                                      className={`w-2 h-2 rounded-full ${(slide.percentage_completed ||
+                                                        0) >= 80
+                                                        ? "bg-primary/100"
+                                                        : (slide.percentage_completed ||
+                                                          0) > 0
                                                           ? "bg-primary-500"
                                                           : "bg-neutral-300"
-                                                      }`}
+                                                        }`}
                                                     />
                                                   </div>
                                                 </div>
@@ -1864,7 +2240,7 @@ export const CourseStructureDetails = ({
                                       <CollapsibleContent>
                                         <div className="space-y-px pl-2 relative">
                                           {(slidesMap[ch.id] ?? []).length ===
-                                          0 ? (
+                                            0 ? (
                                             <div className="text-xs px-2 text-neutral-400 italic bg-neutral-50/50 rounded">
                                               No slides in this chapter.
                                             </div>
@@ -1902,14 +2278,14 @@ export const CourseStructureDetails = ({
                                                   {(() => {
                                                     const sd = getStatusDetails(
                                                       slide.percentage_completed ||
-                                                        0
+                                                      0
                                                     );
                                                     const badgeClass =
                                                       sd.badge === "done"
-                                                        ? "bg-green-50 text-green-700 border-green-200"
+                                                        ? "bg-primary/10 text-primary border-border"
                                                         : sd.badge === "active"
-                                                        ? "bg-primary-50 text-primary-700 border-primary-200"
-                                                        : "bg-neutral-50 text-neutral-600 border-neutral-200";
+                                                          ? "bg-primary-50 text-primary-700 border-primary-200"
+                                                          : "bg-neutral-50 text-neutral-600 border-neutral-200";
                                                     return (
                                                       <Badge
                                                         variant="secondary"
@@ -1924,33 +2300,33 @@ export const CourseStructureDetails = ({
                                                     {getSlideTypeDisplay(
                                                       slide
                                                     ) && (
-                                                      <Badge
-                                                        variant="secondary"
-                                                        className={`hidden sm:inline text-[10px] font-medium border ${getTypeBadgeClasses(
-                                                          slide
-                                                        )}`}
-                                                      >
-                                                        {getSlideTypeDisplay(
-                                                          slide
-                                                        )}
-                                                      </Badge>
-                                                    )}
+                                                        <Badge
+                                                          variant="secondary"
+                                                          className={`hidden sm:inline text-[10px] font-medium border ${getTypeBadgeClasses(
+                                                            slide
+                                                          )}`}
+                                                        >
+                                                          {getSlideTypeDisplay(
+                                                            slide
+                                                          )}
+                                                        </Badge>
+                                                      )}
                                                     {getSlideMetaText(
                                                       slide
                                                     ) && (
-                                                      <Badge
-                                                        variant="outline"
-                                                        className="hidden sm:inline text-[10px] font-normal bg-neutral-50 text-neutral-600 border-neutral-200"
-                                                      >
-                                                        {getSlideMetaText(
-                                                          slide
-                                                        )}
-                                                      </Badge>
-                                                    )}
+                                                        <Badge
+                                                          variant="outline"
+                                                          className="hidden sm:inline text-[10px] font-normal bg-neutral-50 text-neutral-600 border-neutral-200"
+                                                        >
+                                                          {getSlideMetaText(
+                                                            slide
+                                                          )}
+                                                        </Badge>
+                                                      )}
                                                     <div className="w-8 hidden sm:block">
                                                       {renderProgressBar(
                                                         slide.percentage_completed ||
-                                                          0,
+                                                        0,
                                                         "sm"
                                                       )}
                                                     </div>
@@ -1981,25 +2357,24 @@ export const CourseStructureDetails = ({
       </div>
     ),
     [TabType.CONTENT_STRUCTURE]: (
-      <div className="space-y-4">
-        <div className="flex items-center justify-between border-b border-neutral-200 pb-3">
-          <div className="flex items-center gap-2">
-            <PresentationChart size={18} className="text-primary-600" />
-            <span className="text-sm font-medium text-neutral-700">
+      <div className="space-y-6">
+        <div className="flex items-center justify-between border-b border-neutral-200 pb-4">
+          <div className="flex items-center gap-3">
+            <PresentationChart size={24} className="text-primary-600" />
+            <span className="text-lg font-semibold text-neutral-800">
               Content Structure
             </span>
           </div>
         </div>
-        {/* Drill-down folder UI */}
+
         {/* Breadcrumbs */}
-        <div className="flex flex-wrap items-center gap-1 sm:gap-2 text-xs sm:text-sm text-neutral-600 mb-2">
+        <div className="flex flex-wrap items-center gap-2 text-sm text-neutral-600 mb-6 bg-neutral-50/50 p-2.5 rounded-lg border border-neutral-100">
           <button
             type="button"
-            className={`hover:text-primary-600 ${
-              !selectedSubjectId && !selectedModuleId && !selectedChapterId
-                ? "font-semibold text-primary-700"
-                : ""
-            }`}
+            className={`px-3 py-1.5 rounded-md transition-all duration-200 text-sm ${!selectedSubjectId && !selectedModuleId && !selectedChapterId
+              ? "bg-white shadow-sm font-semibold text-primary-700 ring-1 ring-black/5"
+              : "hover:bg-neutral-200/60 hover:text-neutral-900"
+              }`}
             onClick={() => {
               setSelectedSubjectId(null);
               setSelectedModuleId(null);
@@ -2008,15 +2383,16 @@ export const CourseStructureDetails = ({
           >
             Subjects
           </button>
-          {selectedSubjectId && <span className="text-neutral-400">/</span>}
+
+          {selectedSubjectId && <CaretRight size={14} className="text-neutral-400" />}
+
           {selectedSubjectId && (
             <button
               type="button"
-              className={`hover:text-primary-600 ${
-                selectedSubjectId && !selectedModuleId
-                  ? "font-semibold text-primary-700"
-                  : ""
-              }`}
+              className={`px-3 py-1.5 rounded-md transition-all duration-200 text-sm ${selectedSubjectId && !selectedModuleId
+                ? "bg-white shadow-sm font-semibold text-primary-700 ring-1 ring-black/5"
+                : "hover:bg-neutral-200/60 hover:text-neutral-900"
+                }`}
               onClick={() => {
                 setSelectedModuleId(null);
                 setSelectedChapterId(null);
@@ -2025,15 +2401,16 @@ export const CourseStructureDetails = ({
               Modules
             </button>
           )}
-          {selectedModuleId && <span className="text-neutral-400">/</span>}
+
+          {selectedModuleId && <CaretRight size={14} className="text-neutral-400" />}
+
           {selectedModuleId && (
             <button
               type="button"
-              className={`hover:text-primary-600 ${
-                selectedModuleId && !selectedChapterId
-                  ? "font-semibold text-primary-700"
-                  : ""
-              }`}
+              className={`px-3 py-1.5 rounded-md transition-all duration-200 text-sm ${selectedModuleId && !selectedChapterId
+                ? "bg-white shadow-sm font-semibold text-primary-700 ring-1 ring-black/5"
+                : "hover:bg-neutral-200/60 hover:text-neutral-900"
+                }`}
               onClick={() => {
                 setSelectedChapterId(null);
               }}
@@ -2041,24 +2418,29 @@ export const CourseStructureDetails = ({
               Chapters
             </button>
           )}
-          {selectedChapterId && <span className="text-neutral-400">/</span>}
+
+          {selectedChapterId && <CaretRight size={14} className="text-neutral-400" />}
+
           {selectedChapterId && (
-            <span className="font-semibold text-primary-700">Slides</span>
+            <span className="px-3 py-1.5 rounded-md bg-white shadow-sm font-semibold text-primary-700 ring-1 ring-black/5 text-sm">
+              Slides
+            </span>
           )}
         </div>
+
         {/* Starting depth adapts to courseStructure; if preselected IDs exist, skips to that depth */}
         {!isModulesLoading && !selectedSubjectId && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {studyLibraryData?.map((subject) => (
-              <div
+              <Card
                 key={subject.id}
-                className="rounded-md border border-neutral-200 bg-white p-3 sm:p-4 shadow-sm hover:shadow cursor-pointer"
+                className="group h-full hover:shadow-lg transition-all duration-300 cursor-pointer overflow-hidden border-neutral-200 hover:border-primary-300/50 transform hover:-translate-y-1 bg-white"
                 onClick={() => {
                   setSelectedSubjectId(subject.id);
                 }}
               >
-                <div className="flex items-center gap-4">
-                  <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-md bg-neutral-100 flex items-center justify-center overflow-hidden">
+                <CardContent className="p-4 flex items-center gap-5">
+                  <div className="w-20 h-20 shrink-0 rounded-lg bg-neutral-50 flex items-center justify-center overflow-hidden border border-neutral-100 shadow-sm relative group-hover:scale-105 transition-transform duration-300">
                     {thumbUrlById[`subject:${subject.id}`] ? (
                       <img
                         src={thumbUrlById[`subject:${subject.id}`]}
@@ -2072,35 +2454,36 @@ export const CourseStructureDetails = ({
                         }}
                       />
                     ) : (
-                      <Folder size={28} className="text-neutral-500" />
+                      <Folder size={32} weight="duotone" className="text-primary-600/60" />
                     )}
                   </div>
-                  <div className="min-w-0">
-                    <div
-                      className="text-sm font-medium text-neutral-800 truncate"
+                  <div className="min-w-0 flex-1 py-1">
+                    <h3
+                      className="text-base font-semibold text-neutral-800 group-hover:text-primary-600 transition-colors leading-snug break-words"
                       title={toTitleCase(subject.subject_name)}
                     >
                       {toTitleCase(subject.subject_name)}
-                    </div>
+                    </h3>
                   </div>
-                </div>
-              </div>
+                </CardContent>
+              </Card>
             ))}
           </div>
         )}
+
         {/* Modules */}
         {!isModulesLoading && selectedSubjectId && !selectedModuleId && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {(subjectModulesMap[selectedSubjectId] || []).map((m) => (
-              <div
+              <Card
                 key={m.module.id}
-                className="rounded-md border border-neutral-200 bg-white p-3 sm:p-4 shadow-sm hover:shadow cursor-pointer"
+                className="group h-full hover:shadow-lg transition-all duration-300 cursor-pointer overflow-hidden border-neutral-200 hover:border-primary-300/50 transform hover:-translate-y-1 bg-white"
                 onClick={() => {
                   setSelectedModuleId(m.module.id);
                 }}
               >
-                <div className="flex items-center gap-4">
-                  <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-md bg-neutral-100 flex items-center justify-center overflow-hidden">
+                <CardContent className="p-4 flex items-center gap-5">
+                  <div className="w-20 h-20 shrink-0 rounded-lg bg-neutral-50 flex items-center justify-center overflow-hidden border border-neutral-100 shadow-sm relative group-hover:scale-105 transition-transform duration-300">
                     {thumbUrlById[`module:${m.module.id}`] ? (
                       <img
                         src={thumbUrlById[`module:${m.module.id}`]}
@@ -2114,88 +2497,109 @@ export const CourseStructureDetails = ({
                         }}
                       />
                     ) : (
-                      <Folder size={28} className="text-neutral-500" />
+                      <Folder size={32} weight="duotone" className="text-blue-600/60" />
                     )}
                   </div>
-                  <div className="min-w-0">
-                    <div
-                      className="text-sm font-medium text-neutral-800 truncate"
+                  <div className="min-w-0 flex-1 py-1">
+                    <h3
+                      className="text-base font-semibold text-neutral-800 group-hover:text-primary-600 transition-colors leading-snug break-words"
                       title={m.module.module_name}
                     >
                       {m.module.module_name}
-                    </div>
+                    </h3>
                   </div>
-                </div>
-              </div>
+                </CardContent>
+              </Card>
             ))}
           </div>
         )}
+
         {/* Chapters */}
         {!isModulesLoading &&
           selectedSubjectId &&
           selectedModuleId &&
           !selectedChapterId && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {(subjectModulesMap[selectedSubjectId] || [])
                 .filter((m) => m.module.id === selectedModuleId)
                 .flatMap((m) => m.chapters)
-                .map((ch) => (
-                  <div
-                    key={ch.id}
-                    className="rounded-md border border-neutral-200 bg-white p-3 sm:p-4 shadow-sm hover:shadow cursor-pointer"
-                    onClick={async () => {
-                      setSelectedChapterId(ch.id);
-                      await getSlidesWithChapterId(ch.id);
-                    }}
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-md bg-neutral-100 flex items-center justify-center overflow-hidden">
-                        {thumbUrlById[`chapter:${ch.id}`] ? (
-                          <img
-                            src={thumbUrlById[`chapter:${ch.id}`]}
-                            alt={toTitleCase(ch.chapter_name)}
-                            className="w-full h-full object-cover"
-                            crossOrigin="anonymous"
-                            referrerPolicy="no-referrer"
-                            loading="eager"
-                            onError={(e) => {
-                              e.currentTarget.classList.add("border-red-400");
-                            }}
-                          />
-                        ) : (
-                          <FileText size={24} className="text-neutral-500" />
-                        )}
-                      </div>
-                      <div className="min-w-0">
-                        <div
-                          className="text-sm font-medium text-neutral-800 truncate"
-                          title={ch.chapter_name}
-                        >
-                          {ch.chapter_name}
+                .filter((ch) => {
+                  const evaluation = chapterEvaluations[ch.id];
+                  return !evaluation?.isHidden;
+                })
+                .map((ch) => {
+                  const evaluation = chapterEvaluations[ch.id];
+                  const isChapterLocked = evaluation?.isLocked ?? false;
+                  return (
+                    <Card
+                      key={ch.id}
+                      className={cn(
+                        "group h-full transition-all duration-300 overflow-hidden border-neutral-200 bg-white",
+                        isChapterLocked
+                          ? "opacity-70 bg-neutral-50 cursor-not-allowed"
+                          : "hover:shadow-lg cursor-pointer hover:border-primary-300/50 transform hover:-translate-y-1"
+                      )}
+                      onClick={async () => {
+                        if (isChapterLocked) return;
+                        setSelectedChapterId(ch.id);
+                        await getSlidesWithChapterId(ch.id);
+                      }}
+                    >
+                      <CardContent className="p-4 flex items-center gap-5">
+                        <div className="w-20 h-20 shrink-0 rounded-lg bg-neutral-50 flex items-center justify-center overflow-hidden border border-neutral-100 shadow-sm relative group-hover:scale-105 transition-transform duration-300">
+                          {thumbUrlById[`chapter:${ch.id}`] ? (
+                            <img
+                              src={thumbUrlById[`chapter:${ch.id}`]}
+                              alt={toTitleCase(ch.chapter_name)}
+                              className="w-full h-full object-cover"
+                              crossOrigin="anonymous"
+                              referrerPolicy="no-referrer"
+                              loading="eager"
+                              onError={(e) => {
+                                e.currentTarget.classList.add("border-red-400");
+                              }}
+                            />
+                          ) : (
+                            <PresentationChart size={32} weight="duotone" className="text-primary-600/60" />
+                          )}
                         </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
+                        <div className="min-w-0 flex-1 py-1">
+                          <h3
+                            className="text-base font-semibold text-neutral-800 group-hover:text-primary-600 transition-colors leading-snug break-words"
+                            title={toTitleCase(ch.chapter_name)}
+                          >
+                            {toTitleCase(ch.chapter_name)}
+                          </h3>
+                          {isChapterLocked && (
+                            <div className="mt-2 text-left">
+                              <LockedBadge size="sm" unlockMessage="" />
+                            </div>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
             </div>
           )}
+
         {/* Slides */}
         {selectedChapterId && (
-          <div className="space-y-2">
+          <div className="space-y-4">
             {(() => {
               const status = slidesLoadingStatus[selectedChapterId] || "idle";
               if (status === "loading") {
                 return (
-                  <div className="px-2">
+                  <div className="grid gap-3">
                     {Array.from({ length: 4 }).map((_, i) => (
                       <div
                         key={i}
-                        className="flex items-center gap-2 px-2 py-1"
+                        className="flex items-center gap-4 px-4 py-3 rounded-lg border border-neutral-200 bg-white"
                       >
-                        <Skeleton className="w-5 h-5 rounded" />
-                        <Skeleton className="h-4 w-32" />
-                        <div className="ml-auto flex items-center gap-2">
-                          <Skeleton className="h-3 w-16" />
+                        <Skeleton className="w-10 h-10 rounded-md" />
+                        <div className="space-y-2 flex-1">
+                          <Skeleton className="h-4 w-1/3" />
+                          <Skeleton className="h-3 w-1/4" />
                         </div>
                       </div>
                     ))}
@@ -2203,45 +2607,76 @@ export const CourseStructureDetails = ({
                 );
               }
               const chapterSlides = slidesMap[selectedChapterId] || [];
-              if (status === "loaded" && chapterSlides.length === 0) {
+              const visibleSlides = chapterSlides.filter((sl) => {
+                const evaluation = slideEvaluations[sl.id];
+                return !evaluation?.isHidden;
+              });
+              if (status === "loaded" && visibleSlides.length === 0) {
                 return (
-                  <div className="text-sm text-neutral-500 italic">
-                    No Slides
+                  <div className="rounded-lg border border-dashed border-neutral-300 p-8 text-center">
+                    <p className="text-neutral-500 italic">No content available in this chapter.</p>
                   </div>
                 );
               }
-              return chapterSlides.map((sl, index) => (
-                <div
-                  key={sl.id}
-                  className={`${getSlideStyling()} flex-col items-start gap-2 p-3`}
-                  onClick={() =>
-                    isSlideClickable() &&
-                    handleSlideNavigation(
-                      selectedSubjectId || "",
-                      selectedModuleId || "",
-                      selectedChapterId,
-                      sl.id
-                    )
-                  }
-                >
-                  <div className="flex items-center gap-2 sm:gap-3 w-full">
-                    <div className="flex items-center gap-2">
-                      <div className="flex w-6 h-6 items-center justify-center rounded-md text-xs font-bold bg-gray-100 text-gray-500">
-                        {index + 1}
-                      </div>
-                      {getIcon(sl, "4")}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="font-medium text-sm truncate">
-                        {sl.title}
-                      </div>
-                      <div className="text-xs text-gray-500 mt-0.5 sm:mt-1">
-                        {getSlideTypeDisplay(sl)}
-                      </div>
-                    </div>
-                  </div>
+              return (
+                <div className="grid gap-3">
+                  {visibleSlides.map((sl, index) => {
+                    const evaluation = slideEvaluations[sl.id];
+                    const isSlideLocked = evaluation?.isLocked ?? false;
+                    return (
+                      <Card
+                        key={sl.id}
+                        className={cn(
+                          "group transition-all duration-200 border-neutral-200 overflow-hidden",
+                          isSlideLocked
+                            ? "opacity-60 bg-neutral-50"
+                            : isSlideClickable()
+                              ? "hover:shadow-md cursor-pointer hover:border-primary-300/50 bg-white"
+                              : "bg-white"
+                        )}
+                        onClick={() => {
+                          if (isSlideLocked) return;
+                          if (isSlideClickable()) {
+                            handleSlideNavigation(
+                              selectedSubjectId || "",
+                              selectedModuleId || "",
+                              selectedChapterId,
+                              sl.id
+                            );
+                          }
+                        }}
+                      >
+                        <CardContent className="p-3 sm:p-4 flex items-start gap-3 sm:gap-4">
+                          <div className="flex-shrink-0 flex w-10 h-10 items-center justify-center rounded-lg bg-neutral-100/80 text-sm font-bold text-neutral-500 group-hover:bg-primary-50 group-hover:text-primary-600 transition-colors">
+                            {index + 1}
+                          </div>
+
+                          <div className="flex-1 min-w-0 pt-0.5">
+                            <div className="flex items-start justify-between gap-4">
+                              <h4 className="text-base font-medium text-neutral-800 break-words leading-tight group-hover:text-primary-700 transition-colors">
+                                {sl.title}
+                              </h4>
+                              <div className="shrink-0 text-neutral-400 group-hover:text-primary-500 transition-colors">
+                                {getIcon(sl, "5")}
+                              </div>
+                            </div>
+
+                            <div className="flex flex-wrap items-center gap-2 mt-2">
+                              <Badge variant="secondary" className="bg-neutral-100 text-neutral-500 font-normal hover:bg-neutral-200 text-xs">
+                                {getSlideTypeDisplay(sl) || 'Slide'}
+                              </Badge>
+
+                              {isSlideLocked && (
+                                <LockedBadge size="sm" />
+                              )}
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
                 </div>
-              ));
+              );
             })()}
           </div>
         )}
@@ -2266,7 +2701,7 @@ export const CourseStructureDetails = ({
     [TabType.ASSESSMENT]: (
       <div className="rounded-md bg-card border border-neutral-200 p-5 text-sm text-neutral-600">
         <div className="flex items-center gap-3 mb-3">
-          <div className="w-8 h-8 rounded-md bg-green-600 flex items-center justify-center">
+          <div className="w-8 h-8 rounded-md bg-primary flex items-center justify-center">
             <span className="text-white text-xs font-bold">A</span>
           </div>
           <span className="font-medium text-neutral-700">Assessments</span>
@@ -2620,9 +3055,8 @@ export const CourseStructureDetails = ({
             <TabsContent
               key={selectedStructureTab}
               value={selectedStructureTab}
-              className={`${
-                renderTabs.length > 1 ? "mt-4" : ""
-              } rounded-lg bg-white border border-neutral-200/60 p-4`}
+              className={`${renderTabs.length > 1 ? "mt-4" : ""
+                } rounded-lg bg-white border border-neutral-200/60 p-4`}
             >
               {tabContent[selectedStructureTab as TabType]}
             </TabsContent>

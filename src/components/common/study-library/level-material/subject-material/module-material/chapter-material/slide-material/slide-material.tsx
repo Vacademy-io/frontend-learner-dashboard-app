@@ -12,6 +12,7 @@ import { DoubtResolutionSidebar } from "./doubt-resolution-sidebar/components/si
 import CustomVideoPlayer from "./custom-video-player";
 import QuestionSlide from "./question-slide";
 import AssignmentSlide from "./assignment-slide";
+import { isItemLocked } from "@/components/drip-conditions/helpers";
 
 import { MyButton } from "@/components/design-system/button";
 import { DocViewer } from "./doc-viewer";
@@ -24,9 +25,11 @@ import { useDoubtSidebarStore } from "@/stores/study-library/doubt-sidebar-store
 import QuizViewer from "./quiz-viewer";
 import { Slide } from "@/hooks/study-library/use-slides";
 import { getStudentDisplaySettings } from "@/services/student-display-settings";
+import { ConcentrationSettings } from "@/types/student-display-settings";
 
 export const SlideMaterial = () => {
-  const { activeItem, items, setActiveItem } = useContentStore();
+  const { activeItem, items, setActiveItem, slideEvaluations } =
+    useContentStore();
   const selectionRef = useRef(null);
   const loadGenerationRef = useRef(0);
   const [heading, setHeading] = useState(activeItem?.title || "");
@@ -36,13 +39,45 @@ export const SlideMaterial = () => {
   const [isLoading, setIsLoading] = useState(false);
   const { uploadFile, getPublicUrl } = useFileUpload();
 
+  // Settings state
+  const [concentrationSettings, setConcentrationSettings] = useState<ConcentrationSettings | undefined>(undefined);
+
+  // Fetch settings
+  useEffect(() => {
+    getStudentDisplaySettings()
+      .then((settings) => {
+        if (settings?.concentration) {
+          setConcentrationSettings(settings.concentration);
+        }
+      })
+      .catch((err) => console.error("Failed to load display settings for concentration:", err));
+  }, []);
+
   const playerRef = useRef<HTMLVideoElement | null>(null);
 
   // Slide navigation helpers
   const slidesList = Array.isArray(items) ? items : [];
   const currentIndex = slidesList.findIndex((s) => s.id === activeItem?.id);
-  const canGoPrev = currentIndex > 0;
-  const canGoNext = currentIndex > -1 && currentIndex < slidesList.length - 1;
+
+  // Check if prev/next slides are locked
+  const prevSlide = currentIndex > 0 ? slidesList[currentIndex - 1] : null;
+  const nextSlide =
+    currentIndex > -1 && currentIndex < slidesList.length - 1
+      ? slidesList[currentIndex + 1]
+      : null;
+
+  const isPrevLocked = prevSlide
+    ? slideEvaluations[prevSlide.id] &&
+    isItemLocked(slideEvaluations[prevSlide.id])
+    : false;
+  const isNextLocked = nextSlide
+    ? slideEvaluations[nextSlide.id] &&
+    isItemLocked(slideEvaluations[nextSlide.id])
+    : false;
+
+  const canGoPrev = currentIndex > 0 && !isPrevLocked;
+  const canGoNext =
+    currentIndex > -1 && currentIndex < slidesList.length - 1 && !isNextLocked;
 
   const goToPrev = () => {
     if (!canGoPrev) return;
@@ -177,6 +212,7 @@ export const SlideMaterial = () => {
                       videoUrl={videoUrl}
                       onTimeUpdate={handleVideoTimeUpdate}
                       ref={playerRef}
+                      concentrationSettings={concentrationSettings}
                     />
                   </div>
                 </div>
@@ -198,6 +234,7 @@ export const SlideMaterial = () => {
                       ref={playerRef}
                       ms={activeItem.progress_marker}
                       questions={videoSlide?.questions || []}
+                      concentrationSettings={concentrationSettings}
                     />
                   </div>
                 </div>
@@ -210,33 +247,46 @@ export const SlideMaterial = () => {
         case "QUIZ": {
           // Support for new quiz slide structure
           const slideWithQuiz = activeItem as Slide & { quiz_slide?: unknown };
-          const quizSlide = slideWithQuiz.quiz_slide as { questions?: unknown[] } | undefined;
-          const questions = Array.isArray(quizSlide?.questions) ? quizSlide!.questions : [];
+          const quizSlide = slideWithQuiz.quiz_slide as
+            | { questions?: unknown[] }
+            | undefined;
+          const questions = Array.isArray(quizSlide?.questions)
+            ? quizSlide!.questions
+            : [];
 
           // Map questions to QuizViewer format
           const mappedQuestions = questions.map((q: unknown) => {
             const question = q as {
               id: string;
-              parent_rich_text?: { id?: string; type?: string; content?: string };
+              parent_rich_text?: {
+                id?: string;
+                type?: string;
+                content?: string;
+              };
               text?: { id?: string; type?: string; content?: string };
               options?: Array<{ id?: string; text?: { content?: string } }>;
               question_type?: string;
               auto_evaluation_json?: string;
-              explanation_text?: { id?: string; type?: string; content?: string };
+              explanation_text?: {
+                id?: string;
+                type?: string;
+                content?: string;
+              };
             };
             return {
               id: question.id,
               parent_rich_text: question.parent_rich_text,
               text: question.text,
               question_type: question.question_type,
-              options: Array.isArray(question.options) && question.options.length > 0
-                ? question.options.map((opt, idx) => ({
+              options:
+                Array.isArray(question.options) && question.options.length > 0
+                  ? question.options.map((opt, idx) => ({
                     id: opt.id || String(idx),
                     text: { content: opt.text?.content || "Option" },
                   }))
-                : [
+                  : [
                     // If no options, provide a default for numeric/text input
-                    { id: "input", text: { content: "(Enter your answer)" } }
+                    { id: "input", text: { content: "(Enter your answer)" } },
                   ],
               auto_evaluation_json: question.auto_evaluation_json,
               explanation_text: question.explanation_text,
@@ -261,13 +311,19 @@ export const SlideMaterial = () => {
         case "QUESTION": {
           // Fallback: if quiz_slide is present, use it
           const slideWithQuiz = activeItem as Slide & { quiz_slide?: unknown };
-          const quizSlide = slideWithQuiz.quiz_slide as { questions?: unknown[] } | undefined;
+          const quizSlide = slideWithQuiz.quiz_slide as
+            | { questions?: unknown[] }
+            | undefined;
           if (quizSlide && Array.isArray(quizSlide.questions)) {
             const questions = quizSlide.questions;
             const mappedQuestions = questions.map((q: unknown) => {
               const question = q as {
                 id: string;
-                parent_rich_text?: { id?: string; type?: string; content?: string };
+                parent_rich_text?: {
+                  id?: string;
+                  type?: string;
+                  content?: string;
+                };
                 text?: { id?: string; type?: string; content?: string };
                 options?: Array<{ id?: string; text?: { content?: string } }>;
                 question_type?: string;
@@ -277,14 +333,18 @@ export const SlideMaterial = () => {
                 parent_rich_text: question.parent_rich_text,
                 text: question.text,
                 question_type: question.question_type,
-                options: Array.isArray(question.options) && question.options.length > 0
-                  ? question.options.map((opt, idx) => ({
+                options:
+                  Array.isArray(question.options) && question.options.length > 0
+                    ? question.options.map((opt, idx) => ({
                       id: opt.id || String(idx),
                       text: { content: opt.text?.content || "Option" },
                     }))
-                  : [
-                      { id: "input", text: { content: "(Enter your answer)" } }
-                    ]
+                    : [
+                      {
+                        id: "input",
+                        text: { content: "(Enter your answer)" },
+                      },
+                    ],
               };
             });
             setContent(
@@ -356,8 +416,10 @@ export const SlideMaterial = () => {
             const isHtml =
               activeItem.document_slide.published_data &&
               (activeItem.document_slide.published_data.includes("<html") ||
-               activeItem.document_slide.published_data.includes("<body") ||
-               activeItem.document_slide.published_data.trim().startsWith("<"));
+                activeItem.document_slide.published_data.includes("<body") ||
+                activeItem.document_slide.published_data
+                  .trim()
+                  .startsWith("<"));
             if (isHtml) {
               setContent(
                 <div className="h-full w-full animate-in fade-in slide-in-from-bottom-4 duration-700">
@@ -499,27 +561,37 @@ export const SlideMaterial = () => {
     }
   };
 
-  useEffect(() => {
-    loadGenerationRef.current += 1;
-    const currentGeneration = loadGenerationRef.current;
+  const prevSlideIdRef = useRef<string | null>(null);
 
-    if (activeItem) {
-      setHeading(activeItem.title || "");
-      loadContent(currentGeneration);
-    } else {
-      setHeading("No content");
-      if (currentGeneration === loadGenerationRef.current) {
-        setContent(
-          <div className="flex h-[500px] flex-col items-center justify-center rounded-lg py-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div className="bg-neutral-50 rounded-full p-6 transition-transform duration-300 group-hover:scale-105">
-              <EmptySlideMaterial />
+  useEffect(() => {
+    // Only reload content if the slide ID actually changed
+    if (activeItem?.id !== prevSlideIdRef.current) {
+      loadGenerationRef.current += 1;
+      const currentGeneration = loadGenerationRef.current;
+
+      if (activeItem) {
+        setHeading(activeItem.title || "");
+        loadContent(currentGeneration);
+        prevSlideIdRef.current = activeItem.id;
+      } else {
+        setHeading("No content");
+        prevSlideIdRef.current = null;
+        if (currentGeneration === loadGenerationRef.current) {
+          setContent(
+            <div className="flex h-[500px] flex-col items-center justify-center rounded-lg py-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <div className="bg-neutral-50 rounded-full p-6 transition-transform duration-300 group-hover:scale-105">
+                <EmptySlideMaterial />
+              </div>
+              <p className="mt-6 text-neutral-500 animate-in fade-in duration-700 delay-200 text-center">
+                No study material has been added yet
+              </p>
             </div>
-            <p className="mt-6 text-neutral-500 animate-in fade-in duration-700 delay-200 text-center">
-              No study material has been added yet
-            </p>
-          </div>
-        );
+          );
+        }
       }
+    } else if (activeItem) {
+      // Slide ID is the same, just update heading (no content reload)
+      setHeading(activeItem.title || "");
     }
   }, [activeItem]);
 
@@ -531,7 +603,7 @@ export const SlideMaterial = () => {
           <div className="flex items-center gap-2.5">
             <div className="w-1 h-6 bg-primary-500 rounded-full"></div>
             <div className="flex flex-col min-w-0">
-              <h3 className="text-sm sm:text-base font-semibold text-neutral-900 leading-tight animate-in fade-in slide-in-from-left-4 duration-500 truncate max-w-[60vw] sm:max-w-none">
+              <h3 className="text-sm sm:text-base font-semibold text-neutral-900 leading-tight animate-in fade-in slide-in-from-left-4 duration-500">
                 {heading || "No content"}
               </h3>
               <p className="text-xs font-medium text-neutral-500 uppercase tracking-wide animate-in fade-in slide-in-from-left-4 duration-500 delay-75">
@@ -664,7 +736,9 @@ const AskDoubtButton = () => {
   const [enabled, setEnabled] = useState(true);
   useEffect(() => {
     getStudentDisplaySettings(false)
-      .then((s) => setEnabled(s?.courseDetails?.slidesView?.canAskDoubt !== false))
+      .then((s) =>
+        setEnabled(s?.courseDetails?.slidesView?.canAskDoubt !== false)
+      )
       .catch(() => setEnabled(true));
   }, []);
   if (!enabled) return null;
@@ -681,7 +755,10 @@ const AskDoubtButton = () => {
       >
         <span className="text-neutral-700 font-medium text-sm">Doubts</span>
         <div className="relative">
-          <ChatText size={16} className="text-neutral-600 transition-all duration-300 group-hover:text-primary-600" />
+          <ChatText
+            size={16}
+            className="text-neutral-600 transition-all duration-300 group-hover:text-primary-600"
+          />
           <div className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-primary-500 rounded-full animate-pulse"></div>
         </div>
       </MyButton>

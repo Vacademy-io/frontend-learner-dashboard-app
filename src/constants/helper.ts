@@ -18,7 +18,7 @@ export function convertToLocalDateTime(utcDate: string): string {
     minute: "2-digit",
     second: "2-digit",
     hour12: true,
-    timeZone: "UTC",
+
   };
 
   const formatted = new Intl.DateTimeFormat("en-GB", options).format(date);
@@ -30,10 +30,10 @@ export function convertToLocalDateTime(utcDate: string): string {
 }
 
 export function extractDateTime(utcDate: string) {
-  const [date, time] = [
-    utcDate.split(" ").slice(0, 3).join(" "),
-    utcDate.split(" ").slice(3).join(" "),
-  ];
+
+  const parts = utcDate.split(" at ");
+  const date = parts[0] || ""; // 
+  const time = parts[1] ? `${parts[1]}` : ""; // 
 
   return { date, time };
 }

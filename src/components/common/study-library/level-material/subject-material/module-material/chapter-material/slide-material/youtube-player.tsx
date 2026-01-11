@@ -48,6 +48,9 @@ enum PlayerState {
   CUED = 5,
 }
 
+import { ConcentrationSettings } from "@/types/student-display-settings";
+import { DEFAULT_STUDENT_DISPLAY_SETTINGS } from "@/constants/display-settings/student-defaults";
+
 interface YouTubePlayerProps {
   videoId: string;
   videoTitle?: string;
@@ -78,6 +81,7 @@ interface YouTubePlayerProps {
   liveTimestamp?: number; // Current live timestamp in seconds (for live streams)
   liveClassStartTime?: string; // ISO timestamp when the live class started (for syncing video position)
   enableConcentrationScore?: boolean; // If false, concentration score features are disabled
+  concentrationSettings?: ConcentrationSettings;
 }
 
 export const formatTime = (timeInSeconds: number) => {
@@ -97,6 +101,7 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({
   liveTimestamp = 0,
   liveClassStartTime,
   enableConcentrationScore = true,
+  concentrationSettings,
 }) => {
   const { activeItem } = useContentStore();
   // Subscribe only to addActivity to avoid re-render on every trackingData update
@@ -149,7 +154,7 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({
 
   // Volume control state
   const [volume, setVolume] = useState(100); // 0 - 100
-
+  const shouldAutoPlayAfterSeekRef = useRef(false);
   // UI control states
   const [showControls, setShowControls] = useState(true);
   const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -177,9 +182,24 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({
   const [showVerification, setShowVerification] = useState(false);
   const [verificationCountdown, setVerificationCountdown] = useState(59);
   const [verificationNumbers, setVerificationNumbers] = useState<number[]>([]);
-  const [verificationInterval] = useState(180);
+  // const [verificationInterval] = useState(180); // Removed fixed interval
   const [lastVerificationTime, setLastVerificationTime] = useState(0);
   const verificationTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const nextVerificationTimeRef = useRef<number>(0);
+
+  // Settings defaults
+  const settings = {
+    enabled: concentrationSettings?.enabled ?? (enableConcentrationScore ?? DEFAULT_STUDENT_DISPLAY_SETTINGS.concentration.enabled),
+    min_minutes: concentrationSettings?.frequency.min_minutes ?? DEFAULT_STUDENT_DISPLAY_SETTINGS.concentration.frequency.min_minutes,
+    max_minutes: concentrationSettings?.frequency.max_minutes ?? DEFAULT_STUDENT_DISPLAY_SETTINGS.concentration.frequency.max_minutes,
+  };
+
+  // Reset schedule if settings change to ensure we pick up new intervals immediately
+  useEffect(() => {
+    if (nextVerificationTimeRef.current !== 0) {
+      nextVerificationTimeRef.current = 0;
+    }
+  }, [settings.min_minutes, settings.max_minutes, settings.enabled]);
 
   // Concentration metrics
   const [tabSwitchCount, setTabSwitchCount] = useState(0);
@@ -540,6 +560,9 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({
 
       // Hide verification
       setShowVerification(false);
+
+      // Schedule next
+      scheduleNextVerification();
     } else {
       // Wrong number clicked, increment wrong answer count
       setWrongAnswerCount((prev) => prev + 1);
@@ -552,31 +575,50 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({
 
       // Close the verification dialog
       setShowVerification(false);
+      // Reschedule on resume
+      nextVerificationTimeRef.current = 0;
     }
   };
 
+  const scheduleNextVerification = useCallback(() => {
+    if (!settings.enabled) return;
+
+    const minSeconds = settings.min_minutes * 60;
+    const maxSeconds = settings.max_minutes * 60;
+    const randomSeconds = Math.floor(Math.random() * (maxSeconds - minSeconds + 1)) + minSeconds;
+
+    // Set target time based on CURRENT elapsed time + random future duration
+    nextVerificationTimeRef.current = elapsedTime + randomSeconds;
+  }, [settings.enabled, settings.min_minutes, settings.max_minutes, elapsedTime]);
+
+
   // Check if verification is needed based on elapsed time
   useEffect(() => {
-    if (!enableConcentrationScore) return;
+    if (!settings.enabled) return;
+
+    if (isPlayed && nextVerificationTimeRef.current === 0) {
+      scheduleNextVerification();
+    }
 
     if (
       isPlayed &&
       elapsedTime > 0 &&
-      elapsedTime % verificationInterval === 0
+      nextVerificationTimeRef.current > 0 &&
+      elapsedTime >= nextVerificationTimeRef.current
     ) {
       // Show verification without pausing the video
       setShowVerification(true);
       generateVerificationNumbers();
       startVerificationTimer();
-      console.log(lastVerificationTime);
+      nextVerificationTimeRef.current = 0;
     }
   }, [
     elapsedTime,
-    verificationInterval,
     isPlayed,
+    settings.enabled,
+    scheduleNextVerification,
     generateVerificationNumbers,
     startVerificationTimer,
-    enableConcentrationScore,
   ]);
 
   const calculatePercentageWatched = (totalDuration: number) => {
@@ -884,60 +926,7 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({
     };
   }, [player]);
 
-    // Add an additional effect to handle iframe load and inject CSS
-    useEffect(() => {
-      if (!iframeRef.current) return;
-      const injectCSS = () => {
-        try {
-          const iframe = iframeRef.current;
-          if (!iframe) return;
-  
-          // Try to access iframe content
-          const iframeDocument =
-            iframe.contentDocument || iframe.contentWindow?.document;
-          if (!iframeDocument) return;
-  
-          // Create a style element
-          const style = iframeDocument.createElement("style");
-          style.textContent = `
-              .ytp-chrome-top,
-              .ytp-chrome-bottom,
-              .ytp-watermark,
-              .ytp-show-cards-title,
-              .ytp-youtube-button,
-              .ytp-embed-title,
-              .ytp-embed-owner,
-              .ytp-share-button,
-              .ytp-watch-later-button,
-              .ytp-more-videos-overlay,
-              .ytp-pause-overlay,
-              .ytp-related-on-pause-container,
-              .ytp-endscreen-content,
-              .ytp-ce-element {
-                  display: none !important;
-              }
-              `;
-  
-          // Append style to iframe head
-          iframeDocument.head.appendChild(style);
-        } catch (error) {
-          console.error("Error injecting CSS into iframe:", error);
-        }
-      };
-  
-      // Try to inject CSS after iframe is loaded
-      const iframe = iframeRef.current;
-      if (iframe) {
-        iframe.addEventListener("load", injectCSS);
-  
-        // Also try immediately in case iframe is already loaded
-        injectCSS();
-  
-        return () => {
-          iframe.removeEventListener("load", injectCSS);
-        };
-      }
-    }, [iframeRef.current]);
+
 
   // Note: CSS injection into YouTube iframe removed due to cross-origin restrictions
   // YouTube UI elements are controlled via playerVars (controls, modestbranding, etc.)
@@ -1026,10 +1015,11 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({
       console.error("Error getting initial volume", err);
     }
 
-      // Get the iframe element
+    // Get the iframe element
+    // Get the iframe element
     try {
       const iframe = await event.target.getIframe();
-      iframeRef.current = iframe;
+
 
       // Set iframe attributes for Error 153 fix
       if (iframe) {
@@ -1044,34 +1034,7 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({
         } catch (e) {
           console.error("Error setting iframe attributes:", e);
         }
-        try {
-          const iframeDocument =
-            iframe.contentDocument || iframe.contentWindow?.document;
-          if (iframeDocument) {
-            const style = iframeDocument.createElement("style");
-            style.textContent = `
-                    .ytp-chrome-top,
-                    .ytp-chrome-bottom,
-                    .ytp-watermark,
-                    .ytp-show-cards-title,
-                    .ytp-youtube-button,
-                    .ytp-embed-title,
-                    .ytp-embed-owner,
-                    .ytp-share-button,
-                    .ytp-watch-later-button,
-                    .ytp-more-videos-overlay,
-                    .ytp-pause-overlay,
-                    .ytp-related-on-pause-container,
-                    .ytp-endscreen-content,
-                    .ytp-ce-element {
-                      display: none !important;
-                    }
-                  `;
-            iframeDocument.head.appendChild(style);
-          }
-        } catch (error) {
-          console.error("Error accessing iframe content:", error);
-        }
+
       }
     } catch (error) {
       console.error("Error getting iframe:", error);
@@ -1200,6 +1163,12 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({
     if (!player || !playerReady) return;
 
     const controlPlayback = async () => {
+      // Don't interfere if we're still performing the initial seek
+      if (!hasPerformedInitialSeekRef.current && ms > 0) {
+        console.log("Skipping controlPlayback during initial seek");
+        return;
+      }
+
       await safePlayerOperation(() => {
         if (isPlayed) {
           player.playVideo();
@@ -1217,6 +1186,7 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({
     isPlayed,
     player,
     playerReady,
+    ms,
     startProgressTracking,
     stopProgressTracking,
   ]);
@@ -1243,6 +1213,25 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({
 
   const onStateChange = async (event: YouTubeEvent) => {
     if (!player) return;
+
+    // Auto-play after seek completes (event-driven approach)
+    if (shouldAutoPlayAfterSeekRef.current) {
+      const state = event.data;
+      // YouTube goes: BUFFERING (3) → PAUSED (2) or CUED (5) after seek
+      if (state === PlayerState.PAUSED || state === 5) { // PAUSED or CUED
+        console.log(`Player ready after seek (state: ${state}), starting playback...`);
+        shouldAutoPlayAfterSeekRef.current = false;
+
+        try {
+          await player.playVideo();
+          setIsPlayed(true);
+          console.log("Auto-play after seek successful");
+        } catch (error) {
+          console.error("Error auto-playing after seek:", error);
+        }
+        return; // Let the next state change handle the rest
+      }
+    }
 
     const now = getEpochTimeInMillis();
 
@@ -1373,9 +1362,20 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({
     }
   };
 
+  const hasPerformedInitialSeekRef = useRef(false);
+  const lastVideoIdForSeekRef = useRef<string>("");
+
+  // Reset seek flag when video changes
   useEffect(() => {
-    // Only seek if ms is greater than 0 and player is ready
-    if (ms > 0 && player && playerReady) {
+    if (videoId !== lastVideoIdForSeekRef.current) {
+      hasPerformedInitialSeekRef.current = false;
+      lastVideoIdForSeekRef.current = videoId;
+    }
+  }, [videoId]);
+
+  useEffect(() => {
+    // Only seek if ms is greater than 0 and player is ready AND we haven't performed initial seek yet
+    if (ms > 0 && player && playerReady && !hasPerformedInitialSeekRef.current) {
       const totalSeconds = ms / 1000;
       const minutes = Math.floor(totalSeconds / 60);
       const seconds = Math.floor(totalSeconds % 60); // Use Math.floor for whole seconds
@@ -1384,15 +1384,52 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({
       setMinutesInput(minutes.toString());
       setSecondsInput(seconds.toString());
 
-      // Add a small delay to ensure the player iframe is fully initialized
-      const seekTimeout = setTimeout(() => {
-        // Call seekToTimestamp with the calculated totalSeconds (force it for initial load)
-        seekToTimestamp(totalSeconds, true);
-      }, 500); // 500ms delay to ensure iframe is ready
+      let retryCount = 0;
+      const maxRetries = 5;
+
+      // Wait for player to be fully ready before seeking
+      const performSeek = async () => {
+        try {
+          // Ensure iframe is ready with retry logic
+          const isReady = await isPlayerIframeReady(player);
+          if (!isReady) {
+            if (retryCount < maxRetries) {
+              retryCount++;
+              console.warn(`Player iframe not ready for initial seek, retry ${retryCount}/${maxRetries}...`);
+              setTimeout(performSeek, 300); // Retry after 300ms
+              return;
+            } else {
+              console.error("Player iframe failed to be ready after max retries");
+              return;
+            }
+          }
+
+          // Double-check player state
+          const playerState = await player.getPlayerState();
+          console.log(`Player state before seek: ${playerState}`);
+
+          // Perform the seek
+          const seekSuccess = await seekToTimestamp(totalSeconds, true);
+
+          if (seekSuccess) {
+            hasPerformedInitialSeekRef.current = true;
+            console.log(`Successfully seeked to ${totalSeconds}s`);
+
+            // Set flag for event-driven auto-play (onStateChange will handle it)
+            shouldAutoPlayAfterSeekRef.current = true;
+            console.log("Waiting for player state change to auto-play...");
+          }
+        } catch (error) {
+          console.error("Error during initial seek:", error);
+        }
+      };
+
+      // Start the seek process after initial delay
+      const seekTimeout = setTimeout(performSeek, 1000); // Increased to 1 second
 
       return () => clearTimeout(seekTimeout);
     }
-  }, [ms, player, playerReady]);
+  }, [ms, player, playerReady, isPlayed]);
 
   // Live class synchronization - automatically sync video to live class progress
   useEffect(() => {
@@ -1730,35 +1767,64 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({
   return (
     <div className="w-full max-w-[100vw] overflow-x-hidden flex flex-col items-center gap-4">
       {/* Non-fullscreen verification overlay - shown outside the player */}
-      {showVerification && !isFullscreen && enableConcentrationScore && (
-        <div className="w-full mb-2 animate-in fade-in slide-in-from-top duration-300">
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg shadow-lg overflow-hidden">
-            <div className="p-3">
-              <div className="mt-1">
-                <p className="text-xs text-neutral-600">
-                  Just ensuring that you are actively learning, please click the
-                  number{" "}
-                  <span className="text-primary-500 font-bold">
-                    {verificationNumbers[1]}
-                  </span>{" "}
-                  within{" "}
-                  <span className="text-primary-500 font-bold">
-                    {verificationCountdown}{" "}
-                  </span>
-                  seconds.
-                </p>
+      {showFullscreenControls && isFullscreen && (
+        <>
+          {/* Moved UI logic to non-fullscreen check or handling in full screen, 
+                for now applying the same overlay style to the non-fullscreen block 
+                or just replacing the existing one 
+            */}
+        </>
+      )}
+
+      {showVerification && !isFullscreen && (
+        <div className="absolute inset-0 z-[50] flex items-end justify-center pb-8 pointer-events-none">
+          {/* Focus Mode Backdrop - localized to player area if possible, but here it's page-level or container-level. 
+               Since this is outside the player container, "absolute inset-0" refers to the parent div which is the page wrapper.
+               We want a fixed overlay for focus.
+           */}
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9990] animate-in fade-in duration-500 pointer-events-auto" />
+
+          <div className="relative z-[9999] animate-in slide-in-from-bottom-10 fade-in duration-500 w-full max-w-lg px-6 pointer-events-auto">
+            <div className="bg-zinc-950 border border-zinc-800 text-white rounded-2xl shadow-2xl overflow-hidden relative">
+              {/* Progress Bar Background */}
+              <div className="absolute bottom-0 left-0 h-1 bg-zinc-800 w-full">
+                <div
+                  className="h-full bg-emerald-500 transition-all duration-1000 ease-linear"
+                  style={{ width: `${(verificationCountdown / 59) * 100}%` }}
+                />
               </div>
-              <div className="mt-2 flex justify-center space-x-2">
-                {verificationNumbers.map((number, index) => (
-                  <button
-                    key={index}
-                    onClick={() => handleVerificationClick(index)}
-                    className="px-2 py-1 rounded-lg text-xs font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 bg-white text-neutral-600 border border-gray-200 hover:bg-gray-50"
-                  >
-                    {number}
-                  </button>
-                ))}
+
+              <div className="p-5 flex flex-col sm:flex-row items-center gap-6">
+                <div className="flex-1 text-center sm:text-left space-y-2">
+                  <div className="flex items-center justify-center sm:justify-start gap-2.5">
+                    <span className="relative flex h-3 w-3">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+                    </span>
+                    <h4 className="text-base font-bold text-white tracking-tight">Active Focus Check</h4>
+                  </div>
+                  <p className="text-sm text-zinc-400 leading-relaxed">
+                    Select <span className="inline-block px-2 py-0.5 mx-1 bg-zinc-900 border border-zinc-700 rounded text-emerald-400 font-mono font-bold text-base shadow-inner md:align-middle">{verificationNumbers[1]}</span> to maintain your learning streak.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-3 shrink-0">
+                  {verificationNumbers.map((number, index) => (
+                    <button
+                      key={index}
+                      onClick={() => handleVerificationClick(index)}
+                      className="w-12 h-12 flex items-center justify-center rounded-xl text-base font-bold bg-zinc-900 text-zinc-300 border border-zinc-800 hover:bg-emerald-500/10 hover:text-emerald-400 hover:border-emerald-500/50 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all duration-200 active:scale-95 shadow-lg group relative overflow-hidden"
+                    >
+                      <span className="relative z-10">{number}</span>
+                    </button>
+                  ))}
+                </div>
               </div>
+            </div>
+            <div className="text-center mt-3">
+              <span className="text-xs font-medium text-zinc-500 bg-black/40 px-3 py-1 rounded-full border border-white/5 backdrop-blur-md">
+                Closing in {verificationCountdown}s
+              </span>
             </div>
           </div>
         </div>
@@ -1767,46 +1833,63 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({
       {/* Video player container with verification overlay */}
       <div
         ref={playerContainerRef}
-        className={`aspect-video w-full max-w-[100vw] relative min-h-[200px] sm:min-h-[250px] md:min-h-[300px] lg:h-full items-center flex justify-center overflow-hidden bg-black rounded-lg group ${
-          isPseudoFullscreen
+        className={`aspect-video w-full max-w-[100vw] relative min-h-[200px] sm:min-h-[250px] md:min-h-[300px] lg:h-full items-center flex justify-center overflow-hidden bg-black rounded-lg group ${isPseudoFullscreen
             ? "fixed inset-0 z-[10000] rounded-none overflow-hidden max-w-[100vw] max-h-[100vh]"
             : ""
-        }`}
+          }`}
         onMouseMove={handleMouseMoveOnVideo}
         onMouseEnter={handleMouseMoveOnVideo}
         onDoubleClick={handleDoubleClick}
         onClick={handleSingleClick}
       >
         {/* Verification overlay - only shown in fullscreen */}
+        {/* Verification overlay - Fullscreen */}
         {showVerification && (isFullscreen || isPseudoFullscreen) && enableConcentrationScore && (
-          <div className="absolute top-2 left-1/2 transform -translate-x-1/2 w-full max-w-xs z-[10000] animate-in fade-in slide-in-from-top duration-300">
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg shadow-lg overflow-hidden">
-              <div className="p-3">
-                <div className="mt-1">
-                  <p className="text-xs text-neutral-600">
-                    Just ensuring that you are actively learning, please click
-                    the number{" "}
-                    <span className="text-primary-500 font-bold">
-                      {verificationNumbers[1]}
-                    </span>{" "}
-                    within{" "}
-                    <span className="text-primary-500 font-bold">
-                      {verificationCountdown}{" "}
-                    </span>
-                    seconds.
-                  </p>
+          <div className="absolute inset-0 z-[10000] flex items-end justify-center pb-24 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
+            <div className="relative animate-in slide-in-from-bottom-10 fade-in duration-500 w-full max-w-lg px-6">
+              <div className="bg-zinc-950 border border-zinc-800 text-white rounded-2xl shadow-2xl overflow-hidden relative">
+                {/* Progress Bar Background */}
+                <div className="absolute bottom-0 left-0 h-1 bg-zinc-800 w-full">
+                  <div
+                    className="h-full bg-emerald-500 transition-all duration-1000 ease-linear"
+                    style={{ width: `${(verificationCountdown / 59) * 100}%` }}
+                  />
                 </div>
-                <div className="mt-2 flex justify-center space-x-2">
-                  {verificationNumbers.map((number, index) => (
-                    <button
-                      key={index}
-                      onClick={() => handleVerificationClick(index)}
-                      className="px-2 py-1 rounded-lg text-xs font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 bg-white text-neutral-600 border border-gray-200 hover:bg-gray-50"
-                    >
-                      {number}
-                    </button>
-                  ))}
+
+                <div className="p-5 flex flex-col sm:flex-row items-center gap-6">
+                  <div className="flex-1 text-center sm:text-left space-y-2">
+                    <div className="flex items-center justify-center sm:justify-start gap-2.5">
+                      <span className="relative flex h-3 w-3">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+                      </span>
+                      <h4 className="text-base font-bold text-white tracking-tight">Active Focus Check</h4>
+                    </div>
+                    <p className="text-sm text-zinc-400 leading-relaxed">
+                      Select <span className="inline-block px-2 py-0.5 mx-1 bg-zinc-900 border border-zinc-700 rounded text-emerald-400 font-mono font-bold text-base shadow-inner md:align-middle">{verificationNumbers[1]}</span> to maintain your learning streak.
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-3 shrink-0">
+                    {verificationNumbers.map((number, index) => (
+                      <button
+                        key={index}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleVerificationClick(index);
+                        }}
+                        className="w-12 h-12 flex items-center justify-center rounded-xl text-base font-bold bg-zinc-900 text-zinc-300 border border-zinc-800 hover:bg-emerald-500/10 hover:text-emerald-400 hover:border-emerald-500/50 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all duration-200 active:scale-95 shadow-lg group relative overflow-hidden"
+                      >
+                        <span className="relative z-10">{number}</span>
+                      </button>
+                    ))}
+                  </div>
                 </div>
+              </div>
+              <div className="text-center mt-3">
+                <span className="text-xs font-medium text-zinc-500 bg-black/40 px-3 py-1 rounded-full border border-white/5 backdrop-blur-md">
+                  Closing in {verificationCountdown}s
+                </span>
               </div>
             </div>
           </div>
@@ -1879,11 +1962,10 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({
                       }
                     }}
                     disabled={!allowRewind}
-                    className={`p-2 rounded-full text-white backdrop-blur-sm ${
-                      allowRewind
+                    className={`p-2 rounded-full text-white backdrop-blur-sm ${allowRewind
                         ? "bg-white/20 hover:bg-white/30 transition-all hover:scale-105"
                         : "bg-white/10 opacity-50 cursor-not-allowed"
-                    }`}
+                      }`}
                   >
                     <Rewind size={18} weight="fill" />
                   </button>
@@ -1919,11 +2001,10 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({
                   <div className="relative speed-control-container">
                     <button
                       onClick={toggleSpeedOptions}
-                      className={`relative p-2 rounded-full text-white transition-all backdrop-blur-sm ${
-                        allowRewind && playerReady
+                      className={`relative p-2 rounded-full text-white transition-all backdrop-blur-sm ${allowRewind && playerReady
                           ? "bg-white/20 hover:bg-white/30 hover:scale-105"
                           : "bg-white/10 opacity-50 cursor-not-allowed"
-                      }`}
+                        }`}
                       disabled={!playerReady || !allowRewind}
                     >
                       <Gauge size={18} weight="fill" />
@@ -1945,11 +2026,10 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({
                             <button
                               key={speed}
                               onClick={() => changePlaybackSpeed(speed)}
-                              className={`w-full px-3 py-2 text-sm text-left hover:bg-white/20 transition-colors ${
-                                playbackSpeed === speed
+                              className={`w-full px-3 py-2 text-sm text-left hover:bg-white/20 transition-colors ${playbackSpeed === speed
                                   ? "text-primary-400 bg-white/10 font-medium"
                                   : "text-white"
-                              }`}
+                                }`}
                             >
                               {speed}x
                             </button>
@@ -1973,17 +2053,15 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({
               {allowPlayPause && (
                 <div className="relative w-full">
                   <div
-                    className={`w-full h-1 bg-white/30 rounded-full group ${
-                      allowRewind ? "cursor-pointer" : "cursor-not-allowed"
-                    }`}
+                    className={`w-full h-1 bg-white/30 rounded-full group ${allowRewind ? "cursor-pointer" : "cursor-not-allowed"
+                      }`}
                     onClick={handleProgressBarClick}
                   >
                     <div
                       className="h-full bg-white rounded-full transition-all duration-150 group-hover:h-1.5"
                       style={{
-                        width: `${
-                          duration > 0 ? (currentTime / duration) * 100 : 0
-                        }%`,
+                        width: `${duration > 0 ? (currentTime / duration) * 100 : 0
+                          }%`,
                       }}
                     ></div>
                   </div>
@@ -1998,17 +2076,15 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({
                     return (
                       <button
                         key={question.id}
-                        className={`absolute w-3 h-3 rounded-full transform -translate-x-1/2 -translate-y-1 top-0 border-2 border-white shadow-lg transition-all z-10 ${
-                          isAnswered
+                        className={`absolute w-3 h-3 rounded-full transform -translate-x-1/2 -translate-y-1 top-0 border-2 border-white shadow-lg transition-all z-10 ${isAnswered
                             ? "bg-green-500"
                             : canSkip
-                            ? "bg-yellow-500"
-                            : "bg-red-500"
-                        } ${
-                          allowRewind
+                              ? "bg-yellow-500"
+                              : "bg-red-500"
+                          } ${allowRewind
                             ? "hover:scale-125 cursor-pointer hover:bg-green-600"
                             : "cursor-not-allowed opacity-75"
-                        }`}
+                          }`}
                         style={{
                           left: `${Math.max(1.5, Math.min(98.5, position))}%`,
                         }}
@@ -2019,13 +2095,12 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({
                           }
                         }}
                         disabled={!allowRewind}
-                        title={`Question ${index + 1}${
-                          isAnswered
+                        title={`Question ${index + 1}${isAnswered
                             ? " (Answered)"
                             : canSkip
-                            ? " (Skippable)"
-                            : " (Required)"
-                        }${!allowRewind ? " (Navigation disabled)" : ""}`}
+                              ? " (Skippable)"
+                              : " (Required)"
+                          }${!allowRewind ? " (Navigation disabled)" : ""}`}
                       >
                         {isAnswered ? (
                           <span className="text-white text-xs font-bold flex items-center justify-center w-full h-full">
@@ -2059,11 +2134,10 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({
             className={`absolute inset-0 flex items-center justify-center pointer-events-none z-[1000]`}
           >
             <div
-              className={`flex items-center gap-2 bg-black/70 backdrop-blur-sm rounded-lg px-4 py-2 text-white animate-in fade-in zoom-in duration-300 ${
-                showSeekAnimation.side === "right"
+              className={`flex items-center gap-2 bg-black/70 backdrop-blur-sm rounded-lg px-4 py-2 text-white animate-in fade-in zoom-in duration-300 ${showSeekAnimation.side === "right"
                   ? "flex-row"
                   : "flex-row-reverse"
-              }`}
+                }`}
             >
               <div className="flex gap-1">
                 {[...Array(showSeekAnimation.side === "right" ? 2 : 2)].map(
@@ -2106,11 +2180,10 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({
         {/* Bottom Controls Overlay (always visible when not fullscreen) */}
         {!(isFullscreen || isPseudoFullscreen) && (
           <div
-            className={`absolute bottom-0 left-0 right-0 z-[9999] transition-all duration-300 ${
-              showControls
+            className={`absolute bottom-0 left-0 right-0 z-[9999] transition-all duration-300 ${showControls
                 ? "opacity-100 translate-y-0"
                 : "opacity-0 translate-y-2"
-            }`}
+              }`}
           >
             <div className="bg-gradient-to-t from-black/80 via-black/40 to-transparent p-4 pt-8">
               {/* Professional Video Controls Overlay */}
@@ -2155,11 +2228,10 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({
                       }
                     }}
                     disabled={!allowRewind}
-                    className={`p-2 rounded-full text-white backdrop-blur-sm ${
-                      allowRewind
+                    className={`p-2 rounded-full text-white backdrop-blur-sm ${allowRewind
                         ? "bg-white/20 hover:bg-white/30 transition-all hover:scale-105"
                         : "bg-white/10 opacity-50 cursor-not-allowed"
-                    }`}
+                      }`}
                   >
                     <Rewind size={18} weight="fill" />
                   </button>
@@ -2196,11 +2268,10 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({
                     <button
                       ref={speedButtonRef}
                       onClick={toggleSpeedOptions}
-                      className={`relative p-2 rounded-full text-white transition-all backdrop-blur-sm ${
-                        allowRewind && playerReady
+                      className={`relative p-2 rounded-full text-white transition-all backdrop-blur-sm ${allowRewind && playerReady
                           ? "bg-white/20 hover:bg-white/30 hover:scale-105"
                           : "bg-white/10 opacity-50 cursor-not-allowed"
-                      }`}
+                        }`}
                       disabled={!playerReady || !allowRewind}
                     >
                       <Gauge size={18} weight="fill" />
@@ -2227,17 +2298,15 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({
               {allowPlayPause && (
                 <div className="relative w-full">
                   <div
-                    className={`w-full h-1 bg-white/30 rounded-full group ${
-                      allowRewind ? "cursor-pointer" : "cursor-not-allowed"
-                    }`}
+                    className={`w-full h-1 bg-white/30 rounded-full group ${allowRewind ? "cursor-pointer" : "cursor-not-allowed"
+                      }`}
                     onClick={handleProgressBarClick}
                   >
                     <div
                       className="h-full bg-white rounded-full transition-all duration-150 group-hover:h-1.5"
                       style={{
-                        width: `${
-                          duration > 0 ? (currentTime / duration) * 100 : 0
-                        }%`,
+                        width: `${duration > 0 ? (currentTime / duration) * 100 : 0
+                          }%`,
                       }}
                     ></div>
                   </div>
@@ -2252,17 +2321,15 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({
                     return (
                       <button
                         key={question.id}
-                        className={`absolute w-3 h-3 rounded-full transform -translate-x-1/2 -translate-y-1 top-0 border-2 border-white shadow-lg transition-all z-10 ${
-                          isAnswered
+                        className={`absolute w-3 h-3 rounded-full transform -translate-x-1/2 -translate-y-1 top-0 border-2 border-white shadow-lg transition-all z-10 ${isAnswered
                             ? "bg-green-500"
                             : canSkip
-                            ? "bg-yellow-500"
-                            : "bg-red-500"
-                        } ${
-                          allowRewind
+                              ? "bg-yellow-500"
+                              : "bg-red-500"
+                          } ${allowRewind
                             ? "hover:scale-125 cursor-pointer hover:bg-green-600"
                             : "cursor-not-allowed opacity-75"
-                        }`}
+                          }`}
                         style={{
                           left: `${Math.max(1.5, Math.min(98.5, position))}%`,
                         }}
@@ -2273,13 +2340,12 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({
                           }
                         }}
                         disabled={!allowRewind}
-                        title={`Question ${index + 1}${
-                          isAnswered
+                        title={`Question ${index + 1}${isAnswered
                             ? " (Answered)"
                             : canSkip
-                            ? " (Skippable)"
-                            : " (Required)"
-                        }${!allowRewind ? " (Navigation disabled)" : ""}`}
+                              ? " (Skippable)"
+                              : " (Required)"
+                          }${!allowRewind ? " (Navigation disabled)" : ""}`}
                       >
                         {isAnswered ? (
                           <span className="text-white text-xs font-bold flex items-center justify-center w-full h-full">
@@ -2355,11 +2421,10 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({
               <button
                 key={speed}
                 onClick={() => changePlaybackSpeed(speed)}
-                className={`w-full px-3 py-2 text-sm text-left hover:bg-white/20 transition-colors ${
-                  playbackSpeed === speed
+                className={`w-full px-3 py-2 text-sm text-left hover:bg-white/20 transition-colors ${playbackSpeed === speed
                     ? "text-primary-400 bg-white/10 font-medium"
                     : "text-white"
-                }`}
+                  }`}
               >
                 {speed}x
               </button>
@@ -2400,6 +2465,7 @@ interface YouTubePlayerWrapperProps {
   liveTimestamp?: number;
   liveClassStartTime?: string;
   enableConcentrationScore?: boolean;
+  concentrationSettings?: ConcentrationSettings;
 }
 
 // This is a wrapper component that exposes the YouTube player methods
@@ -2416,6 +2482,7 @@ const YouTubePlayerWrapper = forwardRef<any, YouTubePlayerWrapperProps>(
       liveTimestamp,
       liveClassStartTime,
       enableConcentrationScore,
+      concentrationSettings,
     },
     ref
   ) => {
@@ -2469,6 +2536,7 @@ const YouTubePlayerWrapper = forwardRef<any, YouTubePlayerWrapperProps>(
         liveTimestamp={liveTimestamp}
         liveClassStartTime={liveClassStartTime}
         enableConcentrationScore={enableConcentrationScore}
+        concentrationSettings={concentrationSettings}
       />
     );
   }
