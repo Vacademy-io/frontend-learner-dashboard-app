@@ -26,9 +26,9 @@ interface DashboardPinsPanelProps {
   maxPins?: number;
 }
 
-export const DashboardPinsPanel: React.FC<DashboardPinsPanelProps> = ({ 
+export const DashboardPinsPanel: React.FC<DashboardPinsPanelProps> = ({
   className = '',
-  maxPins = 3 
+  maxPins = 3
 }) => {
   const {
     pins,
@@ -86,13 +86,13 @@ export const DashboardPinsPanel: React.FC<DashboardPinsPanelProps> = ({
   const renderPinContent = (pin: UserMessage) => {
     if (pin.content.type === 'html') {
       return (
-        <div 
+        <div
           className="prose prose-sm max-w-none"
           dangerouslySetInnerHTML={{ __html: sanitizeHtml(pin.content.content) }}
         />
       );
     }
-    
+
     return <p className="text-sm text-gray-700">{pin.content.content}</p>;
   };
 
@@ -103,16 +103,16 @@ export const DashboardPinsPanel: React.FC<DashboardPinsPanelProps> = ({
 
   const getTimeRemaining = (endTime?: string) => {
     if (!endTime) return null;
-    
+
     const now = new Date();
     const end = new Date(endTime);
     const diff = end.getTime() - now.getTime();
-    
+
     if (diff <= 0) return null;
-    
+
     const days = Math.floor(diff / (1000 * 60 * 60 * 24));
     const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-    
+
     if (days > 0) {
       return `${days} day${days > 1 ? 's' : ''} left`;
     } else if (hours > 0) {
@@ -127,8 +127,8 @@ export const DashboardPinsPanel: React.FC<DashboardPinsPanelProps> = ({
     return null;
   }
 
-  // Don't render if no pins
-  if (!loading && pins.length === 0) {
+  // Don't render if no pins (prevents UI flicker during initial load)
+  if (pins.length === 0) {
     return null;
   }
 
@@ -188,7 +188,7 @@ export const DashboardPinsPanel: React.FC<DashboardPinsPanelProps> = ({
             </div>
           </div>
         </CardHeader>
-        
+
         <CardContent className="pt-0">
           {error && (
             <div className="flex items-center gap-2 text-sm text-red-600 mb-4 p-3 bg-red-50 rounded-md">
@@ -196,7 +196,7 @@ export const DashboardPinsPanel: React.FC<DashboardPinsPanelProps> = ({
               {error}
             </div>
           )}
-          
+
           {loading ? (
             <div className="flex items-center justify-center py-8">
               <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
@@ -207,9 +207,8 @@ export const DashboardPinsPanel: React.FC<DashboardPinsPanelProps> = ({
               {displayPins.map((pin) => (
                 <div
                   key={pin.messageId}
-                  className={`p-4 rounded-lg border cursor-pointer transition-all hover:shadow-md ${
-                    !pin.isRead ? 'border-l-4 border-l-blue-500 bg-blue-50' : 'border-gray-200'
-                  }`}
+                  className={`p-4 rounded-lg border cursor-pointer transition-all hover:shadow-md ${!pin.isRead ? 'border-l-4 border-l-blue-500 bg-blue-50' : 'border-gray-200'
+                    }`}
                   onClick={() => handlePinClick(pin)}
                 >
                   <div className="flex items-start justify-between mb-2">
@@ -218,8 +217,8 @@ export const DashboardPinsPanel: React.FC<DashboardPinsPanelProps> = ({
                         <h4 className="font-medium text-gray-900">{pin.title}</h4>
                       )}
                       {pin.priority && (
-                        <Badge 
-                          variant="secondary" 
+                        <Badge
+                          variant="secondary"
                           className={`text-xs ${getPriorityColor(pin.priority)} text-white`}
                         >
                           {getPriorityText(pin.priority)}
@@ -238,11 +237,11 @@ export const DashboardPinsPanel: React.FC<DashboardPinsPanelProps> = ({
                       <X className="h-3 w-3" />
                     </Button>
                   </div>
-                  
+
                   <div className="text-sm text-gray-600 mb-3 line-clamp-2">
                     {renderPinContent(pin)}
                   </div>
-                  
+
                   <div className="flex items-center justify-between text-xs text-gray-500">
                     <div className="flex items-center gap-4">
                       {pin.createdByName && (
@@ -255,7 +254,7 @@ export const DashboardPinsPanel: React.FC<DashboardPinsPanelProps> = ({
                         <span>{formatLocalDateTime(pin.createdAt)}</span>
                       )}
                     </div>
-                    
+
                     {pin.pinEndTime && (
                       <span className="flex items-center gap-1 text-orange-600">
                         <Clock className="h-3 w-3" />
@@ -265,7 +264,7 @@ export const DashboardPinsPanel: React.FC<DashboardPinsPanelProps> = ({
                   </div>
                 </div>
               ))}
-              
+
               {pins.length > maxPins && (
                 <div className="text-center pt-2">
                   <Button variant="outline" size="sm">
@@ -277,7 +276,7 @@ export const DashboardPinsPanel: React.FC<DashboardPinsPanelProps> = ({
           )}
         </CardContent>
       </Card>
-      
+
       {/* Full Content Modal */}
       {selectedPin && showFullContent && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -310,13 +309,13 @@ export const DashboardPinsPanel: React.FC<DashboardPinsPanelProps> = ({
                   <X className="h-4 w-4" />
                 </Button>
               </div>
-              
+
               <Separator className="mb-4" />
-              
+
               <div className="prose prose-sm max-w-none">
                 {renderPinContent(selectedPin)}
               </div>
-              
+
               {selectedPin.pinEndTime && (
                 <div className="mt-4 p-3 bg-orange-50 rounded-md">
                   <div className="flex items-center gap-2 text-sm text-orange-700">
