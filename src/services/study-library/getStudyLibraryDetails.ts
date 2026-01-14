@@ -3,19 +3,17 @@ import authenticatedAxiosInstance from "@/lib/auth/axiosInstance";
 import { INIT_STUDY_LIBRARY, INSTITUTE_ID } from "@/constants/urls";
 import { useStudyLibraryStore } from "@/stores/study-library/use-study-library-store";
 import { getTokenFromStorage } from "@/lib/auth/sessionUtility";
+import { getInstituteId } from "@/utils/study-library/get-list-from-stores/getPackageSessionId";
 
 export const fetchStudyLibraryDetails = async (packageSessionId: string) => {
-    
-    // Dynamically retrieve the active institute ID from storage
-    // This avoids using the hardcoded fallback from urls.ts
-    const storedInstituteId = await getTokenFromStorage("InstituteId") ;
+    // Favor the structured getInstituteId utility
+    const idFromDetails = await getInstituteId();
 
-    const effectiveInstituteId = (storedInstituteId && storedInstituteId !== "undefined")
-        ? storedInstituteId
-        : INSTITUTE_ID;
+    // Fallback to stand-alone key or hardcoded ID if details are missing
+    const effectiveInstituteId = idFromDetails || INSTITUTE_ID;
 
-   
-        const response = await authenticatedAxiosInstance.get(INIT_STUDY_LIBRARY, {
+
+    const response = await authenticatedAxiosInstance.get(INIT_STUDY_LIBRARY, {
         params: {
             instituteId: effectiveInstituteId,
             packageSessionId: packageSessionId,
