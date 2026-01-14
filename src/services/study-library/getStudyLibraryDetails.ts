@@ -1,8 +1,7 @@
 // services/study-library/getStudyLibraryDetails.ts
 import authenticatedAxiosInstance from "@/lib/auth/axiosInstance";
-import { INIT_STUDY_LIBRARY, INSTITUTE_ID } from "@/constants/urls";
+import { INIT_STUDY_LIBRARY } from "@/constants/urls";
 import { useStudyLibraryStore } from "@/stores/study-library/use-study-library-store";
-import { getTokenFromStorage } from "@/lib/auth/sessionUtility";
 import { getInstituteId } from "@/utils/study-library/get-list-from-stores/getPackageSessionId";
 
 export const fetchStudyLibraryDetails = async (packageSessionId: string) => {
@@ -10,7 +9,7 @@ export const fetchStudyLibraryDetails = async (packageSessionId: string) => {
     const idFromDetails = await getInstituteId();
 
     // Fallback to stand-alone key or hardcoded ID if details are missing
-    const effectiveInstituteId = idFromDetails || INSTITUTE_ID;
+    const effectiveInstituteId = idFromDetails;
 
 
     const response = await authenticatedAxiosInstance.get(INIT_STUDY_LIBRARY, {
