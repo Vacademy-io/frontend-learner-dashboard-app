@@ -62,6 +62,7 @@ import {
 import { StatCard } from "./-components/DashboardStatCard";
 import { ContinueLearningCard } from "./-components/DashboardContinueLearningCard";
 import { cn } from "@/lib/utils";
+import { getChatbotSettings } from "@/services/chatbot-settings";
 
 export const Route = createFileRoute("/dashboard/")({
   component: () => {
@@ -166,6 +167,7 @@ export function DashboardComponent() {
   useEffect(() => {
     // Force-refresh Student Display Settings on dashboard mount to update local cache
     getStudentDisplaySettings(true).catch(() => {});
+    getChatbotSettings(true).catch(() => {});
 
     const fetchIds = async () => {
       try {

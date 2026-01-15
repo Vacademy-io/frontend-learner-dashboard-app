@@ -74,7 +74,7 @@ export const useChatbot = () => {
   useEffect(() => {
     const fetchSettings = async () => {
       try {
-        getChatbotSettings().then((settings) => {
+        getChatbotSettings(true).then((settings) => {
           setChatbotSettings(settings);
           setInstituteName(settings.institute_name);
         });
@@ -122,7 +122,7 @@ export const useChatbot = () => {
     return "general";
   }, [location.pathname]);
 
-  const buildContextMeta = useCallback((): ContextMeta => {
+  const buildContextMeta = useCallback(async (): Promise<ContextMeta> => {
     const contextType = getContextType();
     const context = getContext();
 
@@ -185,8 +185,20 @@ export const useChatbot = () => {
 
         // Get course info from batches
         let courseName = "";
-        if (context.courseId && instituteDetails) {
-          const batch = instituteDetails.batches_for_sessions.find(
+        if (context.courseId) {
+          let matches = instituteDetails?.batches_for_sessions || [];
+          if (!matches || matches.length === 0) {
+            try {
+              const { fetchBatchesForCourse } = await import(
+                "@/services/courseBatches"
+              );
+              matches = await fetchBatchesForCourse(context.courseId);
+            } catch (e) {
+              console.error(e);
+            }
+          }
+
+          const batch = matches?.find(
             (b) => b.package_dto.id === context.courseId
           );
           courseName = batch?.package_dto?.package_name || "";
@@ -234,7 +246,19 @@ export const useChatbot = () => {
         console.log("Building context meta for course details:", courseDetails);
 
         // Find batch info for basic metadata
-        const batch = instituteDetails?.batches_for_sessions.find(
+        let matches = instituteDetails?.batches_for_sessions || [];
+        if (!matches || matches.length === 0) {
+          try {
+            const { fetchBatchesForCourse } = await import(
+              "@/services/courseBatches"
+            );
+            matches = await fetchBatchesForCourse(context.courseId);
+          } catch (e) {
+            console.error(e);
+          }
+        }
+
+        const batch = matches?.find(
           (b) => b.package_dto.id === context.courseId
         );
 
@@ -302,7 +326,8 @@ export const useChatbot = () => {
         }
       }
 
-      const contextMeta = buildContextMeta();
+      const contextMeta = await buildContextMeta();
+      console.log("Initializing session with context:", contextMeta);
 
       const response = await chatbotAPI.initSession();
 
@@ -460,7 +485,7 @@ export const useChatbot = () => {
     const updateContextAsync = async () => {
       try {
         const contextType = getContextType();
-        const contextMeta = buildContextMeta();
+        const contextMeta = await buildContextMeta();
 
         console.log("Updating context:", { contextType, contextMeta });
 
