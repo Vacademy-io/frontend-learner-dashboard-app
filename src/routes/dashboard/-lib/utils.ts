@@ -141,7 +141,6 @@ export const fetchLast7DaysProgress = async ({
 
     const url = GET_LAST_7_DAYS_PROGRESS;
     const studentDetails = await getDataFromPreferences<Student[]>("students");
-    console.log("stored student details", studentDetails);
     const packageSessionIds = studentDetails?.map(
       (item) => item.package_session_id
     );

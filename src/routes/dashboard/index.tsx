@@ -6,8 +6,9 @@ import { fetchStaticData } from "./-lib/utils";
 import { Helmet } from "react-helmet";
 import { useAnalytics } from "@/hooks/useAnalytics";
 import { getPackageSessionId } from "@/utils/study-library/get-list-from-stores/getPackageSessionId";
-import { fetchStudyLibraryDetails } from "@/services/study-library/getStudyLibraryDetails";
+import { getStudyLibraryQuery } from "@/services/study-library/getStudyLibraryDetails";
 import { useStudyLibraryStore } from "@/stores/study-library/use-study-library-store";
+import { useQuery } from "@tanstack/react-query";
 import {
   DashbaordResponse,
   DashboardSlide,
@@ -87,6 +88,9 @@ export function DashboardComponent() {
   const { setActiveItem } = useContentStore();
   const { getUserTimezone } = useServerTime();
 
+  // Fetch study library data with React Query (5-minute cache)
+  const { data: studyLibraryData } = useQuery(getStudyLibraryQuery(batchId));
+
   // Add weekly attendance query
   const { data: weeklyAttendance, isLoading: isLoadingAttendance } =
     useWeeklyAttendanceQuery();
@@ -120,15 +124,12 @@ export function DashboardComponent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleGetStudyLibraryData = useCallback(async () => {
-    try {
-      const PackageSessionId = await getPackageSessionId();
-      const data = await fetchStudyLibraryDetails(PackageSessionId);
-      setStudyLibraryData(data);
-    } catch (error) {
-      console.error("Error fetching study library data:", error);
+  // Update Zustand store when React Query data changes
+  useEffect(() => {
+    if (studyLibraryData) {
+      setStudyLibraryData(studyLibraryData);
     }
-  }, [setStudyLibraryData]);
+  }, [studyLibraryData, setStudyLibraryData]);
 
   const handleResumeClick = (slide: DashboardSlide) => {
     // Track lesson resumed
@@ -166,15 +167,15 @@ export function DashboardComponent() {
     // Force-refresh Student Display Settings on dashboard mount to update local cache
     getStudentDisplaySettings(true).catch(() => {});
 
-    const fetchBatchId = async () => {
+    const fetchIds = async () => {
       try {
         const id = await getPackageSessionId();
         setBatchId(id);
       } catch (error) {
-        console.error("Error fetching batch ID:", error);
+        console.error("Error fetching IDs:", error);
       }
     };
-    fetchBatchId();
+    fetchIds();
   }, [trackPageView, setNavHeading]);
 
   // Load dashboard widget configurations
@@ -184,7 +185,7 @@ export function DashboardComponent() {
         setWidgetConfigs(s?.dashboard?.widgets || []);
       })
       .catch(() => setWidgetConfigs(null));
-  }, [setNavHeading, trackPageView, handleGetStudyLibraryData]);
+  }, [setNavHeading, trackPageView]);
 
   const isWidgetVisible = (id: StudentDashboardWidgetConfig["id"]) => {
     const cfg = widgetConfigs?.find((w) => w.id === id);
@@ -221,7 +222,6 @@ export function DashboardComponent() {
             setHomeworkAssignedCount,
             setData
           ),
-          handleGetStudyLibraryData(),
         ]);
 
         // Track dashboard page view
@@ -229,11 +229,11 @@ export function DashboardComponent() {
       } catch (error) {
         console.error("Error initializing dashboard:", error);
       } finally {
-        setTimeout(() => setIsLoading(false), 300);
+        setIsLoading(false);
       }
     };
     initializeDashboard();
-  }, [handleGetStudyLibraryData, setNavHeading, trackPageView]);
+  }, [setNavHeading, trackPageView]);
 
   const handleJoinSession = async (session: SessionDetails) => {
     // Track live session join attempt
