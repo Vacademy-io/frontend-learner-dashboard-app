@@ -1,13 +1,14 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useLocation } from "@tanstack/react-router";
 import axios from "axios";
-import { ChatMessage, ChatbotContext } from "./types";
+import { ChatMessage, ChatbotContext, QuizSubmission } from "./types";
 import {
   chatbotAPI,
   ContextType,
   ContextMeta,
   MessageEvent,
   AIStatus,
+  MessageIntent,
 } from "@/services/chatbot-api";
 import { useContentStore } from "@/stores/study-library/chapter-sidebar-store";
 import { useInstituteDetailsStore } from "@/stores/study-library/useInstituteDetails";
@@ -74,7 +75,7 @@ export const useChatbot = () => {
   useEffect(() => {
     const fetchSettings = async () => {
       try {
-        getChatbotSettings().then((settings) => {
+        getChatbotSettings(true).then((settings) => {
           setChatbotSettings(settings);
           setInstituteName(settings.institute_name);
         });
@@ -122,7 +123,7 @@ export const useChatbot = () => {
     return "general";
   }, [location.pathname]);
 
-  const buildContextMeta = useCallback((): ContextMeta => {
+  const buildContextMeta = useCallback(async (): Promise<ContextMeta> => {
     const contextType = getContextType();
     const context = getContext();
 
@@ -185,8 +186,20 @@ export const useChatbot = () => {
 
         // Get course info from batches
         let courseName = "";
-        if (context.courseId && instituteDetails) {
-          const batch = instituteDetails.batches_for_sessions.find(
+        if (context.courseId) {
+          let matches = instituteDetails?.batches_for_sessions || [];
+          if (!matches || matches.length === 0) {
+            try {
+              const { fetchBatchesForCourse } = await import(
+                "@/services/courseBatches"
+              );
+              matches = await fetchBatchesForCourse(context.courseId);
+            } catch (e) {
+              console.error(e);
+            }
+          }
+
+          const batch = matches?.find(
             (b) => b.package_dto.id === context.courseId
           );
           courseName = batch?.package_dto?.package_name || "";
@@ -234,7 +247,19 @@ export const useChatbot = () => {
         console.log("Building context meta for course details:", courseDetails);
 
         // Find batch info for basic metadata
-        const batch = instituteDetails?.batches_for_sessions.find(
+        let matches = instituteDetails?.batches_for_sessions || [];
+        if (!matches || matches.length === 0) {
+          try {
+            const { fetchBatchesForCourse } = await import(
+              "@/services/courseBatches"
+            );
+            matches = await fetchBatchesForCourse(context.courseId);
+          } catch (e) {
+            console.error(e);
+          }
+        }
+
+        const batch = matches?.find(
           (b) => b.package_dto.id === context.courseId
         );
 
@@ -302,7 +327,8 @@ export const useChatbot = () => {
         }
       }
 
-      const contextMeta = buildContextMeta();
+      const contextMeta = await buildContextMeta();
+      console.log("Initializing session with context:", contextMeta);
 
       const response = await chatbotAPI.initSession();
 
@@ -341,10 +367,10 @@ export const useChatbot = () => {
 
           const newMessage: ChatMessage = {
             id: messageData.id,
-            role: messageData.type,
+            role: messageData.type as ChatMessage["role"],
             content: messageData.content,
             timestamp: new Date(messageData.created_at).getTime(),
-            metadata: messageData.metadata,
+            metadata: messageData.metadata as ChatMessage["metadata"],
           };
 
           setMessages((prev) => {
@@ -460,7 +486,7 @@ export const useChatbot = () => {
     const updateContextAsync = async () => {
       try {
         const contextType = getContextType();
-        const contextMeta = buildContextMeta();
+        const contextMeta = await buildContextMeta();
 
         console.log("Updating context:", { contextType, contextMeta });
 
@@ -475,7 +501,7 @@ export const useChatbot = () => {
     updateContextAsync();
   }, [sessionId, isOpen, isInitializing, getContextType, buildContextMeta]);
 
-  const sendMessage = async (content: string) => {
+  const sendMessage = async (content: string, intent?: MessageIntent) => {
     if (!content.trim() || !sessionId) return;
 
     const newMessage: ChatMessage = {
@@ -487,11 +513,12 @@ export const useChatbot = () => {
 
     setMessages((prev) => [...prev, newMessage]);
     setInputValue("");
+    // If intent is practice, show generating_quiz status, else thinking
     setIsLoading(true);
-    setAiStatus("thinking");
+    setAiStatus(intent === "practice" ? "generating_quiz" : "thinking");
 
     try {
-      await chatbotAPI.sendMessage(sessionId, content);
+      await chatbotAPI.sendMessage(sessionId, content, intent);
       // Response will come through SSE
     } catch (error) {
       console.error("Failed to send message:", error);
@@ -501,6 +528,37 @@ export const useChatbot = () => {
         role: "assistant",
         content:
           "I'm sorry, I encountered an error while processing your request. Please try again.",
+        timestamp: Date.now(),
+      };
+      setMessages((prev) => [...prev, errorMessage]);
+      setAiStatus("idle");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const submitQuiz = async (submission: QuizSubmission) => {
+    if (!sessionId) return;
+
+    setIsLoading(true);
+    setAiStatus("thinking");
+
+    try {
+      await chatbotAPI.sendMessage(
+        sessionId,
+        "Quiz completed",
+        undefined,
+        submission
+      );
+      // Response will come through SSE as quiz_feedback
+    } catch (error) {
+      console.error("Failed to submit quiz:", error);
+      setHasError(true);
+      const errorMessage: ChatMessage = {
+        id: Date.now(),
+        role: "assistant",
+        content:
+          "I'm sorry, I couldn't submit your quiz. Please try again.",
         timestamp: Date.now(),
       };
       setMessages((prev) => [...prev, errorMessage]);
@@ -573,10 +631,11 @@ export const useChatbot = () => {
     isOpen,
     setIsOpen,
     messages,
-    isLoading: isLoading || aiStatus === "thinking",
+    isLoading: isLoading || aiStatus === "thinking" || aiStatus === "generating_quiz",
     inputValue,
     setInputValue,
     sendMessage,
+    submitQuiz,
     startNewChat,
     closeSession,
     shouldShowChatbot,

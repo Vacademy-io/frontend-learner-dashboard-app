@@ -21,18 +21,36 @@ export const fetchStudyLibraryDetails = async (packageSessionId: string) => {
     return response.data;
 };
 
-export const useStudyLibraryQuery = (packageSessionId: string) => {
-    const setStudyLibraryData = useStudyLibraryStore(
-        (state) => state.setStudyLibraryData
-    );
+/**
+ * Query options for fetching study library details
+ * Cached for 5 minutes to reduce API calls while keeping data fresh
+ */
+export const getStudyLibraryQuery = (packageSessionId: string | null) =>
+  queryOptions({
+    queryKey: ["study-library", packageSessionId],
+    queryFn: async () => {
+      if (!packageSessionId) {
+        throw new Error("Package session ID is required");
+      }
+      return await fetchStudyLibraryDetails(packageSessionId);
+    },
+    staleTime: 1000 * 60 * 5, // 5 minutes - balance between freshness and performance
+    gcTime: 1000 * 60 * 10, // Keep in cache for 10 minutes
+    enabled: !!packageSessionId,
+  });
 
-    return {
-        queryKey: ["GET_INIT_STUDY_LIBRARY"],
-        queryFn: async () => {
-            const data = await fetchStudyLibraryDetails(packageSessionId);
-            setStudyLibraryData(data);
-            return data;
-        },
-        staleTime: 60000,
-    };
+export const useStudyLibraryQuery = (packageSessionId: string) => {
+  const setStudyLibraryData = useStudyLibraryStore(
+    (state) => state.setStudyLibraryData
+  );
+
+  return {
+    queryKey: ["GET_INIT_STUDY_LIBRARY"],
+    queryFn: async () => {
+      const data = await fetchStudyLibraryDetails(packageSessionId);
+      setStudyLibraryData(data);
+      return data;
+    },
+    staleTime: 60000,
+  };
 };
