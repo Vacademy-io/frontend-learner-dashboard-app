@@ -82,7 +82,14 @@ function RouteComponent() {
     fetchBatchId();
   }, []);
 
-  const { data: sessions, isLoading, error } = useLiveSessions(batchId);
+  const {
+    data: sessions,
+    isLoading,
+    error,
+  } = useLiveSessions(batchId, {
+    startDate: startDateFilter || undefined,
+    endDate: endDateFilter || undefined,
+  });
 
   console.log(sessions);
 
@@ -344,15 +351,15 @@ function RouteComponent() {
                     isInWaitingRoom
                       ? "bg-orange-600"
                       : isLiveClassStarted
-                      ? "bg-danger-600"
-                      : "bg-gray-600"
-                  }`}
+                        ? "bg-danger-600"
+                        : "bg-gray-600"
+                    }`}
                 >
                   {isInWaitingRoom
                     ? "WAITING ROOM"
                     : isLiveClassStarted
-                    ? "LIVE"
-                    : "STARTING SOON"}
+                      ? "LIVE"
+                      : "STARTING SOON"}
                 </span>
               )}
             </div>
@@ -377,8 +384,8 @@ function RouteComponent() {
               {isBeforeWaitingRoom
                 ? "Not Started"
                 : isInWaitingRoom
-                ? "Join Waiting Room"
-                : "Join Session"}
+                  ? "Join Waiting Room"
+                  : "Join Session"}
             </Button>
           )}
         </div>
@@ -695,7 +702,7 @@ function RouteComponent() {
             isToday
               ? "bg-primary-50/50 border-primary-200 dark:bg-primary-950/30 dark:border-primary-700"
               : "bg-white dark:bg-neutral-900"
-          } ${sessionCount > 0 ? "hover:shadow-sm" : ""}`}
+            } ${sessionCount > 0 ? "hover:shadow-sm" : ""}`}
           onClick={() => handleDayClick(currentDate, sessionsForDay)}
         >
           <div
@@ -703,7 +710,7 @@ function RouteComponent() {
               isToday
                 ? "text-primary-700 dark:text-primary-300"
                 : "text-neutral-700 dark:text-neutral-200"
-            }`}
+              }`}
           >
             <span>{day}</span>
             {sessionCount > 0 && (
@@ -712,12 +719,12 @@ function RouteComponent() {
                   hasLive
                     ? "text-red-600 dark:text-red-400"
                     : "text-blue-600 dark:text-blue-400"
-                }`}
+                  }`}
               >
                 <div
                   className={`w-2 h-2 rounded-full ${
                     hasLive ? "bg-danger-600 animate-pulse" : "bg-info-600"
-                  }`}
+                    }`}
                 ></div>
                 <span className="text-xs font-semibold">{sessionCount}</span>
               </div>
@@ -735,14 +742,14 @@ function RouteComponent() {
                     isLive
                       ? "bg-red-100 text-red-700 border border-red-200 dark:bg-red-950/40 dark:text-red-300 dark:border-red-900"
                       : "bg-blue-100 text-blue-700 border border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-900"
-                  }`}
+                    }`}
                   title={`${session.title} - ${session.start_time}${
                     session.timezone
                       ? ` (${
                           getTimezoneDisplayInfo(session.timezone).sessionTz
-                        })`
+                      })`
                       : ""
-                  }`}
+                    }`}
                 >
                   {formatSessionTimeInUserTimezone(
                     session.meeting_date,
@@ -760,7 +767,7 @@ function RouteComponent() {
                   hasLive
                     ? "bg-red-100/80 text-red-700 border border-red-200 dark:bg-red-950/40 dark:text-red-300 dark:border-red-900"
                     : "bg-blue-100/80 text-blue-700 border border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-900"
-                }`}
+                  }`}
               >
                 +{sessionCount - 1} more
               </div>
@@ -1180,7 +1187,7 @@ function RouteComponent() {
                                       }
                                       className={
                                         upcomingSessionsCurrentPage ===
-                                        totalPages
+                                          totalPages
                                           ? "pointer-events-none opacity-50"
                                           : "cursor-pointer"
                                       }

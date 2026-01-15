@@ -11,9 +11,16 @@ import {
   isSessionLiveTimezoneAware,
   isSessionUpcomingTimezoneAware,
 } from "@/utils/timezone";
+export interface LiveSessionsParams {
+  page?: number;
+  size?: number;
+  startDate?: string;
+  endDate?: string;
+}
 
 const fetchLiveAndUpcomingSessions = async (
-  batchId: string
+  batchId: string,
+  params?: LiveSessionsParams
 ): Promise<{
   live_sessions: SessionDetails[];
   upcoming_sessions: SessionDetails[];
@@ -27,6 +34,7 @@ const fetchLiveAndUpcomingSessions = async (
       params: {
         batchId,
         userId: tokenData?.user,
+        ...params,
       },
     });
 
@@ -58,11 +66,14 @@ const fetchLiveAndUpcomingSessions = async (
   }
 };
 
-export const useLiveSessions = (batchId: string | null) => {
+export const useLiveSessions = (
+  batchId: string | null,
+  params?: LiveSessionsParams
+) => {
   return useQuery({
-    queryKey: ["liveSessions", batchId],
-    queryFn: () => fetchLiveAndUpcomingSessions(batchId!),
-    // enabled: !!batchId,
+    queryKey: ["liveSessions", batchId, params],
+    queryFn: () => fetchLiveAndUpcomingSessions(batchId!, params),
+    enabled: !!batchId,
     refetchInterval: 60000, // Refetch every minute to keep live status updated
   });
 };
