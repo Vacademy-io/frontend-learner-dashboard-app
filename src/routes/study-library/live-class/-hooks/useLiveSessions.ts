@@ -12,10 +12,9 @@ import {
   isSessionUpcomingTimezoneAware,
 } from "@/utils/timezone";
 export interface LiveSessionsParams {
-  page?: number;
-  size?: number;
   startDate?: string;
   endDate?: string;
+  size?: number;
 }
 
 const fetchLiveAndUpcomingSessions = async (
@@ -24,6 +23,7 @@ const fetchLiveAndUpcomingSessions = async (
 ): Promise<{
   live_sessions: SessionDetails[];
   upcoming_sessions: SessionDetails[];
+  totalReturned: number;
 }> => {
   try {
     const accessToken = await getTokenFromStorage(TokenKey.accessToken);
@@ -57,6 +57,7 @@ const fetchLiveAndUpcomingSessions = async (
     const transformedData = {
       live_sessions,
       upcoming_sessions,
+      totalReturned: allSessions.length,
     };
 
     return transformedData;

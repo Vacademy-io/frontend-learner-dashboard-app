@@ -90,7 +90,10 @@ export function DashboardComponent() {
     data: liveSessions,
     isLoading: isLoadingLiveSessions,
     refetch: refetchLiveSessions,
-  } = useLiveSessions(batchId || "");
+  } = useLiveSessions(batchId || "", {
+    size: 10,
+    startDate: new Date().toISOString().split('T')[0]
+  });
 
   // Initialize analytics tracking
   const { trackPageView, track, trackLessonStarted } = useAnalytics();
@@ -460,7 +463,7 @@ export function DashboardComponent() {
                   render: (
                     <StatCard
                       title="Live Classes"
-                      count={liveSessions?.live_sessions?.length || 0}
+                      count={(liveSessions?.live_sessions?.length || 0) + (liveSessions?.upcoming_sessions?.length || 0)}
                       icon={Play}
                       onClick={() =>
                         navigate({ to: "/study-library/live-class" })
