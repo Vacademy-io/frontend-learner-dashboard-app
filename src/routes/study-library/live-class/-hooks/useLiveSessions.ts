@@ -15,6 +15,7 @@ export interface LiveSessionsParams {
   startDate?: string;
   endDate?: string;
   size?: number;
+  page?: number;
 }
 
 const fetchLiveAndUpcomingSessions = async (

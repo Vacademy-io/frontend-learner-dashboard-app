@@ -1,7 +1,7 @@
 import { LayoutContainer } from "@/components/common/layout-container/layout-container";
 import { createFileRoute } from "@tanstack/react-router";
 import { Helmet } from "react-helmet";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useLayoutEffect } from "react";
 import { useNavHeadingStore } from "@/stores/layout-container/useNavHeadingStore";
 import { useLiveSessions } from "./-hooks/useLiveSessions";
 import { SessionDetails } from "./-types/types";
@@ -110,12 +110,13 @@ function RouteComponent() {
           new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 0)
         )
         : endDateFilter || undefined,
-    size: selectedView === "list" ? 10 : 500, // Proposed size=10 for list, larger for calendar
+    size: selectedView === "list" ? 10 : 500,
+    page: selectedView === "list" ? apiPage : 0,
   });
 
   console.log(sessions);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     setNavHeading(
       <div className="flex items-center gap-2">
         <div>Live Classes</div>

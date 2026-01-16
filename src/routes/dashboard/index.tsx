@@ -90,10 +90,7 @@ export function DashboardComponent() {
     data: liveSessions,
     isLoading: isLoadingLiveSessions,
     refetch: refetchLiveSessions,
-  } = useLiveSessions(batchId || "", {
-    size: 10,
-    startDate: new Date().toISOString().split('T')[0]
-  });
+  } = useLiveSessions(batchId || "", { size: 2 });
 
   // Initialize analytics tracking
   const { trackPageView, track, trackLessonStarted } = useAnalytics();
