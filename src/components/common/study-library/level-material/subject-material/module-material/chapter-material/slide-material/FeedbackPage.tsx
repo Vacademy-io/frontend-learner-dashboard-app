@@ -42,17 +42,7 @@ export default function FeedbackPage() {
       try {
         const response = await axios.get(`${urlInstituteDetails}/${instituteId}`);
         type BatchForSession = { id: string; package_dto?: { id?: string } | null };
-        let batches = response.data?.batches_for_sessions as BatchForSession[] | undefined;
-
-        // Fallback: if batches_for_sessions is missing, use the new course batches API
-        if (!batches || batches.length === 0) {
-          try {
-            const { fetchBatchesForCourse } = await import("@/services/courseBatches");
-            batches = await fetchBatchesForCourse(courseId);
-          } catch {
-            // Silent fallback failure
-          }
-        }
+        const batches = response.data?.batches_for_sessions as BatchForSession[] | undefined;
 
         const matched = batches?.find(
           (item) => item.package_dto?.id === courseId

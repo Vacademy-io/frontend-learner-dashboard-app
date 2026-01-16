@@ -34,7 +34,7 @@ import {
   fetchModulesWithChaptersPublic,
 } from "@/services/study-library/getModulesWithChapters";
 import { SubjectType } from "@/stores/study-library/use-study-library-store";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import {
   fetchSlidesByChapterId,
   Slide,
@@ -73,7 +73,6 @@ import {
   calculateOverallCompletion,
   getStatusDetails,
 } from "@/components/common/study-library/level-material/subject-material/module-material/chapter-material/slide-material/chapter-sidebar-slides";
-import { getFilePublicUrlQuery } from "@/services/file-url-cache";
 
 export interface Chapter {
   id: string;
@@ -376,7 +375,7 @@ export const CourseStructureDetails = ({
     Record<string, "idle" | "loading" | "loaded" | "error">
   >({});
   const [isModulesLoading, setIsModulesLoading] = useState<boolean>(false);
-  const queryClient = useQueryClient();
+
   // Helper: calculate chapter progress from slides
   const calculateChapterProgress = useCallback(
     (chapterId: string): number => {
@@ -428,7 +427,7 @@ export const CourseStructureDetails = ({
   const { userHasDonated } = useEnrollmentStatus(instituteId);
 
   // Log enrollment status changes
-  useEffect(() => {}, [instituteId, userHasDonated, isEnrolledInCourse]);
+  useEffect(() => { }, [instituteId, userHasDonated, isEnrolledInCourse]);
   // const [thumbUrlById, setThumbUrlById] = useState<Record<string, string>>({});
 
   // Evaluate drip conditions for chapters
@@ -513,10 +512,10 @@ export const CourseStructureDetails = ({
         shouldEvaluate && conditionToUse
           ? evaluateDripCondition(conditionToUse, progressData)
           : {
-              isLocked: false,
-              isHidden: false,
-              unlockMessage: null,
-            };
+            isLocked: false,
+            isHidden: false,
+            unlockMessage: null,
+          };
       evaluations[chapter.id] = evaluation;
     }
     return evaluations;
@@ -611,10 +610,10 @@ export const CourseStructureDetails = ({
           shouldEvaluate && conditionToUse
             ? evaluateDripCondition(conditionToUse, progressData)
             : {
-                isLocked: false,
-                isHidden: false,
-                unlockMessage: null,
-              };
+              isLocked: false,
+              isHidden: false,
+              unlockMessage: null,
+            };
 
         evaluations[slide.id] = evaluation;
       });
@@ -682,10 +681,7 @@ export const CourseStructureDetails = ({
       const results = await Promise.all(
         pending.map(async ({ key, fileId }) => {
           try {
-            const url = await queryClient.fetchQuery(
-              getFilePublicUrlQuery(fileId)
-            );
-
+            const url = await getPublicUrlWithoutLogin(fileId);
             return { key, url } as const;
           } catch {
             return { key, url: "" } as const;
@@ -1077,14 +1073,12 @@ export const CourseStructureDetails = ({
                   open={isSubjectOpen}
                   onOpenChange={() => toggleSubject(subject.id)}
                 >
-                  <CollapsibleTrigger
-                    className={cn(
-                      "group flex w-full items-center justify-between rounded-lg border bg-card px-4 py-3 text-left text-sm font-semibold shadow-sm transition-all hover:bg-accent hover:text-accent-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
-                      // Vibrant Styles
-                      "[.ui-vibrant_&]:bg-gradient-to-r [.ui-vibrant_&]:from-card [.ui-vibrant_&]:to-primary/5",
-                      "[.ui-vibrant_&]:border-primary/20 [.ui-vibrant_&]:hover:border-primary/40"
-                    )}
-                  >
+                  <CollapsibleTrigger className={cn(
+                    "group flex w-full items-center justify-between rounded-lg border bg-card px-4 py-3 text-left text-sm font-semibold shadow-sm transition-all hover:bg-accent hover:text-accent-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
+                    // Vibrant Styles
+                    "[.ui-vibrant_&]:bg-gradient-to-r [.ui-vibrant_&]:from-card [.ui-vibrant_&]:to-primary/5",
+                    "[.ui-vibrant_&]:border-primary/20 [.ui-vibrant_&]:hover:border-primary/40"
+                  )}>
                     <div className="flex min-w-0 flex-1 items-center gap-2.5">
                       {isSubjectOpen ? (
                         <CaretDown
@@ -1147,13 +1141,11 @@ export const CourseStructureDetails = ({
                               open={isModuleOpen}
                               onOpenChange={() => toggleModule(mod.module.id)}
                             >
-                              <CollapsibleTrigger
-                                className={cn(
-                                  "group flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm font-medium transition-all hover:bg-accent hover:text-accent-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
-                                  // Vibrant Styles
-                                  "[.ui-vibrant_&]:hover:bg-primary/5 [.ui-vibrant_&]:hover:text-primary"
-                                )}
-                              >
+                              <CollapsibleTrigger className={cn(
+                                "group flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm font-medium transition-all hover:bg-accent hover:text-accent-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
+                                // Vibrant Styles
+                                "[.ui-vibrant_&]:hover:bg-primary/5 [.ui-vibrant_&]:hover:text-primary"
+                              )}>
                                 <div className="flex min-w-0 flex-1 items-center gap-2">
                                   {isModuleOpen ? (
                                     <CaretDown
@@ -1255,14 +1247,12 @@ export const CourseStructureDetails = ({
                                         <CollapsibleTrigger
                                           disabled={isChapterLocked}
                                           className={cn(
-                                            `group flex w-full items-center gap-2 rounded-md px-2 py-1 text-left text-sm transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${
-                                              isChapterLocked
-                                                ? "cursor-not-allowed opacity-60"
-                                                : "hover:bg-accent hover:text-accent-foreground cursor-pointer"
+                                            `group flex w-full items-center gap-2 rounded-md px-2 py-1 text-left text-sm transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${isChapterLocked
+                                              ? "cursor-not-allowed opacity-60"
+                                              : "hover:bg-accent hover:text-accent-foreground cursor-pointer"
                                             }`,
                                             // Vibrant Styles
-                                            !isChapterLocked &&
-                                              "[.ui-vibrant_&]:hover:bg-primary/5 [.ui-vibrant_&]:hover:text-primary"
+                                            !isChapterLocked && "[.ui-vibrant_&]:hover:bg-primary/5 [.ui-vibrant_&]:hover:text-primary"
                                           )}
                                         >
                                           <div className="flex min-w-0 flex-1 items-center gap-1.5">
@@ -1283,26 +1273,26 @@ export const CourseStructureDetails = ({
                                             {thumbUrlById[
                                               `chapter:${ch.id}`
                                             ] && (
-                                              <img
-                                                src={
-                                                  thumbUrlById[
+                                                <img
+                                                  src={
+                                                    thumbUrlById[
                                                     `chapter:${ch.id}`
-                                                  ]
-                                                }
-                                                alt={toTitleCase(
-                                                  ch.chapter_name
-                                                )}
-                                                className="w-4 h-4 rounded-sm object-cover border border-neutral-200"
-                                                crossOrigin="anonymous"
-                                                referrerPolicy="no-referrer"
-                                                loading="eager"
-                                                onError={(e) => {
-                                                  e.currentTarget.classList.add(
-                                                    "border-red-400"
-                                                  );
-                                                }}
-                                              />
-                                            )}
+                                                    ]
+                                                  }
+                                                  alt={toTitleCase(
+                                                    ch.chapter_name
+                                                  )}
+                                                  className="w-4 h-4 rounded-sm object-cover border border-neutral-200"
+                                                  crossOrigin="anonymous"
+                                                  referrerPolicy="no-referrer"
+                                                  loading="eager"
+                                                  onError={(e) => {
+                                                    e.currentTarget.classList.add(
+                                                      "border-red-400"
+                                                    );
+                                                  }}
+                                                />
+                                              )}
                                             {showContentPrefixes && (
                                               <span className="text-xs w-5 shrink-0 text-center font-mono text-neutral-500 bg-neutral-100 rounded px-0.5">
                                                 C{chIdx + 1}
@@ -1354,11 +1344,11 @@ export const CourseStructureDetails = ({
                                                     </div>
                                                     {slidesMap[ch.id] !==
                                                       undefined && (
-                                                      <span className="text-xs text-neutral-500 hidden sm:inline">
-                                                        {completedSlides}/
-                                                        {totalSlides}
-                                                      </span>
-                                                    )}
+                                                        <span className="text-xs text-neutral-500 hidden sm:inline">
+                                                          {completedSlides}/
+                                                          {totalSlides}
+                                                        </span>
+                                                      )}
                                                     {renderCompletionBadge(
                                                       progress
                                                     )}
@@ -1385,7 +1375,7 @@ export const CourseStructureDetails = ({
                                                   (slide) => {
                                                     const slideEval =
                                                       slideEvaluations[
-                                                        slide.id
+                                                      slide.id
                                                       ];
                                                     const shouldHideSlide =
                                                       slideEval &&
@@ -1442,22 +1432,21 @@ export const CourseStructureDetails = ({
                                                     <div
                                                       key={slide.id}
                                                       className={cn(
-                                                        getSlideStyling() +
-                                                          " rounded-md",
+                                                        getSlideStyling() + " rounded-md",
                                                         // Vibrant Styles
                                                         "[.ui-vibrant_&]:hover:bg-primary/5 [.ui-vibrant_&]:hover:border-primary/20 [.ui-vibrant_&]:transition-colors"
                                                       )}
                                                       onClick={
                                                         isSlideClickable() &&
-                                                        !isSlideLocked
+                                                          !isSlideLocked
                                                           ? () => {
-                                                              handleSlideNavigation(
-                                                                subject.id,
-                                                                mod.module.id,
-                                                                ch.id,
-                                                                slide.id
-                                                              );
-                                                            }
+                                                            handleSlideNavigation(
+                                                              subject.id,
+                                                              mod.module.id,
+                                                              ch.id,
+                                                              slide.id
+                                                            );
+                                                          }
                                                           : undefined
                                                       }
                                                     >
@@ -1488,15 +1477,15 @@ export const CourseStructureDetails = ({
                                                         const sd =
                                                           getStatusDetails(
                                                             slide.percentage_completed ||
-                                                              0
+                                                            0
                                                           );
                                                         const badgeClass =
                                                           sd.badge === "done"
                                                             ? "bg-neutral-800 text-white"
                                                             : sd.badge ===
                                                               "active"
-                                                            ? "bg-neutral-700 text-white"
-                                                            : "bg-neutral-600 text-white";
+                                                              ? "bg-neutral-700 text-white"
+                                                              : "bg-neutral-600 text-white";
                                                         return (
                                                           <Badge
                                                             variant="secondary"
@@ -1677,11 +1666,10 @@ export const CourseStructureDetails = ({
                                       >
                                         <CollapsibleTrigger
                                           disabled={isChapterLocked}
-                                          className={`group flex w-full items-center gap-2 rounded-md px-2 py-1 text-left text-sm transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${
-                                            isChapterLocked
-                                              ? "cursor-not-allowed opacity-60"
-                                              : "hover:bg-accent hover:text-accent-foreground cursor-pointer"
-                                          }`}
+                                          className={`group flex w-full items-center gap-2 rounded-md px-2 py-1 text-left text-sm transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${isChapterLocked
+                                            ? "cursor-not-allowed opacity-60"
+                                            : "hover:bg-accent hover:text-accent-foreground cursor-pointer"
+                                            }`}
                                         >
                                           <div className="flex min-w-0 flex-1 items-center gap-1.5">
                                             {isChapterOpen ? (
@@ -1748,11 +1736,11 @@ export const CourseStructureDetails = ({
                                                     </div>
                                                     {slidesMap[ch.id] !==
                                                       undefined && (
-                                                      <span className="text-xs text-neutral-500 hidden sm:inline">
-                                                        {completedSlides}/
-                                                        {totalSlides}
-                                                      </span>
-                                                    )}
+                                                        <span className="text-xs text-neutral-500 hidden sm:inline">
+                                                          {completedSlides}/
+                                                          {totalSlides}
+                                                        </span>
+                                                      )}
                                                     {renderCompletionBadge(
                                                       progress
                                                     )}
@@ -1813,13 +1801,13 @@ export const CourseStructureDetails = ({
                                                     onClick={
                                                       isSlideClickable()
                                                         ? () => {
-                                                            handleSlideNavigation(
-                                                              subject.id,
-                                                              mod.module.id,
-                                                              ch.id,
-                                                              slide.id
-                                                            );
-                                                          }
+                                                          handleSlideNavigation(
+                                                            subject.id,
+                                                            mod.module.id,
+                                                            ch.id,
+                                                            slide.id
+                                                          );
+                                                        }
                                                         : undefined
                                                     }
                                                   >
@@ -1841,15 +1829,15 @@ export const CourseStructureDetails = ({
                                                       const sd =
                                                         getStatusDetails(
                                                           slide.percentage_completed ||
-                                                            0
+                                                          0
                                                         );
                                                       const badgeClass =
                                                         sd.badge === "done"
                                                           ? "bg-primary/10 text-primary border-border"
                                                           : sd.badge ===
                                                             "active"
-                                                          ? "bg-primary-50 text-primary-700 border-primary-200"
-                                                          : "bg-neutral-50 text-neutral-600 border-neutral-200";
+                                                            ? "bg-primary-50 text-primary-700 border-primary-200"
+                                                            : "bg-neutral-50 text-neutral-600 border-neutral-200";
                                                       return (
                                                         <Badge
                                                           variant="secondary"
@@ -1864,46 +1852,45 @@ export const CourseStructureDetails = ({
                                                       {getSlideTypeDisplay(
                                                         slide
                                                       ) && (
-                                                        <Badge
-                                                          variant="secondary"
-                                                          className={`hidden sm:inline text-[10px] font-medium border ${getTypeBadgeClasses(
-                                                            slide
-                                                          )}`}
-                                                        >
-                                                          {getSlideTypeDisplay(
-                                                            slide
-                                                          )}
-                                                        </Badge>
-                                                      )}
+                                                          <Badge
+                                                            variant="secondary"
+                                                            className={`hidden sm:inline text-[10px] font-medium border ${getTypeBadgeClasses(
+                                                              slide
+                                                            )}`}
+                                                          >
+                                                            {getSlideTypeDisplay(
+                                                              slide
+                                                            )}
+                                                          </Badge>
+                                                        )}
                                                       {getSlideMetaText(
                                                         slide
                                                       ) && (
-                                                        <Badge
-                                                          variant="outline"
-                                                          className="hidden sm:inline text-[10px] font-normal bg-neutral-50 text-neutral-600 border-neutral-200"
-                                                        >
-                                                          {getSlideMetaText(
-                                                            slide
-                                                          )}
-                                                        </Badge>
-                                                      )}
+                                                          <Badge
+                                                            variant="outline"
+                                                            className="hidden sm:inline text-[10px] font-normal bg-neutral-50 text-neutral-600 border-neutral-200"
+                                                          >
+                                                            {getSlideMetaText(
+                                                              slide
+                                                            )}
+                                                          </Badge>
+                                                        )}
                                                       <div className="w-7 sm:w-8 hidden sm:block">
                                                         {renderProgressBar(
                                                           slide.percentage_completed ||
-                                                            0,
+                                                          0,
                                                           "sm"
                                                         )}
                                                       </div>
                                                       <div
-                                                        className={`w-2 h-2 rounded-full ${
-                                                          (slide.percentage_completed ||
-                                                            0) >= 80
-                                                            ? "bg-primary/100"
-                                                            : (slide.percentage_completed ||
-                                                                0) > 0
+                                                        className={`w-2 h-2 rounded-full ${(slide.percentage_completed ||
+                                                          0) >= 80
+                                                          ? "bg-primary/100"
+                                                          : (slide.percentage_completed ||
+                                                            0) > 0
                                                             ? "bg-primary-500"
                                                             : "bg-neutral-300"
-                                                        }`}
+                                                          }`}
                                                       />
                                                     </div>
                                                   </div>
@@ -1976,11 +1963,10 @@ export const CourseStructureDetails = ({
                                     >
                                       <CollapsibleTrigger
                                         disabled={isChapterLocked}
-                                        className={`group flex w-full items-center gap-2 rounded-md px-2 py-1 text-left text-sm transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${
-                                          isChapterLocked
-                                            ? "cursor-not-allowed opacity-60"
-                                            : "hover:bg-accent hover:text-accent-foreground cursor-pointer"
-                                        }`}
+                                        className={`group flex w-full items-center gap-2 rounded-md px-2 py-1 text-left text-sm transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${isChapterLocked
+                                          ? "cursor-not-allowed opacity-60"
+                                          : "hover:bg-accent hover:text-accent-foreground cursor-pointer"
+                                          }`}
                                       >
                                         <div className="flex min-w-0 flex-1 items-center gap-1.5">
                                           {isChapterOpen ? (
@@ -2043,11 +2029,11 @@ export const CourseStructureDetails = ({
                                                   </div>
                                                   {slidesMap[ch.id] !==
                                                     undefined && (
-                                                    <span className="text-xs text-neutral-500 hidden sm:inline">
-                                                      {completedSlides}/
-                                                      {totalSlides}
-                                                    </span>
-                                                  )}
+                                                      <span className="text-xs text-neutral-500 hidden sm:inline">
+                                                        {completedSlides}/
+                                                        {totalSlides}
+                                                      </span>
+                                                    )}
                                                   {renderCompletionBadge(
                                                     progress
                                                   )}
@@ -2108,13 +2094,13 @@ export const CourseStructureDetails = ({
                                                   onClick={
                                                     isSlideClickable()
                                                       ? () => {
-                                                          handleSlideNavigation(
-                                                            subject.id,
-                                                            mod.module.id,
-                                                            ch.id,
-                                                            slide.id
-                                                          );
-                                                        }
+                                                        handleSlideNavigation(
+                                                          subject.id,
+                                                          mod.module.id,
+                                                          ch.id,
+                                                          slide.id
+                                                        );
+                                                      }
                                                       : undefined
                                                   }
                                                 >
@@ -2135,14 +2121,14 @@ export const CourseStructureDetails = ({
                                                   {(() => {
                                                     const sd = getStatusDetails(
                                                       slide.percentage_completed ||
-                                                        0
+                                                      0
                                                     );
                                                     const badgeClass =
                                                       sd.badge === "done"
                                                         ? "bg-primary/10 text-primary border-border"
                                                         : sd.badge === "active"
-                                                        ? "bg-primary-50 text-primary-700 border-primary-200"
-                                                        : "bg-neutral-50 text-neutral-600 border-neutral-200";
+                                                          ? "bg-primary-50 text-primary-700 border-primary-200"
+                                                          : "bg-neutral-50 text-neutral-600 border-neutral-200";
                                                     return (
                                                       <Badge
                                                         variant="secondary"
@@ -2157,46 +2143,45 @@ export const CourseStructureDetails = ({
                                                     {getSlideTypeDisplay(
                                                       slide
                                                     ) && (
-                                                      <Badge
-                                                        variant="secondary"
-                                                        className={`hidden sm:inline text-[10px] font-medium border ${getTypeBadgeClasses(
-                                                          slide
-                                                        )}`}
-                                                      >
-                                                        {getSlideTypeDisplay(
-                                                          slide
-                                                        )}
-                                                      </Badge>
-                                                    )}
+                                                        <Badge
+                                                          variant="secondary"
+                                                          className={`hidden sm:inline text-[10px] font-medium border ${getTypeBadgeClasses(
+                                                            slide
+                                                          )}`}
+                                                        >
+                                                          {getSlideTypeDisplay(
+                                                            slide
+                                                          )}
+                                                        </Badge>
+                                                      )}
                                                     {getSlideMetaText(
                                                       slide
                                                     ) && (
-                                                      <Badge
-                                                        variant="outline"
-                                                        className="hidden sm:inline text-[10px] font-normal bg-neutral-50 text-neutral-600 border-neutral-200"
-                                                      >
-                                                        {getSlideMetaText(
-                                                          slide
-                                                        )}
-                                                      </Badge>
-                                                    )}
+                                                        <Badge
+                                                          variant="outline"
+                                                          className="hidden sm:inline text-[10px] font-normal bg-neutral-50 text-neutral-600 border-neutral-200"
+                                                        >
+                                                          {getSlideMetaText(
+                                                            slide
+                                                          )}
+                                                        </Badge>
+                                                      )}
                                                     <div className="w-7 sm:w-8 hidden sm:block">
                                                       {renderProgressBar(
                                                         slide.percentage_completed ||
-                                                          0,
+                                                        0,
                                                         "sm"
                                                       )}
                                                     </div>
                                                     <div
-                                                      className={`w-2 h-2 rounded-full ${
-                                                        (slide.percentage_completed ||
-                                                          0) >= 80
-                                                          ? "bg-primary/100"
-                                                          : (slide.percentage_completed ||
-                                                              0) > 0
+                                                      className={`w-2 h-2 rounded-full ${(slide.percentage_completed ||
+                                                        0) >= 80
+                                                        ? "bg-primary/100"
+                                                        : (slide.percentage_completed ||
+                                                          0) > 0
                                                           ? "bg-primary-500"
                                                           : "bg-neutral-300"
-                                                      }`}
+                                                        }`}
                                                     />
                                                   </div>
                                                 </div>
@@ -2255,7 +2240,7 @@ export const CourseStructureDetails = ({
                                       <CollapsibleContent>
                                         <div className="space-y-px pl-2 relative">
                                           {(slidesMap[ch.id] ?? []).length ===
-                                          0 ? (
+                                            0 ? (
                                             <div className="text-xs px-2 text-neutral-400 italic bg-neutral-50/50 rounded">
                                               No slides in this chapter.
                                             </div>
@@ -2293,14 +2278,14 @@ export const CourseStructureDetails = ({
                                                   {(() => {
                                                     const sd = getStatusDetails(
                                                       slide.percentage_completed ||
-                                                        0
+                                                      0
                                                     );
                                                     const badgeClass =
                                                       sd.badge === "done"
                                                         ? "bg-primary/10 text-primary border-border"
                                                         : sd.badge === "active"
-                                                        ? "bg-primary-50 text-primary-700 border-primary-200"
-                                                        : "bg-neutral-50 text-neutral-600 border-neutral-200";
+                                                          ? "bg-primary-50 text-primary-700 border-primary-200"
+                                                          : "bg-neutral-50 text-neutral-600 border-neutral-200";
                                                     return (
                                                       <Badge
                                                         variant="secondary"
@@ -2315,33 +2300,33 @@ export const CourseStructureDetails = ({
                                                     {getSlideTypeDisplay(
                                                       slide
                                                     ) && (
-                                                      <Badge
-                                                        variant="secondary"
-                                                        className={`hidden sm:inline text-[10px] font-medium border ${getTypeBadgeClasses(
-                                                          slide
-                                                        )}`}
-                                                      >
-                                                        {getSlideTypeDisplay(
-                                                          slide
-                                                        )}
-                                                      </Badge>
-                                                    )}
+                                                        <Badge
+                                                          variant="secondary"
+                                                          className={`hidden sm:inline text-[10px] font-medium border ${getTypeBadgeClasses(
+                                                            slide
+                                                          )}`}
+                                                        >
+                                                          {getSlideTypeDisplay(
+                                                            slide
+                                                          )}
+                                                        </Badge>
+                                                      )}
                                                     {getSlideMetaText(
                                                       slide
                                                     ) && (
-                                                      <Badge
-                                                        variant="outline"
-                                                        className="hidden sm:inline text-[10px] font-normal bg-neutral-50 text-neutral-600 border-neutral-200"
-                                                      >
-                                                        {getSlideMetaText(
-                                                          slide
-                                                        )}
-                                                      </Badge>
-                                                    )}
+                                                        <Badge
+                                                          variant="outline"
+                                                          className="hidden sm:inline text-[10px] font-normal bg-neutral-50 text-neutral-600 border-neutral-200"
+                                                        >
+                                                          {getSlideMetaText(
+                                                            slide
+                                                          )}
+                                                        </Badge>
+                                                      )}
                                                     <div className="w-8 hidden sm:block">
                                                       {renderProgressBar(
                                                         slide.percentage_completed ||
-                                                          0,
+                                                        0,
                                                         "sm"
                                                       )}
                                                     </div>
@@ -2386,11 +2371,10 @@ export const CourseStructureDetails = ({
         <div className="flex flex-wrap items-center gap-2 text-sm text-neutral-600 mb-6 bg-neutral-50/50 p-2.5 rounded-lg border border-neutral-100">
           <button
             type="button"
-            className={`px-3 py-1.5 rounded-md transition-all duration-200 text-sm ${
-              !selectedSubjectId && !selectedModuleId && !selectedChapterId
-                ? "bg-white shadow-sm font-semibold text-primary-700 ring-1 ring-black/5"
-                : "hover:bg-neutral-200/60 hover:text-neutral-900"
-            }`}
+            className={`px-3 py-1.5 rounded-md transition-all duration-200 text-sm ${!selectedSubjectId && !selectedModuleId && !selectedChapterId
+              ? "bg-white shadow-sm font-semibold text-primary-700 ring-1 ring-black/5"
+              : "hover:bg-neutral-200/60 hover:text-neutral-900"
+              }`}
             onClick={() => {
               setSelectedSubjectId(null);
               setSelectedModuleId(null);
@@ -2400,18 +2384,15 @@ export const CourseStructureDetails = ({
             Subjects
           </button>
 
-          {selectedSubjectId && (
-            <CaretRight size={14} className="text-neutral-400" />
-          )}
+          {selectedSubjectId && <CaretRight size={14} className="text-neutral-400" />}
 
           {selectedSubjectId && (
             <button
               type="button"
-              className={`px-3 py-1.5 rounded-md transition-all duration-200 text-sm ${
-                selectedSubjectId && !selectedModuleId
-                  ? "bg-white shadow-sm font-semibold text-primary-700 ring-1 ring-black/5"
-                  : "hover:bg-neutral-200/60 hover:text-neutral-900"
-              }`}
+              className={`px-3 py-1.5 rounded-md transition-all duration-200 text-sm ${selectedSubjectId && !selectedModuleId
+                ? "bg-white shadow-sm font-semibold text-primary-700 ring-1 ring-black/5"
+                : "hover:bg-neutral-200/60 hover:text-neutral-900"
+                }`}
               onClick={() => {
                 setSelectedModuleId(null);
                 setSelectedChapterId(null);
@@ -2421,18 +2402,15 @@ export const CourseStructureDetails = ({
             </button>
           )}
 
-          {selectedModuleId && (
-            <CaretRight size={14} className="text-neutral-400" />
-          )}
+          {selectedModuleId && <CaretRight size={14} className="text-neutral-400" />}
 
           {selectedModuleId && (
             <button
               type="button"
-              className={`px-3 py-1.5 rounded-md transition-all duration-200 text-sm ${
-                selectedModuleId && !selectedChapterId
-                  ? "bg-white shadow-sm font-semibold text-primary-700 ring-1 ring-black/5"
-                  : "hover:bg-neutral-200/60 hover:text-neutral-900"
-              }`}
+              className={`px-3 py-1.5 rounded-md transition-all duration-200 text-sm ${selectedModuleId && !selectedChapterId
+                ? "bg-white shadow-sm font-semibold text-primary-700 ring-1 ring-black/5"
+                : "hover:bg-neutral-200/60 hover:text-neutral-900"
+                }`}
               onClick={() => {
                 setSelectedChapterId(null);
               }}
@@ -2441,9 +2419,7 @@ export const CourseStructureDetails = ({
             </button>
           )}
 
-          {selectedChapterId && (
-            <CaretRight size={14} className="text-neutral-400" />
-          )}
+          {selectedChapterId && <CaretRight size={14} className="text-neutral-400" />}
 
           {selectedChapterId && (
             <span className="px-3 py-1.5 rounded-md bg-white shadow-sm font-semibold text-primary-700 ring-1 ring-black/5 text-sm">
@@ -2478,11 +2454,7 @@ export const CourseStructureDetails = ({
                         }}
                       />
                     ) : (
-                      <Folder
-                        size={32}
-                        weight="duotone"
-                        className="text-primary-600/60"
-                      />
+                      <Folder size={32} weight="duotone" className="text-primary-600/60" />
                     )}
                   </div>
                   <div className="min-w-0 flex-1 py-1">
@@ -2525,11 +2497,7 @@ export const CourseStructureDetails = ({
                         }}
                       />
                     ) : (
-                      <Folder
-                        size={32}
-                        weight="duotone"
-                        className="text-blue-600/60"
-                      />
+                      <Folder size={32} weight="duotone" className="text-blue-600/60" />
                     )}
                   </div>
                   <div className="min-w-0 flex-1 py-1">
@@ -2592,11 +2560,7 @@ export const CourseStructureDetails = ({
                               }}
                             />
                           ) : (
-                            <PresentationChart
-                              size={32}
-                              weight="duotone"
-                              className="text-primary-600/60"
-                            />
+                            <PresentationChart size={32} weight="duotone" className="text-primary-600/60" />
                           )}
                         </div>
                         <div className="min-w-0 flex-1 py-1">
@@ -2650,9 +2614,7 @@ export const CourseStructureDetails = ({
               if (status === "loaded" && visibleSlides.length === 0) {
                 return (
                   <div className="rounded-lg border border-dashed border-neutral-300 p-8 text-center">
-                    <p className="text-neutral-500 italic">
-                      No content available in this chapter.
-                    </p>
+                    <p className="text-neutral-500 italic">No content available in this chapter.</p>
                   </div>
                 );
               }
@@ -2669,8 +2631,8 @@ export const CourseStructureDetails = ({
                           isSlideLocked
                             ? "opacity-60 bg-neutral-50"
                             : isSlideClickable()
-                            ? "hover:shadow-md cursor-pointer hover:border-primary-300/50 bg-white"
-                            : "bg-white"
+                              ? "hover:shadow-md cursor-pointer hover:border-primary-300/50 bg-white"
+                              : "bg-white"
                         )}
                         onClick={() => {
                           if (isSlideLocked) return;
@@ -2700,14 +2662,13 @@ export const CourseStructureDetails = ({
                             </div>
 
                             <div className="flex flex-wrap items-center gap-2 mt-2">
-                              <Badge
-                                variant="secondary"
-                                className="bg-neutral-100 text-neutral-500 font-normal hover:bg-neutral-200 text-xs"
-                              >
-                                {getSlideTypeDisplay(sl) || "Slide"}
+                              <Badge variant="secondary" className="bg-neutral-100 text-neutral-500 font-normal hover:bg-neutral-200 text-xs">
+                                {getSlideTypeDisplay(sl) || 'Slide'}
                               </Badge>
 
-                              {isSlideLocked && <LockedBadge size="sm" />}
+                              {isSlideLocked && (
+                                <LockedBadge size="sm" />
+                              )}
                             </div>
                           </div>
                         </CardContent>
@@ -2772,104 +2733,67 @@ export const CourseStructureDetails = ({
     ),
   };
 
-
-  // Ref to track the last fetched key to avoid redundant fetches
-  const lastFetchedKeyRef = useRef<string | null>(null);
-
-  // Refs to hold unstable function references
-  const fetchModulesRef = useRef(fetchModules);
-  const getSlidesWithChapterIdRef = useRef(getSlidesWithChapterId);
-  const handleLoadingChangeRef = useRef(handleLoadingChange);
-  const updateModuleStatsRef = useRef(updateModuleStats);
-
-  // Keep refs up to date
-  useEffect(() => {
-    fetchModulesRef.current = fetchModules;
-  }, [fetchModules]);
-
-  useEffect(() => {
-    getSlidesWithChapterIdRef.current = getSlidesWithChapterId;
-  }, [getSlidesWithChapterId]);
-
-  useEffect(() => {
-    handleLoadingChangeRef.current = handleLoadingChange;
-  }, [handleLoadingChange]);
-
-  useEffect(() => {
-    updateModuleStatsRef.current = updateModuleStats;
-  }, [updateModuleStats]);
-
-  // Ref to hold current courseData without triggering re-renders
-  const courseDataRef = useRef(courseData);
-  useEffect(() => {
-    courseDataRef.current = courseData;
-  }, [courseData]);
-
   // Trigger module loading when session or level changes
-  // Use an additional ref to prevent running while already loading
-  const isLoadingModulesRef = useRef(false);
-  
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
-    // Create a composite key that captures all relevant data
-    // Use courseDataRef.current to avoid courseData being a dependency
-    const subjects = getSubjectDetails(courseDataRef.current, selectedSession, selectedLevel);
-    const fetchKey = `${packageSessionId}:${subjects.map(s => s.id).join(",")}`;
+    if (packageSessionId) {
+      const loadModules = async () => {
+        handleLoadingChange(true);
+        setIsModulesLoading(true);
+        try {
+          const modulesMap = await fetchModules({
+            subjects: getSubjectDetails(
+              courseData,
+              selectedSession,
+              selectedLevel
+            ),
+          });
+          setSubjectModulesMap(modulesMap);
 
-    // Skip if we've already fetched for this exact combination OR if currently loading
-    if (!packageSessionId || !subjects.length || fetchKey === lastFetchedKeyRef.current || isLoadingModulesRef.current) {
-      return;
+          // Auto-expand only the first item in each level
+          const subjects = getSubjectDetails(
+            courseData,
+            selectedSession,
+            selectedLevel
+          );
+          const firstSubjectId = subjects[0]?.id;
+
+          if (firstSubjectId) {
+            const firstSubjectModules = modulesMap[firstSubjectId] || [];
+            const firstModuleId = firstSubjectModules[0]?.module.id;
+            const firstChapterId = firstSubjectModules[0]?.chapters[0]?.id;
+
+            const openSubjectsSet = new Set<string>([firstSubjectId]);
+            const openModulesSet = new Set<string>();
+            const openChaptersSet = new Set<string>();
+
+            if (firstModuleId) {
+              openModulesSet.add(firstModuleId);
+            }
+            if (firstChapterId) {
+              openChaptersSet.add(firstChapterId);
+              // Automatically load slides for the first opened chapter
+              getSlidesWithChapterId(firstChapterId);
+            }
+
+            setOpenSubjects(openSubjectsSet);
+            setOpenModules(openModulesSet);
+            setOpenChapters(openChaptersSet);
+          }
+
+          // Update module stats for parent component
+          if (updateModuleStats) {
+            updateModuleStats(modulesMap);
+          }
+        } catch {
+          setSubjectModulesMap({});
+        } finally {
+          handleLoadingChange(false);
+          setIsModulesLoading(false);
+        }
+      };
+      loadModules();
     }
-
-    const loadModules = async () => {
-      isLoadingModulesRef.current = true;
-      handleLoadingChangeRef.current(true);
-      setIsModulesLoading(true);
-      try {
-        const modulesMap = await fetchModulesRef.current({ subjects });
-        setSubjectModulesMap(modulesMap);
-        lastFetchedKeyRef.current = fetchKey;
-
-        // Auto-expand only the first item in each level
-        const firstSubjectId = subjects[0]?.id;
-
-        if (firstSubjectId) {
-          const firstSubjectModules = modulesMap[firstSubjectId] || [];
-          const firstModuleId = firstSubjectModules[0]?.module.id;
-          const firstChapterId = firstSubjectModules[0]?.chapters[0]?.id;
-
-          const openSubjectsSet = new Set<string>([firstSubjectId]);
-          const openModulesSet = new Set<string>();
-          const openChaptersSet = new Set<string>();
-
-          if (firstModuleId) {
-            openModulesSet.add(firstModuleId);
-          }
-          if (firstChapterId) {
-            openChaptersSet.add(firstChapterId);
-            // Automatically load slides for the first opened chapter
-            getSlidesWithChapterIdRef.current(firstChapterId);
-          }
-
-          setOpenSubjects(openSubjectsSet);
-          setOpenModules(openModulesSet);
-          setOpenChapters(openChaptersSet);
-        }
-
-        // Update module stats for parent component
-        if (updateModuleStatsRef.current) {
-          updateModuleStatsRef.current(modulesMap);
-        }
-      } catch {
-        setSubjectModulesMap({});
-      } finally {
-        isLoadingModulesRef.current = false;
-        handleLoadingChangeRef.current(false);
-        setIsModulesLoading(false);
-      }
-    };
-    loadModules();
-  }, [packageSessionId, selectedSession, selectedLevel]);
+  }, [selectedSession, selectedLevel, packageSessionId, handleLoadingChange]);
 
   useEffect(() => {
     const studyLibraryData = getSubjectDetails(
@@ -2899,9 +2823,7 @@ export const CourseStructureDetails = ({
           const key = `module:${m.module.id}`;
           if (fileId && !thumbUrlById[key]) {
             try {
-              const url = await queryClient.fetchQuery(
-                getFilePublicUrlQuery(fileId)
-              );
+              const url = await getPublicUrlWithoutLogin(fileId);
               setThumbUrlById((prev) => ({ ...prev, [key]: url }));
             } catch {
               // Silent error handling
@@ -2917,9 +2839,7 @@ export const CourseStructureDetails = ({
           const key = `chapter:${ch.id}`;
           if (fileId && !thumbUrlById[key]) {
             try {
-              const url = await queryClient.fetchQuery(
-                getFilePublicUrlQuery(fileId)
-              );
+              const url = await getPublicUrlWithoutLogin(fileId);
               setThumbUrlById((prev) => ({ ...prev, [key]: url }));
             } catch {
               // Silent error handling
@@ -2989,9 +2909,7 @@ export const CourseStructureDetails = ({
         const results = await Promise.all(
           unique.map(async ({ key, fileId }) => {
             try {
-              const url = await queryClient.fetchQuery(
-                getFilePublicUrlQuery(fileId)
-              );
+              const url = await getPublicUrlWithoutLogin(fileId);
 
               return { key, url } as const;
             } catch {
@@ -3137,9 +3055,8 @@ export const CourseStructureDetails = ({
             <TabsContent
               key={selectedStructureTab}
               value={selectedStructureTab}
-              className={`${
-                renderTabs.length > 1 ? "mt-4" : ""
-              } rounded-lg bg-white border border-neutral-200/60 p-4`}
+              className={`${renderTabs.length > 1 ? "mt-4" : ""
+                } rounded-lg bg-white border border-neutral-200/60 p-4`}
             >
               {tabContent[selectedStructureTab as TabType]}
             </TabsContent>

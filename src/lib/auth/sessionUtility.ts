@@ -7,7 +7,6 @@ import { IAccessToken, TokenKey, Tokens } from "@/constants/auth/tokens";
 import { isNullOrEmptyOrUndefined } from "../utils";
 import Cookies from "js-cookie";
 import { clearStudentDisplaySettingsCache } from "@/services/student-display-settings";
-import { clearChatbotSettingsCache } from "@/services/chatbot-settings";
 
 // Set token in cookie with domain support for cross-subdomain access
 export const setAuthorizationCookie = (key: string, token: string): void => {
@@ -39,9 +38,7 @@ const getTokenFromStorage = async (
   try {
     const localStorageValue = localStorage.getItem(tokenKey);
     if (localStorageValue) {
-      console.log(
-        `[SessionUtility] Token ${tokenKey} recovered from localStorage`
-      );
+      console.log(`[SessionUtility] Token ${tokenKey} recovered from localStorage`);
       return localStorageValue;
     }
   } catch (error) {
@@ -107,16 +104,11 @@ const getInstituteIdFromStorage = async (
   try {
     const localStorageValue = localStorage.getItem(tokenKey);
     if (localStorageValue) {
-      console.log(
-        `[SessionUtility] InstituteId ${tokenKey} recovered from localStorage`
-      );
+      console.log(`[SessionUtility] InstituteId ${tokenKey} recovered from localStorage`);
       return localStorageValue;
     }
   } catch (error) {
-    console.warn(
-      `[SessionUtility] Failed to read InstituteId from localStorage:`,
-      error
-    );
+    console.warn(`[SessionUtility] Failed to read InstituteId from localStorage:`, error);
   }
 
   return null;
@@ -145,10 +137,7 @@ const setInstituteIdInStorage = async (
   try {
     localStorage.setItem(key, id);
   } catch (error) {
-    console.warn(
-      `[SessionUtility] Failed to write InstituteId to localStorage:`,
-      error
-    );
+    console.warn(`[SessionUtility] Failed to write InstituteId to localStorage:`, error);
   }
 };
 
@@ -217,7 +206,6 @@ const removeTokensAndLogout = async (): Promise<void> => {
   await removeTokenFromStorage(TokenKey.accessToken);
   await removeTokenFromStorage(TokenKey.refreshToken);
   clearStudentDisplaySettingsCache();
-  clearChatbotSettingsCache();
   // Don't remove institute ID - keep it for comparison in courses
   // await removeInstituteIdFromStorage();
 
@@ -241,7 +229,7 @@ const removeTokensAndLogout = async (): Promise<void> => {
       TokenKey.refreshToken,
     ];
 
-    keysToRemove.forEach((key) => {
+    keysToRemove.forEach(key => {
       try {
         localStorage.removeItem(key);
       } catch (error) {

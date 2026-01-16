@@ -9,7 +9,7 @@ export const ChatbotProvider: React.FC<{ children: React.ReactNode }> = ({
   const chatbotState = useChatbot();
   useEffect(() => {
     console.log("ChatbotProvider initialized");
-    getChatbotSettings(true);
+    getChatbotSettings();
   }, []);
   return (
     <ChatbotContext.Provider value={chatbotState}>

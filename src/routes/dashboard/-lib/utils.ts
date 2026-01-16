@@ -12,9 +12,8 @@ import {
   UserActivityArray,
 } from "../-types/dashboard-data-types";
 import { getStoredDetails } from "@/routes/assessment/examination/-utils.ts/useFetchAssessment";
+import { fetchStudentDetails } from "@/services/studentDetails";
 import { safeJsonParse } from "@/utils/safe-json-parse";
-import { Student } from "@/types/user/user-detail";
-import { getDataFromPreferences } from "@/utils/storage";
 
 export const fetchUserData = async () => {
   const studentData = await Preferences.get({ key: "StudentDetails" });
@@ -51,10 +50,11 @@ export const fetchStaticData = async (
   setUsername(first_name);
 
   // Use the institute_id from user data instead of getInstituteId()
-  // const response1 = await fetchStudentDetails(institute_id, userData.id);
-  const studentDetails = await getDataFromPreferences<Student[]>("students");
+  const response1 = await fetchStudentDetails(institute_id, userData.id);
 
-  const packageSessionIds = studentDetails?.map(
+  const packageSessionIds = response1?.data?.map(
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-expect-error
     (item) => item.package_session_id
   );
 
@@ -140,8 +140,10 @@ export const fetchLast7DaysProgress = async ({
     }
 
     const url = GET_LAST_7_DAYS_PROGRESS;
-    const studentDetails = await getDataFromPreferences<Student[]>("students");
-    const packageSessionIds = studentDetails?.map(
+    const response1 = await fetchStudentDetails(instituteId, student.id);
+    const packageSessionIds = response1?.data?.map(
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-expect-error
       (item) => item.package_session_id
     );
     const response = await authenticatedAxiosInstance({

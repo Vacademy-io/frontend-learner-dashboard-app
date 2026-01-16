@@ -170,7 +170,6 @@ const CoursesPage: React.FC<CoursesPageProps> = ({
                     }
                     previewImageUrl={course.course_preview_image_media_id}
                     instituteId={instituteId}
-                    packageSessionId={course.package_session_id}
                   />
                 );
               })}

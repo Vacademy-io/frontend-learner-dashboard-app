@@ -15,7 +15,6 @@ interface Instructor {
 
 interface CourseCardProps {
     courseId: string;
-    packageSessionId?: string;
     package_name: string;
     level_name: string;
     instructors: Instructor[];
@@ -32,7 +31,6 @@ const fallbackInstructorImage =
 
 const CourseCard: React.FC<CourseCardProps> = ({
     courseId,
-    packageSessionId,
     package_name,
     level_name,
     instructors,
@@ -57,7 +55,6 @@ const CourseCard: React.FC<CourseCardProps> = ({
             to: "/courses/course-details",
             search: {
                 courseId: courseId,
-                packageSessionId: packageSessionId,
             },
         });
     };

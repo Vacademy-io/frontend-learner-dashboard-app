@@ -69,12 +69,6 @@ authenticatedAxiosInstance.interceptors.request.use(
           request.headers["clientId"] = instituteId;
           request.headers["X-Institute-Id"] = instituteId;
         }
-
-        // Attempt to attach local token if available, but do not force refresh/logout logic
-        const accessToken = await getTokenFromStorage(TokenKey.accessToken);
-        if (accessToken && !isTokenExpired(accessToken)) {
-            request.headers["Authorization"] = `Bearer ${accessToken}`;
-        }
       } catch {
         // no-op
       }

@@ -4,7 +4,7 @@ import {
   Outlet,
   redirect,
 } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import {
   AppUpdate,
   AppUpdateAvailability,
@@ -30,8 +30,6 @@ import {
 } from "@/services/domain-routing";
 import { ChatbotPanel } from "@/components/chatbot/ChatbotPanel";
 import { ChatbotProvider } from "@/components/chatbot/ChatbotContext";
-import { getChatbotSettings } from "@/services/chatbot-settings";
-import { ChatbotFloatingButton } from "@/components/chatbot/ChatbotFloatingButton";
 
 // Define public routes that don't require authentication
 const PUBLIC_ROUTES = [
@@ -177,7 +175,6 @@ const RootComponent = () => {
   const { setUpdateAvailable } = useUpdate();
   const { setPrimaryColor } = useTheme();
   const { setInstituteId } = useInstituteFeatureStore();
-  const [isChatbotEnabled, setIsChatbotEnabled] = useState(false);
 
   const setPrimaryColorFromStorage = async () => {
     const details = await Preferences.get({ key: "InstituteDetails" });
@@ -218,11 +215,6 @@ const RootComponent = () => {
 
     checkForUpdate();
     setPrimaryColorFromStorage();
-    
-    // Fetch chatbot settings and enable floating button if enabled in settings
-    getChatbotSettings(false)
-      .then((settings) => setIsChatbotEnabled(settings?.enable === true))
-      .catch(() => setIsChatbotEnabled(false));
     // Apply global ui-vibrant class based on override/settings and expose debug helpers
     const applyUiType = (t: StudentUIType) => {
       const root = document.documentElement;
@@ -426,7 +418,6 @@ const RootComponent = () => {
     <ChatbotProvider>
       <Outlet />
       <ChatbotPanel />
-      {isChatbotEnabled && <ChatbotFloatingButton />}
     </ChatbotProvider>
   );
 };
@@ -497,7 +488,6 @@ export const Route = createRootRouteWithContext<{
         const authenticated = await isAuthenticated();
         if (authenticated) {
           const settings = await getStudentDisplaySettings(true);
-          await getChatbotSettings(true);
           const route = settings?.postLoginRedirectRoute || "/dashboard";
           // Support external absolute URLs
           if (/^https?:\/\//.test(route)) {
@@ -560,7 +550,6 @@ export const Route = createRootRouteWithContext<{
       const authenticated = await isAuthenticated();
       if (authenticated && location.pathname === "/dashboard") {
         const settings = await getStudentDisplaySettings(false);
-        await getChatbotSettings(true);
         const route = settings?.postLoginRedirectRoute || "/dashboard";
         // On '/dashboard'. Settings route: ${route}
         if (route !== "/dashboard" && !/^https?:\/\//.test(route)) {

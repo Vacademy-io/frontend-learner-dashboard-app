@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { LayoutContainer } from '@/components/common/layout-container/layout-container';
 import { useNavHeadingStore } from '@/stores/layout-container/useNavHeadingStore';
 import { getUserId } from '@/constants/getUserId';
@@ -24,7 +24,6 @@ function SubOrgLearnersPage() {
   const [adminMappings, setAdminMappings] = useState<AdminMappings[]>([]);
   const [instituteDetails, setInstituteDetails] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const hasCheckedAccess = useRef(false);
 
   useEffect(() => {
     setNavHeading('Practise Member Management');
@@ -32,9 +31,6 @@ function SubOrgLearnersPage() {
 
   useEffect(() => {
     const checkAccess = async () => {
-      if (hasCheckedAccess.current) return;
-      hasCheckedAccess.current = true;
-
       try {
         const userId = await getUserId();
 
