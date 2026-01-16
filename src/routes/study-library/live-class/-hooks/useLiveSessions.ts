@@ -75,7 +75,7 @@ export const useLiveSessions = (
   return useQuery({
     queryKey: ["liveSessions", batchId, params],
     queryFn: () => fetchLiveAndUpcomingSessions(batchId!, params),
-    enabled: !!batchId,
+    //enabled: !!batchId,
     refetchInterval: 60000, // Refetch every minute to keep live status updated
   });
 };
