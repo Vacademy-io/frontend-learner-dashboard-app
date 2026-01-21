@@ -1,4 +1,8 @@
-import { GET_AUDIENCE_CAMPAIGN, SUBMIT_AUDIENCE_LEAD } from "@/constants/urls";
+import {
+  GET_AUDIENCE_CAMPAIGN,
+  SUBMIT_AUDIENCE_LEAD,
+  SUBMIT_ENQUIRY_WITH_LEAD,
+} from "@/constants/urls";
 import axios from "axios";
 import { isNullOrEmptyOrUndefined } from "@/lib/utils";
 
@@ -87,7 +91,7 @@ export const handleGetAudienceCampaign = ({
 
 // Helper function to extract email from form values
 const getEmailFromFormValues = (
-  formValues: Record<string, { value: string; [key: string]: any }>
+  formValues: Record<string, { value: string; [key: string]: any }>,
 ): string => {
   const emailEntry = Object.entries(formValues).find(([key]) => {
     const lowerKey = key.toLowerCase();
@@ -102,7 +106,7 @@ const getEmailFromFormValues = (
 
 // Helper function to extract phone from form values
 const getPhoneFromFormValues = (
-  formValues: Record<string, { value: string; [key: string]: any }>
+  formValues: Record<string, { value: string; [key: string]: any }>,
 ): string => {
   const phoneEntry = Object.entries(formValues).find(([key]) => {
     const lowerKey = key.toLowerCase();
@@ -118,7 +122,7 @@ const getPhoneFromFormValues = (
 
 // Helper function to extract full name from form values
 const getFullNameFromFormValues = (
-  formValues: Record<string, { value: string; [key: string]: any }>
+  formValues: Record<string, { value: string; [key: string]: any }>,
 ): string => {
   // First, try to find a single full name field
   const fullNameEntry = Object.entries(formValues).find(([key]) => {
@@ -150,7 +154,50 @@ const getFullNameFromFormValues = (
   return `${firstName} ${lastName}`.trim();
 };
 
+// New interface for parent enquiry submission with parent/child DTOs
+export interface SubmitEnquiryRequest {
+  audience_id: string;
+  source_type: string;
+  destination_package_session_id?: string;
+  // Legacy fields for backward compatibility
+  parent_name?: string;
+  parent_email?: string;
+  parent_mobile?: string;
+  // Child/Student DTO
+  child_user_dto: {
+    full_name: string;
+    date_of_birth?: string; // ISO format: "2015-05-20"
+    gender?: "MALE" | "FEMALE" | "OTHER";
+    address_line?: string;
+    city?: string;
+    region?: string;
+    pin_code?: string;
+    is_parent: false;
+    root_user: false;
+  };
+  // Parent DTO
+  parent_user_dto: {
+    full_name?: string;
+    email: string; // REQUIRED
+    mobile_number: string; // REQUIRED
+    address_line?: string;
+    city?: string;
+    region?: string;
+    pin_code?: string;
+    is_parent: true;
+    root_user: true;
+  };
+  // Custom fields
+  custom_field_values?: Record<string, string>;
+  // Enquiry metadata
+  enquiry: {
+    enquiry_status: "NEW";
+    mode: "ONLINE";
+    reference_source?: string;
+  };
+}
 
+// Keep old interface for backward compatibility
 export interface SubmitAudienceLeadRequest {
   audience_id: string;
   source_type: string;
@@ -176,13 +223,32 @@ export interface SubmitAudienceLeadRequest {
   };
 }
 
-export interface SubmitAudienceLeadResponse {
-  // Response type - adjust based on actual API response
+export interface SubmitEnquiryResponse {
   [key: string]: any;
 }
 
+export interface SubmitAudienceLeadResponse {
+  [key: string]: any;
+}
+
+// New function for parent enquiry submission
+export const submitEnquiryWithLead = async (
+  payload: SubmitEnquiryRequest,
+): Promise<SubmitEnquiryResponse> => {
+  const response = await axios({
+    method: "POST",
+    url: SUBMIT_ENQUIRY_WITH_LEAD,
+    data: payload,
+    headers: {
+      "Content-Type": "application/json",
+    },
+  });
+  return response?.data;
+};
+
+// Keep old function for backward compatibility
 export const submitAudienceLead = async (
-  payload: SubmitAudienceLeadRequest
+  payload: SubmitAudienceLeadRequest,
 ): Promise<SubmitAudienceLeadResponse> => {
   const response = await axios({
     method: "POST",
@@ -200,11 +266,113 @@ export interface CustomFieldOrder {
   field_key: string;
 }
 
+// New helper function for parent enquiry submission
+export const handleSubmitEnquiryWithLead = (
+  formValues: Record<string, { value: string; id: string; [key: string]: any }>,
+  audienceId: string,
+  studentName: string,
+  studentDob: string,
+  studentGender: string,
+  parentName: string,
+  parentEmail: string,
+  parentMobile: string,
+  addressLine: string,
+  city: string,
+  region: string,
+  pinCode: string,
+  packageSessionId: string,
+  customFieldsOrder: CustomFieldOrder[] = [],
+): SubmitEnquiryRequest => {
+  // Build custom_field_values object
+  const customFieldValues: Record<string, string> = {};
+
+  if (customFieldsOrder.length > 0) {
+    customFieldsOrder.forEach((field) => {
+      const formValue = formValues[field.field_key];
+      if (
+        formValue &&
+        formValue.id &&
+        formValue.value !== undefined &&
+        formValue.value !== null &&
+        formValue.value !== ""
+      ) {
+        customFieldValues[formValue.id] = String(formValue.value);
+      }
+    });
+  } else {
+    Object.entries(formValues).forEach(([, field]) => {
+      if (
+        field.id &&
+        field.value !== undefined &&
+        field.value !== null &&
+        field.value !== ""
+      ) {
+        customFieldValues[field.id] = String(field.value);
+      }
+    });
+  }
+
+  // Build child_user_dto with address copied from parent
+  const childUserDto = {
+    full_name: studentName,
+    date_of_birth: studentDob || undefined,
+    gender: (studentGender as "MALE" | "FEMALE" | "OTHER") || undefined,
+    address_line: addressLine || undefined,
+    city: city || undefined,
+    region: region || undefined,
+    pin_code: pinCode || undefined,
+    is_parent: false as const,
+    root_user: false as const,
+  };
+
+  // Build parent_user_dto
+  const parentUserDto = {
+    full_name: parentName || undefined,
+    email: parentEmail,
+    mobile_number: parentMobile,
+    address_line: addressLine || undefined,
+    city: city || undefined,
+    region: region || undefined,
+    pin_code: pinCode || undefined,
+    is_parent: true as const,
+    root_user: true as const,
+  };
+
+  // Build enquiry object with hardcoded defaults
+  const enquiry = {
+    enquiry_status: "NEW" as const,
+    mode: "ONLINE" as const,
+    reference_source: "WEBSITE",
+  };
+
+  // Build the payload
+  const payload: SubmitEnquiryRequest = {
+    audience_id: audienceId,
+    source_type: "WEBSITE",
+    destination_package_session_id: packageSessionId || undefined,
+    // Legacy fields for backward compatibility
+    parent_name: parentName || undefined,
+    parent_email: parentEmail,
+    parent_mobile: parentMobile,
+    // DTOs
+    child_user_dto: childUserDto,
+    parent_user_dto: parentUserDto,
+    // Custom fields
+    custom_field_values:
+      Object.keys(customFieldValues).length > 0 ? customFieldValues : undefined,
+    // Enquiry metadata
+    enquiry: enquiry,
+  };
+
+  return payload;
+};
+
+// Keep old function for backward compatibility
 export const handleSubmitAudienceLead = (
   formValues: Record<string, { value: string; id: string; [key: string]: any }>,
   audienceId: string,
   campaignId: string,
-  customFieldsOrder: CustomFieldOrder[] = []
+  customFieldsOrder: CustomFieldOrder[] = [],
 ): SubmitAudienceLeadRequest => {
   // Extract user data from form values for user_dto
   const email = getEmailFromFormValues(formValues);
@@ -215,13 +383,19 @@ export const handleSubmitAudienceLead = (
   // Iterate in the same order as received from GET API to maintain order
   // JavaScript objects maintain insertion order (ES2015+), so the order will be preserved
   const customFieldValues: Record<string, string> = {};
-  
+
   if (customFieldsOrder.length > 0) {
     // Use the ordered array to maintain the exact order from GET API response
     // This ensures custom_field_values in POST payload matches the order from GET API
     customFieldsOrder.forEach((field) => {
       const formValue = formValues[field.field_key];
-      if (formValue && formValue.id && formValue.value !== undefined && formValue.value !== null && formValue.value !== "") {
+      if (
+        formValue &&
+        formValue.id &&
+        formValue.value !== undefined &&
+        formValue.value !== null &&
+        formValue.value !== ""
+      ) {
         // Use custom_field.id as the key to maintain the unique identifier
         customFieldValues[formValue.id] = String(formValue.value);
       }
@@ -229,7 +403,12 @@ export const handleSubmitAudienceLead = (
   } else {
     // Fallback: if no order array provided, iterate over formValues (may not preserve order)
     Object.entries(formValues).forEach(([, field]) => {
-      if (field.id && field.value !== undefined && field.value !== null && field.value !== "") {
+      if (
+        field.id &&
+        field.value !== undefined &&
+        field.value !== null &&
+        field.value !== ""
+      ) {
         customFieldValues[field.id] = String(field.value);
       }
     });
@@ -266,4 +445,3 @@ export const handleSubmitAudienceLead = (
 
   return payload;
 };
-

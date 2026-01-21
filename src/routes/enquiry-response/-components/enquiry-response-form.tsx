@@ -35,10 +35,12 @@ import {
 } from "@/components/common/enroll-by-invite/-utils/country-code-mapping";
 import type { AudienceCampaignResponse } from "../-services/enquiry-campaign-services";
 import {
-  submitAudienceLead,
-  handleSubmitAudienceLead,
+  submitEnquiryWithLead,
+  handleSubmitEnquiryWithLead,
 } from "../-services/enquiry-campaign-services";
 import { toast } from "sonner";
+import axios from "axios";
+import { BASE_URL } from "@/constants/urls";
 
 interface AudienceResponseFormProps {
   campaignData: AudienceCampaignResponse;
@@ -48,7 +50,7 @@ interface AudienceResponseFormProps {
 
 // Convert audience campaign custom fields to the format expected by the form
 const convertAudienceCustomFields = (
-  customFields: AudienceCampaignResponse["institute_custom_fields"]
+  customFields: AudienceCampaignResponse["institute_custom_fields"],
 ): AssessmentCustomFieldOpenRegistration[] => {
   return customFields
     .map((field) => {
@@ -80,30 +82,57 @@ const AudienceResponseForm = ({
   const [loading, setLoading] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
 
+  // New state for student/parent/enquiry fields
+  const [studentName, setStudentName] = useState("");
+  const [studentDob, setStudentDob] = useState("");
+  const [studentGender, setStudentGender] = useState("");
+  const [parentName, setParentName] = useState("");
+  const [parentEmail, setParentEmail] = useState("");
+  const [addressLine, setAddressLine] = useState("");
+  const [city, setCity] = useState("");
+  const [region, setRegion] = useState("");
+  const [pinCode, setPinCode] = useState("");
+  const [packageSessions, setPackageSessions] = useState<any[]>([]);
+
   const { data: instituteData, isLoading: isInstituteLoading } =
     useSuspenseQuery(handleGetPublicInstituteDetails({ instituteId }));
 
   // Convert custom fields
   const formFields = convertAudienceCustomFields(
-    campaignData.institute_custom_fields || []
+    campaignData.institute_custom_fields || [],
   );
 
-  // Debug: Log to help diagnose rendering issues
+  // Fetch package sessions for class/batch dropdown
   useEffect(() => {
-    console.log("🔍 Audience Response Form Debug:", {
-      formFieldsCount: formFields.length,
-      formFields: formFields.map((f) => ({
-        key: f.field_key,
-        name: f.field_name,
-        type: f.field_type,
-      })),
-      campaignDataId: campaignData.id,
-      campaignName: campaignData.campaign_name,
-      instituteCustomFieldsCount:
-        campaignData.institute_custom_fields?.length || 0,
-      instituteCustomFields: campaignData.institute_custom_fields,
-    });
-  }, [formFields, campaignData]);
+    const fetchPackageSessions = async () => {
+      try {
+        const response = await axios.post(
+          `${BASE_URL}/admin-core-service/open/packages/v2/search`,
+          {
+            status: [],
+            level_ids: [],
+            faculty_ids: [],
+            search_by_name: "",
+            tag: [],
+            min_percentage_completed: 0,
+            max_percentage_completed: 0,
+          },
+          {
+            params: {
+              instituteId: instituteId,
+              page: 0,
+              size: 100,
+              sort: "createdAt,desc",
+            },
+          },
+        );
+        setPackageSessions(response.data?.content || []);
+      } catch (error) {
+        console.error("Error fetching package sessions:", error);
+      }
+    };
+    fetchPackageSessions();
+  }, [instituteId]);
 
   // Create dynamic schema
   const zodSchema = getDynamicSchema(formFields);
@@ -124,7 +153,7 @@ const AudienceResponseForm = ({
           comma_separated_options?: string[];
         }
       >,
-      field: AssessmentCustomFieldOpenRegistration
+      field: AssessmentCustomFieldOpenRegistration,
     ) => {
       if (field.field_type === "dropdown") {
         defaults[field.field_key] = {
@@ -146,7 +175,7 @@ const AudienceResponseForm = ({
       }
       return defaults;
     },
-    {}
+    {},
   );
 
   const form = useForm<FormValues>({
@@ -244,41 +273,74 @@ const AudienceResponseForm = ({
   };
 
   const onSubmit = async (values: FormValues) => {
+    // Validate required fields
+    if (!studentName.trim()) {
+      toast.error("Student name is required");
+      return;
+    }
+    if (!parentEmail.trim()) {
+      toast.error("Parent email is required");
+      return;
+    }
+    const mobileValue = (values as any).parentMobile || "";
+    if (!mobileValue.trim()) {
+      toast.error("Parent mobile number is required");
+      return;
+    }
+
     setLoading(true);
     try {
-      // Build the payload using the helper function
-      // Pass formFields to maintain the order from GET API (sorted by field_order)
-      // This ensures custom_field_values in POST payload matches the order from GET API
+      // Build the payload using the new helper function
       const customFieldsOrder = formFields.map((field) => ({
         id: field.id,
         field_key: field.field_key,
       }));
-      const payload = handleSubmitAudienceLead(
+
+      const payload = handleSubmitEnquiryWithLead(
         values,
         audienceId,
-        campaignData.id,
-        customFieldsOrder
+        studentName,
+        studentDob,
+        studentGender,
+        parentName,
+        parentEmail,
+        (values as any).parentMobile || "",
+        addressLine,
+        city,
+        region,
+        pinCode,
+        (values as any).packageSessionId || "",
+        customFieldsOrder,
       );
 
-      // console.log("Submitting audience lead with payload:", payload);
+      console.log("Submitting enquiry with payload:", payload);
 
-      // Submit the audience lead
-      const response = await submitAudienceLead(payload);
+      // Submit using the new API endpoint
+      const response = await submitEnquiryWithLead(payload);
 
-      console.log("Audience response submitted successfully:", response);
+      console.log("Enquiry submitted successfully:", response);
 
       // Show success state
       setIsSubmitted(true);
 
-      // Reset the form after successful submission
+      // Reset all form fields
       form.reset();
+      setStudentName("");
+      setStudentDob("");
+      setStudentGender("");
+      setParentName("");
+      setParentEmail("");
+      setAddressLine("");
+      setCity("");
+      setRegion("");
+      setPinCode("");
     } catch (error: any) {
-      console.error("Error submitting audience response:", error);
+      console.error("Error submitting enquiry:", error);
       const errorMessage =
         error?.response?.data?.message ||
         error?.response?.data?.error ||
         error?.message ||
-        "Failed to submit response. Please try again.";
+        "Failed to submit enquiry. Please try again.";
       toast.error(errorMessage);
     } finally {
       setLoading(false);
@@ -350,10 +412,10 @@ const AudienceResponseForm = ({
                 {/* Success Message */}
                 <div className="space-y-3">
                   <h2 className="text-2xl sm:text-3xl font-bold text-neutral-800">
-                    Registration Successfully!
+                    Enquiry Submitted Successfully!
                   </h2>
                   <p className="text-lg text-neutral-600">
-                    Thank you for your response. Your form has been submitted
+                    Thank you for your response. Your enquiry has been submitted
                     successfully.
                   </p>
                   {campaignData.send_respondent_email && (
@@ -457,7 +519,7 @@ const AudienceResponseForm = ({
                 Please fill in your details
               </ModernCardTitle>
               <p className="text-neutral-600 text-sm">
-                This information will be used to contact you about the campaign.
+                This information will be used to contact you about the enquiry.
               </p>
             </ModernCardHeader>
 
@@ -466,29 +528,143 @@ const AudienceResponseForm = ({
                 onSubmit={form.handleSubmit(onSubmit)}
                 className="w-full flex flex-col gap-6"
               >
-                {/* Debug Info - Remove in production */}
-                {/* <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded text-xs">
-                  <p><strong>Debug Info:</strong></p>
-                  <p>Form Fields Count: {formFields.length}</p>
-                  <p>Default Values Keys: {Object.keys(defaultValues).join(", ") || "None"}</p>
-                  <p>Form Values Keys: {Object.keys(form.getValues()).join(", ") || "None"}</p>
-                </div> */}
+                {/* Student Details Section */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold text-neutral-700 border-b pb-2">
+                    Student Details
+                  </h3>
 
-                {formFields.length === 0 ? (
-                  <div className="text-center py-8 text-neutral-600">
-                    <p className="text-lg font-semibold mb-2">
-                      No form fields available
-                    </p>
-                    <p>
-                      This campaign does not have any custom fields configured.
-                    </p>
-                    <p className="text-xs mt-4 text-neutral-400">
-                      Custom Fields from API:{" "}
-                      {campaignData.institute_custom_fields?.length || 0}
-                    </p>
-                  </div>
-                ) : (
-                  <>
+                  <MyInput
+                    inputType="text"
+                    inputPlaceholder="Enter student's full name"
+                    input={studentName}
+                    onChangeFunction={(e) => setStudentName(e.target.value)}
+                    required={true}
+                    size="large"
+                    label="Full Name"
+                  />
+
+                  <MyInput
+                    inputType="date"
+                    inputPlaceholder="Select date of birth"
+                    input={studentDob}
+                    onChangeFunction={(e) => setStudentDob(e.target.value)}
+                    required={false}
+                    size="large"
+                    label="Date of Birth"
+                  />
+
+                  <SelectField
+                    label="Gender"
+                    name="gender"
+                    options={[
+                      { label: "Male", value: "MALE", _id: "MALE" },
+                      { label: "Female", value: "FEMALE", _id: "FEMALE" },
+                      { label: "Other", value: "OTHER", _id: "OTHER" },
+                    ]}
+                    control={form.control}
+                    required={true}
+                    className="!w-full"
+                  />
+
+                  {packageSessions.length > 0 && (
+                    <SelectField
+                      label="Class"
+                      name="packageSessionId"
+                      options={packageSessions.map((session) => ({
+                        label: `${session.package_name} - ${session.level_name || "N/A"}`,
+                        value: session.package_session_id,
+                        _id: session.package_session_id,
+                      }))}
+                      control={form.control}
+                      required={false}
+                      className="!w-full"
+                    />
+                  )}
+                </div>
+
+                {/* Parent Details Section */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold text-neutral-700 border-b pb-2">
+                    Parent Details
+                  </h3>
+
+                  <MyInput
+                    inputType="text"
+                    inputPlaceholder="Enter parent's full name"
+                    input={parentName}
+                    onChangeFunction={(e) => setParentName(e.target.value)}
+                    required={true}
+                    size="large"
+                    label="Full Name"
+                  />
+
+                  <MyInput
+                    inputType="email"
+                    inputPlaceholder="example@email.com"
+                    input={parentEmail}
+                    onChangeFunction={(e) => setParentEmail(e.target.value)}
+                    required={true}
+                    size="large"
+                    label="Email"
+                  />
+
+                  <PhoneInputField
+                    label="Mobile Number"
+                    placeholder="123 456 7890"
+                    name="parentMobile"
+                    control={form.control}
+                    country="in"
+                    required={true}
+                  />
+
+                  <MyInput
+                    inputType="text"
+                    inputPlaceholder="Enter address"
+                    input={addressLine}
+                    onChangeFunction={(e) => setAddressLine(e.target.value)}
+                    required={false}
+                    size="large"
+                    label="Address"
+                  />
+
+                  <MyInput
+                    inputType="text"
+                    inputPlaceholder="Enter city"
+                    input={city}
+                    onChangeFunction={(e) => setCity(e.target.value)}
+                    required={false}
+                    size="large"
+                    label="City"
+                  />
+
+                  <MyInput
+                    inputType="text"
+                    inputPlaceholder="Enter state or region"
+                    input={region}
+                    onChangeFunction={(e) => setRegion(e.target.value)}
+                    required={false}
+                    size="large"
+                    label="State/Region"
+                  />
+
+                  <MyInput
+                    inputType="text"
+                    inputPlaceholder="Enter pin code"
+                    input={pinCode}
+                    onChangeFunction={(e) => setPinCode(e.target.value)}
+                    required={false}
+                    size="large"
+                    label="Pin Code"
+                  />
+                </div>
+
+                {formFields.length > 0 && (
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-semibold text-neutral-700 border-b pb-2">
+                      Additional Information
+                    </h3>
+
                     {formFields.map((field) => {
                       const key = field.field_key;
                       // Use watched values or fallback to defaultValues
@@ -497,16 +673,10 @@ const AudienceResponseForm = ({
                       const value = formValues[key] || defaultValues[key];
 
                       if (!value) {
-                        console.warn(`Form value not found for key: ${key}`, {
-                          availableKeys: Object.keys(formValues),
-                          fieldKey: key,
-                          formFields: formFields.map((f) => f.field_key),
-                          defaultValuesKeys: Object.keys(defaultValues),
-                        });
                         // Return a fallback field structure if value not found
                         const renderType = getFieldRenderType(
                           key,
-                          field.field_type || "text"
+                          field.field_type || "text",
                         );
 
                         // Render as text input if value not found
@@ -521,7 +691,7 @@ const AudienceResponseForm = ({
                                   <MyInput
                                     inputType={getInputType(
                                       field.field_type || "text",
-                                      renderType
+                                      renderType,
                                     )}
                                     inputPlaceholder={`Enter ${field.field_name}`}
                                     input={formField.value || ""}
@@ -541,7 +711,7 @@ const AudienceResponseForm = ({
                         value.render_type ||
                         getFieldRenderType(
                           key,
-                          value.type || field.field_type || "text"
+                          value.type || field.field_type || "text",
                         );
 
                       // Render Phone Input
@@ -599,7 +769,7 @@ const AudienceResponseForm = ({
                       // Render Dropdown
                       if (value.type === "dropdown") {
                         const options = parseDropdownOptions(
-                          value.config || "{}"
+                          value.config || "{}",
                         );
                         return (
                           <SelectField
@@ -626,7 +796,7 @@ const AudienceResponseForm = ({
                                 <MyInput
                                   inputType={getInputType(
                                     value.type,
-                                    renderType
+                                    renderType,
                                   )}
                                   inputPlaceholder={`Enter ${value.name}`}
                                   input={field.value || ""}
@@ -641,10 +811,9 @@ const AudienceResponseForm = ({
                         />
                       );
                     })}
-                  </>
+                  </div>
                 )}
 
-                {/* Submit Button */}
                 <div className="flex justify-end mt-4">
                   <MyButton
                     type="submit"
