@@ -7,9 +7,6 @@ import { JsonRenderer } from "./JsonRenderer";
 import { CourseCatalogueService } from "../-services/course-catalogue-service";
 import { CourseCatalogueData } from "../-types/course-catalogue-types";
 import { useDomainRouting } from "@/hooks/use-domain-routing";
-import { getTokenFromStorage } from "@/lib/auth/sessionUtility";
-import { Preferences } from "@capacitor/preferences";
-import { isNullOrEmptyOrUndefined } from "@/lib/utils";
 
 interface CourseCataloguePageProps {
   tagName: string;
@@ -38,35 +35,11 @@ export const CourseCataloguePage: React.FC<CourseCataloguePageProps> = ({
   const [introCompleted, setIntroCompleted] = useState(false);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
 
-  // Check if user is authenticated and redirect to login if they are
+  // Authentication check removed to allow logged-in users to view the public catalogue
+  // Previously this redirected authenticated users to /login (which then went to dashboard)
   useEffect(() => {
-    const checkAuthentication = async () => {
-      try {
-        const token = await getTokenFromStorage("accessToken");
-        const studentDetails = await Preferences.get({ key: "StudentDetails" });
-        const instituteDetails = await Preferences.get({ key: "InstituteDetails" });
-
-        const hasToken = !isNullOrEmptyOrUndefined(token);
-        const hasStudentDetails = !isNullOrEmptyOrUndefined(studentDetails);
-        const hasInstituteDetails = !isNullOrEmptyOrUndefined(instituteDetails);
-
-        // If user is authenticated, redirect to login page
-        if (hasToken && hasStudentDetails && hasInstituteDetails) {
-          console.log("[CourseCataloguePage] User is authenticated, redirecting to login");
-          navigate({ to: "/login" });
-          return;
-        }
-
-        console.log("[CourseCataloguePage] User is not authenticated, showing catalogue");
-      } catch (error) {
-        console.error("[CourseCataloguePage] Error checking authentication:", error);
-      } finally {
-        setIsCheckingAuth(false);
-      }
-    };
-
-    checkAuthentication();
-  }, [navigate]);
+    setIsCheckingAuth(false);
+  }, []);
 
   // Fetch course catalogue data
   useEffect(() => {
