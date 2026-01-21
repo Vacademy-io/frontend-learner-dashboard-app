@@ -6,10 +6,6 @@ import CourseCatalougePage from "./-component/CourseCatalougePage";
 import { useEffect } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import RootNotFoundComponent from "@/components/core/default-not-found";
-import { Preferences } from "@capacitor/preferences";
-import { isNullOrEmptyOrUndefined } from "@/lib/utils";
-import { getTokenFromStorage } from "@/lib/auth/sessionUtility";
-import { TokenKey } from "@/constants/auth/tokens";
 import { DashboardLoader } from "@/components/core/dashboard-loader";
 import { useDomainRouting } from "@/hooks/use-domain-routing";
 
@@ -25,42 +21,10 @@ function CoursesContainerComponent() {
     const domainRouting = useDomainRouting();
 
 
-    useEffect(() => {
-        const redirectToDashboardIfAuthenticated = async () => {
-            const currentPath = window.location.pathname;
-
-            // Only redirect if we're on the exact /courses/ route, not on sub-routes like /courses/course-details/
-            if (currentPath !== "/courses/" && currentPath !== "/courses") {
-                return; // Don't redirect if we're on a sub-route
-            }
-
-            // CRITICAL FIX: If we have a pending payment, DO NOT redirect. 
-            // Let the CartComponent handle the verification and login first.
-            const pendingOrderId = localStorage.getItem("pendingOrderId");
-            if (pendingOrderId) {
-                console.log("[courses/index] Pending payment detected. Skipping auto-redirect to allow CartComponent to verify.");
-                return;
-            }
-
-            const token = await getTokenFromStorage(TokenKey.accessToken);
-            const studentDetails = await Preferences.get({
-                key: "StudentDetails",
-            });
-            const instituteDetails = await Preferences.get({
-                key: "InstituteDetails",
-            });
-
-            if (
-                !isNullOrEmptyOrUndefined(token) &&
-                !isNullOrEmptyOrUndefined(studentDetails) &&
-                !isNullOrEmptyOrUndefined(instituteDetails)
-            ) {
-                navigate({ to: "/study-library/courses" });
-            }
-        };
-
-        redirectToDashboardIfAuthenticated();
-    }, [navigate]);
+    // Authenticated redirect logic removed to allow public access for logged-in users
+    // If we need to restore the pending payment check without redirect, we can do it here,
+    // but the original logic was specific to "preventing redirect".
+    // Since we aren't redirecting anymore, no special logic is needed.
 
     if (domainRouting.isLoading) return <DashboardLoader />;
 
