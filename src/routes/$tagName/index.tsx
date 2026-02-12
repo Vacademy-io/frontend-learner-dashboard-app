@@ -5,6 +5,8 @@ import { DashboardLoader } from "@/components/core/dashboard-loader";
 import RootNotFoundComponent from "@/components/core/default-not-found";
 import { useEffect, useState } from "react";
 
+import { MediaService } from "@/services/media-service";
+
 export const Route = createFileRoute("/$tagName/")({
   component: RouteComponent,
 });
@@ -15,11 +17,11 @@ function RouteComponent() {
   // console.log("[Course Catalogue] RouteComponent function called");
   const params = Route.useParams() as { tagName: string };
   const domainRouting = useDomainRouting();
-  
+
   // Sometimes during SPA navigation/redirect, params might be undefined momentarily
   // In that case, fall back to parsing the URL directly
   let resolvedTagName = params.tagName || '';
-  
+
   if (!resolvedTagName) {
     // Fallback: Parse params from URL directly
     const pathParts = window.location.pathname.split('/').filter(Boolean);
@@ -27,9 +29,38 @@ function RouteComponent() {
       resolvedTagName = pathParts[0] || '';
     }
   }
-    
+
   // console.log("[Course Catalogue] RouteComponent mounted with tagName:", resolvedTagName);
   const [hasRetried, setHasRetried] = useState(false);
+  const [isCheckingShortLink, setIsCheckingShortLink] = useState(true);
+
+  // Check if this is a short link
+  useEffect(() => {
+    if (!resolvedTagName) return;
+
+    const checkShortLink = async () => {
+      console.log("[RouteComponent] Checking short link for tag:", resolvedTagName);
+      try {
+        // console.log("Checking if tagName is a short link:", resolvedTagName);
+        const destination = await MediaService.resolveShortLink(resolvedTagName);
+        if (destination) {
+          console.log("[RouteComponent] Short link resolved, redirecting to:", destination);
+          window.location.href = destination;
+          return;
+        } else {
+          console.log("[RouteComponent] No destination returned for tag:", resolvedTagName);
+        }
+        // If no destination returned but no error? unexpected but handle as miss
+        setIsCheckingShortLink(false);
+      } catch (err) {
+        console.error("[RouteComponent] Not a short link or error resolving:", err);
+        // Not a short link, proceed to load catalogue
+        setIsCheckingShortLink(false);
+      }
+    };
+
+    checkShortLink();
+  }, [resolvedTagName]);
 
   // Debug logging to track domain routing
   // useEffect(() => {
@@ -57,10 +88,15 @@ function RouteComponent() {
     return <DashboardLoader />;
   }
 
+  // Show loading while checking short link
+  if (isCheckingShortLink) {
+    return <DashboardLoader />;
+  }
+
   // Show loading while domain routing is resolving
   // Also show loading if we are in the process of retrying
   if (domainRouting.isLoading || (!domainRouting.instituteId && !hasRetried)) {
-   // console.log("[Course Catalogue] Domain routing in progress...");
+    // console.log("[Course Catalogue] Domain routing in progress...");
     return <DashboardLoader />;
   }
 
@@ -89,7 +125,7 @@ function RouteComponent() {
 
   // If no institute ID found after domain routing completes, show not found
   if (!domainRouting.instituteId) {
-  //  console.warn("[Course Catalogue] No institute ID found after domain routing");
+    //  console.warn("[Course Catalogue] No institute ID found after domain routing");
     return <RootNotFoundComponent />;
   }
 
