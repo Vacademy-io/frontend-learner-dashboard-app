@@ -53,11 +53,13 @@ const PUBLIC_ROUTES = [
   "/institute-selection",
   "/delete-user",
   "/change-password",
+  "/admission/payment",
   "/logout",
   "/courses", // Course catalog should be public
   "/courses/course-details", // Course details should be public for browsing
   "/un", // Public unsubscribe links
   "/m", // Public media hosting page
+  "/admission/payment", // Public admission payment page
 ];
 
 const isAuthenticated = async () => {

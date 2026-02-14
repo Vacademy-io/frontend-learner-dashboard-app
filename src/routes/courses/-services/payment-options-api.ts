@@ -132,3 +132,35 @@ export const getMinAmount = (metadata: DonationMetadata | null): number => {
   const amounts = getSuggestedAmounts(metadata);
   return Math.min(...amounts);
 };
+
+/**
+ * Fetch a specific payment option by ID for an institute
+ * This is used for public payment pages where we need specific payment option details
+ */
+export const fetchPaymentOptionById = async (
+  instituteId: string,
+  paymentOptionId: string
+): Promise<PaymentOption | null> => {
+  try {
+    const data = await cachedGet<PaymentOption>(
+      `${GET_PAYMENT_OPTIONS}?source=INSTITUTE&sourceId=${instituteId}`,
+      {
+        method: 'GET',
+        headers: {
+          'accept': '*/*'
+        }
+      }
+    );
+    
+    // Since the API returns default payment option for institute,
+    // we verify it matches the requested ID
+    if (data && data.id === paymentOptionId) {
+      return data;
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Error fetching payment option:', error);
+    return null;
+  }
+};

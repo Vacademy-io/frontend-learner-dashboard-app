@@ -70,6 +70,7 @@ import { Route as AssessmentExaminationAssessmentIdLearnerLiveTestRouteImport } 
 import { Route as UnChannelUsernameCategoryIndexRouteImport } from './routes/un/$channel/$username/$category/index'
 import { Route as StudyLibraryCoursesCourseDetailsSubjectsIndexRouteImport } from './routes/study-library/courses/course-details/subjects/index'
 import { Route as StudyLibraryCoursesCourseDetailsSubjectsModulesIndexRouteImport } from './routes/study-library/courses/course-details/subjects/modules/index'
+import { Route as AdmissionPaymentInstituteIdApplicantIdPaymentOptionIdIndexRouteImport } from './routes/admission/payment/$instituteId/$applicantId/$paymentOptionId/index'
 import { Route as StudyLibraryCoursesCourseDetailsSubjectsModulesChaptersIndexRouteImport } from './routes/study-library/courses/course-details/subjects/modules/chapters/index'
 import { Route as StudyLibraryCoursesCourseDetailsSubjectsModulesChaptersSlidesIndexRouteImport } from './routes/study-library/courses/course-details/subjects/modules/chapters/slides/index'
 
@@ -403,6 +404,12 @@ const StudyLibraryCoursesCourseDetailsSubjectsModulesIndexRoute =
     path: '/study-library/courses/course-details/subjects/modules/',
     getParentRoute: () => rootRouteImport,
   } as any)
+const AdmissionPaymentInstituteIdApplicantIdPaymentOptionIdIndexRoute =
+  AdmissionPaymentInstituteIdApplicantIdPaymentOptionIdIndexRouteImport.update({
+    id: '/admission/payment/$instituteId/$applicantId/$paymentOptionId/',
+    path: '/admission/payment/$instituteId/$applicantId/$paymentOptionId/',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const StudyLibraryCoursesCourseDetailsSubjectsModulesChaptersIndexRoute =
   StudyLibraryCoursesCourseDetailsSubjectsModulesChaptersIndexRouteImport.update(
     {
@@ -481,6 +488,7 @@ export interface FileRoutesByFullPath {
   '/study-library/live-class/waiting-room': typeof StudyLibraryLiveClassWaitingRoomIndexRoute
   '/study-library/courses/course-details/subjects': typeof StudyLibraryCoursesCourseDetailsSubjectsIndexRoute
   '/un/$channel/$username/$category': typeof UnChannelUsernameCategoryIndexRoute
+  '/admission/payment/$instituteId/$applicantId/$paymentOptionId': typeof AdmissionPaymentInstituteIdApplicantIdPaymentOptionIdIndexRoute
   '/study-library/courses/course-details/subjects/modules': typeof StudyLibraryCoursesCourseDetailsSubjectsModulesIndexRoute
   '/study-library/courses/course-details/subjects/modules/chapters': typeof StudyLibraryCoursesCourseDetailsSubjectsModulesChaptersIndexRoute
   '/study-library/courses/course-details/subjects/modules/chapters/slides': typeof StudyLibraryCoursesCourseDetailsSubjectsModulesChaptersSlidesIndexRoute
@@ -546,6 +554,7 @@ export interface FileRoutesByTo {
   '/study-library/live-class/waiting-room': typeof StudyLibraryLiveClassWaitingRoomIndexRoute
   '/study-library/courses/course-details/subjects': typeof StudyLibraryCoursesCourseDetailsSubjectsIndexRoute
   '/un/$channel/$username/$category': typeof UnChannelUsernameCategoryIndexRoute
+  '/admission/payment/$instituteId/$applicantId/$paymentOptionId': typeof AdmissionPaymentInstituteIdApplicantIdPaymentOptionIdIndexRoute
   '/study-library/courses/course-details/subjects/modules': typeof StudyLibraryCoursesCourseDetailsSubjectsModulesIndexRoute
   '/study-library/courses/course-details/subjects/modules/chapters': typeof StudyLibraryCoursesCourseDetailsSubjectsModulesChaptersIndexRoute
   '/study-library/courses/course-details/subjects/modules/chapters/slides': typeof StudyLibraryCoursesCourseDetailsSubjectsModulesChaptersSlidesIndexRoute
@@ -612,6 +621,7 @@ export interface FileRoutesById {
   '/study-library/live-class/waiting-room/': typeof StudyLibraryLiveClassWaitingRoomIndexRoute
   '/study-library/courses/course-details/subjects/': typeof StudyLibraryCoursesCourseDetailsSubjectsIndexRoute
   '/un/$channel/$username/$category/': typeof UnChannelUsernameCategoryIndexRoute
+  '/admission/payment/$instituteId/$applicantId/$paymentOptionId/': typeof AdmissionPaymentInstituteIdApplicantIdPaymentOptionIdIndexRoute
   '/study-library/courses/course-details/subjects/modules/': typeof StudyLibraryCoursesCourseDetailsSubjectsModulesIndexRoute
   '/study-library/courses/course-details/subjects/modules/chapters/': typeof StudyLibraryCoursesCourseDetailsSubjectsModulesChaptersIndexRoute
   '/study-library/courses/course-details/subjects/modules/chapters/slides/': typeof StudyLibraryCoursesCourseDetailsSubjectsModulesChaptersSlidesIndexRoute
@@ -679,6 +689,7 @@ export interface FileRouteTypes {
     | '/study-library/live-class/waiting-room'
     | '/study-library/courses/course-details/subjects'
     | '/un/$channel/$username/$category'
+    | '/admission/payment/$instituteId/$applicantId/$paymentOptionId'
     | '/study-library/courses/course-details/subjects/modules'
     | '/study-library/courses/course-details/subjects/modules/chapters'
     | '/study-library/courses/course-details/subjects/modules/chapters/slides'
@@ -744,6 +755,7 @@ export interface FileRouteTypes {
     | '/study-library/live-class/waiting-room'
     | '/study-library/courses/course-details/subjects'
     | '/un/$channel/$username/$category'
+    | '/admission/payment/$instituteId/$applicantId/$paymentOptionId'
     | '/study-library/courses/course-details/subjects/modules'
     | '/study-library/courses/course-details/subjects/modules/chapters'
     | '/study-library/courses/course-details/subjects/modules/chapters/slides'
@@ -809,6 +821,7 @@ export interface FileRouteTypes {
     | '/study-library/live-class/waiting-room/'
     | '/study-library/courses/course-details/subjects/'
     | '/un/$channel/$username/$category/'
+    | '/admission/payment/$instituteId/$applicantId/$paymentOptionId/'
     | '/study-library/courses/course-details/subjects/modules/'
     | '/study-library/courses/course-details/subjects/modules/chapters/'
     | '/study-library/courses/course-details/subjects/modules/chapters/slides/'
@@ -875,6 +888,7 @@ export interface RootRouteChildren {
   StudyLibraryLiveClassWaitingRoomIndexRoute: typeof StudyLibraryLiveClassWaitingRoomIndexRoute
   StudyLibraryCoursesCourseDetailsSubjectsIndexRoute: typeof StudyLibraryCoursesCourseDetailsSubjectsIndexRoute
   UnChannelUsernameCategoryIndexRoute: typeof UnChannelUsernameCategoryIndexRoute
+  AdmissionPaymentInstituteIdApplicantIdPaymentOptionIdIndexRoute: typeof AdmissionPaymentInstituteIdApplicantIdPaymentOptionIdIndexRoute
   StudyLibraryCoursesCourseDetailsSubjectsModulesIndexRoute: typeof StudyLibraryCoursesCourseDetailsSubjectsModulesIndexRoute
   StudyLibraryCoursesCourseDetailsSubjectsModulesChaptersIndexRoute: typeof StudyLibraryCoursesCourseDetailsSubjectsModulesChaptersIndexRoute
   StudyLibraryCoursesCourseDetailsSubjectsModulesChaptersSlidesIndexRoute: typeof StudyLibraryCoursesCourseDetailsSubjectsModulesChaptersSlidesIndexRoute
@@ -1309,6 +1323,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StudyLibraryCoursesCourseDetailsSubjectsModulesIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admission/payment/$instituteId/$applicantId/$paymentOptionId/': {
+      id: '/admission/payment/$instituteId/$applicantId/$paymentOptionId/'
+      path: '/admission/payment/$instituteId/$applicantId/$paymentOptionId'
+      fullPath: '/admission/payment/$instituteId/$applicantId/$paymentOptionId'
+      preLoaderRoute: typeof AdmissionPaymentInstituteIdApplicantIdPaymentOptionIdIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/study-library/courses/course-details/subjects/modules/chapters/': {
       id: '/study-library/courses/course-details/subjects/modules/chapters/'
       path: '/study-library/courses/course-details/subjects/modules/chapters'
@@ -1395,6 +1416,8 @@ const rootRouteChildren: RootRouteChildren = {
   StudyLibraryCoursesCourseDetailsSubjectsIndexRoute:
     StudyLibraryCoursesCourseDetailsSubjectsIndexRoute,
   UnChannelUsernameCategoryIndexRoute: UnChannelUsernameCategoryIndexRoute,
+  AdmissionPaymentInstituteIdApplicantIdPaymentOptionIdIndexRoute:
+    AdmissionPaymentInstituteIdApplicantIdPaymentOptionIdIndexRoute,
   StudyLibraryCoursesCourseDetailsSubjectsModulesIndexRoute:
     StudyLibraryCoursesCourseDetailsSubjectsModulesIndexRoute,
   StudyLibraryCoursesCourseDetailsSubjectsModulesChaptersIndexRoute:
