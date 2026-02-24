@@ -49,6 +49,8 @@ interface InstituteDetailsStore {
             package_session_id: string;
             package_session_status: string;
             start_date: string;
+            is_parent?: boolean;
+            parent_id?: string | null;
         }>;
     }>;
     getDetailsFromPackageSessionId: (params: {
@@ -264,6 +266,8 @@ export const useInstituteDetailsStore = create<InstituteDetailsStore>(
                     package_session_id: string;
                     package_session_status: string;
                     start_date: string;
+                    is_parent?: boolean;
+                    parent_id?: string | null;
                 }>;
             };
 
@@ -301,6 +305,8 @@ export const useInstituteDetailsStore = create<InstituteDetailsStore>(
                     package_session_id: batch.id,
                     package_session_status: batch.status,
                     start_date: batch.session.start_date,
+                    ...(batch.is_parent !== undefined && { is_parent: batch.is_parent }),
+                    ...(batch.parent_id !== undefined && { parent_id: batch.parent_id }),
                 };
 
                 // Only add the level if it's not already in the array

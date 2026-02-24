@@ -33,6 +33,10 @@ export const BatchForSessionSchema = z.object({
     start_time: z.string().nullable(),
     status: z.string(),
     package_dto: PackageSchema,
+    /** True if this batch is a parent batch; optional for backward compatibility. */
+    is_parent: z.boolean().optional(),
+    /** ID of the parent batch if this is a child batch; optional for backward compatibility. */
+    parent_id: z.string().nullable().optional(),
 });
 
 const SubjectSchema = z.object({
@@ -94,6 +98,8 @@ export type levelWithDetails = {
     package_session_id: string;
     package_session_status: string;
     start_date: string;
+    is_parent?: boolean;
+    parent_id?: string | null;
 };
 export type levelsWithPackageDetails = Array<levelWithDetails>;
 export type InstituteType = z.infer<typeof InstituteTypeSchema>;

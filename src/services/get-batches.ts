@@ -11,6 +11,10 @@ export interface BatchType {
   start_date: string;
   package_session_id: string;
   invite_code: string;
+  /** True if this batch is a parent batch; optional for backward compatibility. */
+  is_parent?: boolean;
+  /** ID of the parent batch if this is a child batch; optional for backward compatibility. */
+  parent_id?: string | null;
 }
 export interface PackageType {
   id: string;
