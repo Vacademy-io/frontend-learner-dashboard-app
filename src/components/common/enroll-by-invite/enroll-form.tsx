@@ -10,6 +10,7 @@ import {
   ReferRequest,
   submitEnrollmentForm,
   getEnrollmentPolicy,
+  getPasswordField,
 } from "./-services/enroll-invite-services";
 import { handleGetInstituteCustomFields } from "./-services/custom-fields-setup";
 import { DashboardLoader } from "@/components/core/dashboard-loader";
@@ -34,6 +35,13 @@ import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { RazorpayCheckoutFormRef } from "./-components/razorpay-checkout-form";
 import { InstituteBrandingComponent } from "@/components/common/institute-branding";
+import {
+  initiateCashfreePayment,
+  getCashfreeReturnUrl,
+} from "@/services/cashfree-payment";
+import { load as loadCashfree } from "@cashfreepayments/cashfree-js";
+import { getTokenFromStorage } from "@/lib/auth/sessionUtility";
+import { TokenKey } from "@/constants/auth/tokens";
 
 import {
   RegistrationStep,
@@ -126,6 +134,12 @@ const EnrollByInvite = ({ vendor: propVendor }: EnrollByInviteProps = {}) => {
   const razorpayRef = useRef<RazorpayCheckoutFormRef>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [cashfreeSessionData, setCashfreeSessionData] = useState<{
+    paymentSessionId: string;
+    orderId: string;
+  } | null>(null);
+  const [cashfreeInitLoading, setCashfreeInitLoading] = useState(false);
+  const cashfreeInitAttemptedRef = useRef(false);
   // Ref to prevent double auto-enrollment for FREE courses
   const hasAutoEnrolledRef = useRef(false);
   // Ref to track if prefill data has been applied (prevents double reset)
@@ -181,7 +195,7 @@ const EnrollByInvite = ({ vendor: propVendor }: EnrollByInviteProps = {}) => {
   });
 
   const { instituteId, inviteCode, ref } = Route.useSearch();
-  
+
   // Keep ref in sync with state for referRequest (to avoid closure issues)
   useEffect(() => {
     referRequestRef.current = referRequest;
@@ -816,7 +830,7 @@ const EnrollByInvite = ({ vendor: propVendor }: EnrollByInviteProps = {}) => {
         // Use ref to get the latest referRequest value (avoids closure issues)
         const currentReferRequest = referRequestRef.current;
         console.log("[FREE Enrollment] Using referRequest:", currentReferRequest);
-        
+
         const paymentResponse = await handleEnrollLearnerForPayment({
           registrationData: form.getValues(),
           enrollmentData: enrollmentData,
@@ -908,6 +922,125 @@ const EnrollByInvite = ({ vendor: propVendor }: EnrollByInviteProps = {}) => {
         }
         setError(errorData?.ex);
         console.error(err);
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
+    // For CASHFREE payments - inline card flow (order created when entering step 3)
+    if (vendor === "CASHFREE") {
+      if (cashfreeSessionData || cashfreeInitLoading) {
+        return; // Payment is via inline Pay Now; or still initializing
+      }
+      setLoading(true);
+      setError(null);
+
+      try {
+        // Step 1: Create enrollment (user + user plan with payment pending)
+        const paymentResponse = await handleEnrollLearnerForPayment({
+          registrationData: form.getValues(),
+          enrollmentData: enrollmentData,
+          instituteId,
+          enrollInviteId: inviteData?.id,
+          payment_option_id:
+            inviteData?.package_session_to_payment_options[0].payment_option.id,
+          package_session_ids:
+            inviteData?.package_session_to_payment_options.map(
+              (ps: { package_session_id: string }) => ps?.package_session_id
+            ) || [""],
+          allowLearnersToCreateCourses: getAllowLearnersToCreateCourses(),
+          referRequest: referRequest,
+          paymentVendor: "CASHFREE",
+          isUsingInstituteCustomFields: isUsingInstituteCustomFields,
+        });
+
+        // Extract userPlanId from response (backend creates enrollment and returns it)
+        const userPlanId =
+          paymentResponse?.payment_response?.user_plan_id ||
+          paymentResponse?.user_plan_id ||
+          paymentResponse?.learner_package_session_enroll?.user_plan_id;
+
+        if (!userPlanId) {
+          throw new Error(
+            "Enrollment created but user plan ID not received. Please contact support."
+          );
+        }
+
+        const userEmail = getUserDetails().email;
+        if (!userEmail) {
+          throw new Error("Email is required for payment.");
+        }
+
+        const token = await getTokenFromStorage(TokenKey.accessToken);
+        if (!token) {
+          throw new Error("Please log in to complete payment.");
+        }
+
+        const returnUrl = getCashfreeReturnUrl();
+        const amount =
+          enrollmentData.selectedPayment?.actual_price ??
+          enrollmentData.selectedPayment?.amount ??
+          0;
+        const currency =
+          enrollmentData.selectedPayment?.currency || "INR";
+
+        // Step 2: Call user-plan-payment API to get paymentSessionId
+        const cfResponse = await initiateCashfreePayment(
+          instituteId,
+          userPlanId,
+          {
+            amount,
+            currency,
+            email: userEmail,
+            returnUrl,
+            token,
+          }
+        );
+
+        const paymentSessionId =
+          cfResponse?.responseData?.paymentSessionId ??
+          cfResponse?.responseData?.payment_session_id;
+
+        if (!paymentSessionId) {
+          throw new Error(
+            "Failed to initialize payment. Please try again or contact support."
+          );
+        }
+
+        setOrderId(cfResponse.orderId);
+        setPaymentCompletionResponse(paymentResponse);
+
+        // Step 3: Launch Cashfree checkout (redirects to return_url on success/failure)
+        // For now always use sandbox (incl. production) for testing; set VITE_CASHFREE_SANDBOX=false when ready for prod keys
+        const isSandbox = import.meta.env.VITE_CASHFREE_SANDBOX !== "false";
+        const cashfree = await loadCashfree({ mode: isSandbox ? "sandbox" : "production" });
+
+        if (!cashfree) {
+          throw new Error("Failed to load Cashfree payment gateway.");
+        }
+
+        const checkoutResult = await cashfree.checkout({
+          paymentSessionId,
+          returnUrl: `${returnUrl}?orderId=${cfResponse.orderId}&instituteId=${instituteId}`,
+        });
+
+        if (checkoutResult?.error) {
+          throw new Error(checkoutResult.error.message || "Payment initialization failed.");
+        }
+        // On success, checkout redirects to return_url - no further action needed
+      } catch (err) {
+        const errorData = (err as { response?: { data?: { ex?: string; responseCode?: string } } })?.response?.data;
+        if (errorData?.responseCode?.includes("510")) {
+          toast.error(errorData?.ex || "Payment failed");
+          await fetchAndHandleEnrollmentPolicy("error_already_enrolled");
+        }
+        setError(
+          (err as Error)?.message ||
+          errorData?.ex ||
+          "Failed to initiate Cashfree payment"
+        );
+        console.error("Cashfree enrollment error:", err);
       } finally {
         setLoading(false);
       }
@@ -1124,6 +1257,152 @@ const EnrollByInvite = ({ vendor: propVendor }: EnrollByInviteProps = {}) => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [razorpayPaymentData]);
+
+  // Initialize Cashfree payment (create enrollment + get paymentSessionId) when entering step 3
+  useEffect(() => {
+    const vendor = propVendor || getPaymentVendor(inviteData);
+    if (
+      vendor !== "CASHFREE" ||
+      currentStep !== 3 ||
+      cashfreeSessionData ||
+      cashfreeInitLoading ||
+      cashfreeInitAttemptedRef.current
+    ) {
+      return;
+    }
+
+    cashfreeInitAttemptedRef.current = true;
+    setCashfreeInitLoading(true);
+    setError(null);
+
+    const init = async () => {
+      try {
+        const paymentResponse = await handleEnrollLearnerForPayment({
+          registrationData: form.getValues(),
+          enrollmentData: enrollmentData,
+          instituteId,
+          enrollInviteId: inviteData?.id,
+          payment_option_id:
+            inviteData?.package_session_to_payment_options[0].payment_option.id,
+          package_session_ids:
+            inviteData?.package_session_to_payment_options.map(
+              (ps: { package_session_id: string }) => ps?.package_session_id
+            ) || [""],
+          allowLearnersToCreateCourses: getAllowLearnersToCreateCourses(),
+          referRequest: referRequestRef.current,
+          paymentVendor: "CASHFREE",
+          isUsingInstituteCustomFields: isUsingInstituteCustomFields,
+        });
+
+        const userPlanId =
+          paymentResponse?.user_plan_id ||
+          paymentResponse?.payment_response?.user_plan_id ||
+          paymentResponse?.learner_package_session_enroll?.user_plan_id;
+
+        const responseData = paymentResponse?.payment_response?.response_data;
+        let paymentSessionId =
+          responseData?.paymentSessionId ?? responseData?.payment_session_id;
+        // Use top-level orderId (paymentLogId) for status API – backend looks up by payment_log.id
+        let cfOrderId =
+          paymentResponse?.orderId ??
+          paymentResponse?.payment_response?.order_id ??
+          responseData?.orderId ??
+          responseData?.order_id;
+
+        if (!paymentSessionId) {
+          if (!userPlanId) throw new Error("User plan ID not received.");
+          const token = await getTokenFromStorage(TokenKey.accessToken);
+          if (!token) {
+            throw new Error(
+              "Payment session not in response. Please log in to complete payment."
+            );
+          }
+          const userEmail = getUserDetails().email;
+          if (!userEmail) throw new Error("Email is required.");
+
+          const amount =
+            enrollmentData.selectedPayment?.actual_price ??
+            enrollmentData.selectedPayment?.amount ??
+            0;
+          const cfResponse = await initiateCashfreePayment(
+            instituteId,
+            userPlanId,
+            {
+              amount,
+              currency: enrollmentData.selectedPayment?.currency || "INR",
+              email: userEmail,
+              returnUrl: getCashfreeReturnUrl(),
+              token,
+            }
+          );
+
+          paymentSessionId =
+            cfResponse?.responseData?.paymentSessionId ??
+            cfResponse?.responseData?.payment_session_id;
+          cfOrderId = cfResponse?.orderId ?? cfOrderId;
+        }
+
+        if (!paymentSessionId) throw new Error("Failed to initialize payment.");
+
+        const ordId =
+          cfOrderId ??
+          paymentResponse?.orderId ??
+          paymentResponse?.payment_response?.order_id ??
+          "";
+        setCashfreeSessionData({
+          paymentSessionId,
+          orderId: ordId,
+        });
+        setOrderId(ordId);
+        setPaymentCompletionResponse(paymentResponse);
+        // Store username and password from enrollment response for post-payment login
+        // Prefer user.username (required by login API), fallback to user.email or form data
+        const username =
+          paymentResponse?.user?.username ??
+          paymentResponse?.user?.email ??
+          getUserDetails().email;
+        const userPassword =
+          paymentResponse?.user?.password ??
+          getPasswordField(form.getValues());
+        if (ordId && username && userPassword) {
+          try {
+            sessionStorage.setItem(
+              `enroll_payment_creds_${ordId}`,
+              JSON.stringify({ username, password: userPassword })
+            );
+          } catch {
+            /* ignore */
+          }
+        }
+      } catch (err) {
+        const errData = (err as { response?: { data?: { ex?: string; responseCode?: string } } })?.response?.data;
+        if (errData?.responseCode?.includes("510")) {
+          toast.error(errData?.ex || "Payment failed");
+          fetchAndHandleEnrollmentPolicy("error_already_enrolled");
+        }
+        setError(
+          (err as Error)?.message || errData?.ex || "Failed to initialize payment"
+        );
+      } finally {
+        setCashfreeInitLoading(false);
+      }
+    };
+
+    init();
+  }, [
+    currentStep,
+    inviteData,
+    enrollmentData,
+    instituteId,
+    cashfreeSessionData,
+    cashfreeInitLoading,
+  ]);
+
+  useEffect(() => {
+    if (currentStep !== 3) {
+      cashfreeInitAttemptedRef.current = false;
+    }
+  }, [currentStep]);
 
   useEffect(() => {
     const loadCourseData = async () => {
@@ -1425,6 +1704,13 @@ const EnrollByInvite = ({ vendor: propVendor }: EnrollByInviteProps = {}) => {
               "Payment for course enrollment"
             }
             razorpayRef={razorpayRef}
+            cashfreePaymentSessionId={cashfreeSessionData?.paymentSessionId}
+            cashfreeReturnUrl={getCashfreeReturnUrl()}
+            cashfreeOrderId={cashfreeSessionData?.orderId}
+            cashfreeInitLoading={cashfreeInitLoading}
+            cashfreeInstituteId={instituteId}
+            onCashfreePayClick={() => setLoading(true)}
+            onCashfreePayError={() => setLoading(false)}
           />
         );
       }
@@ -1603,33 +1889,11 @@ const EnrollByInvite = ({ vendor: propVendor }: EnrollByInviteProps = {}) => {
               </div>
             )}
 
-            {/* Right: Step Indicator */}
-            <div className="hidden sm:flex items-center gap-1 text-xs text-gray-500">
-              {paymentType !== "FREE" ? (
-                <>
-                  <span className={`px-2 py-1 rounded ${currentStep === 0 ? "bg-primary text-white" : "bg-gray-100"}`}>
-                    1. Details
-                  </span>
-                  <span className="text-gray-300">→</span>
-                  <span className={`px-2 py-1 rounded ${currentStep === 1 ? "bg-primary text-white" : "bg-gray-100"}`}>
-                    2. Plan
-                  </span>
-                  <span className="text-gray-300">→</span>
-                  <span className={`px-2 py-1 rounded ${currentStep >= 2 && currentStep < 5 ? "bg-primary text-white" : "bg-gray-100"}`}>
-                    3. Pay
-                  </span>
-                </>
-              ) : (
-                <>
-                  <span className={`px-2 py-1 rounded ${currentStep === 0 ? "bg-primary text-white" : "bg-gray-100"}`}>
-                    1. Details
-                  </span>
-                  <span className="text-gray-300">→</span>
-                  <span className={`px-2 py-1 rounded ${currentStep >= 2 ? "bg-primary text-white" : "bg-gray-100"}`}>
-                    2. Confirm
-                  </span>
-                </>
-              )}
+            {/* Step count badge - minimal, right-aligned */}
+            <div className="text-xs text-gray-400 sm:hidden">
+              {paymentType !== "FREE"
+                ? `Step ${Math.min(currentStep + 1, 3)} of 3`
+                : `Step ${currentStep === 0 ? 1 : 2} of 2`}
             </div>
           </div>
         </div>
@@ -1677,7 +1941,7 @@ const EnrollByInvite = ({ vendor: propVendor }: EnrollByInviteProps = {}) => {
                 <div className="flex-shrink-0 text-right">
                   <div className="text-lg font-semibold text-gray-900">
                     {enrollmentData.selectedPayment.currency?.toUpperCase()}{" "}
-                    {enrollmentData.selectedPayment.amount}
+                    {enrollmentData.selectedPayment.amount ?? enrollmentData.selectedPayment.actual_price}
                   </div>
                   {enrollmentData.selectedPayment.duration && (
                     <div className="text-xs text-gray-500">
@@ -1700,6 +1964,80 @@ const EnrollByInvite = ({ vendor: propVendor }: EnrollByInviteProps = {}) => {
 
       {/* Main Content */}
       <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
+        {/* Progress Steps - Centered above content */}
+        {currentStep < 5 && (
+          <div className="mb-6">
+            {paymentType !== "FREE" ? (
+              <div className="flex items-center justify-center gap-0">
+                {/* Step 1: Details */}
+                <div className="flex items-center gap-2">
+                  <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-xs sm:text-sm font-semibold ${currentStep >= 0 ? "bg-primary text-white" : "bg-gray-200 text-gray-500"
+                    }`}>
+                    {currentStep > 0 ? "✓" : "1"}
+                  </div>
+                  <span className={`text-xs sm:text-sm font-medium ${currentStep === 0 ? "text-primary" : currentStep > 0 ? "text-gray-700" : "text-gray-400"
+                    }`}>
+                    Details
+                  </span>
+                </div>
+                {/* Connector */}
+                <div className={`w-8 sm:w-16 h-0.5 mx-1 sm:mx-2 ${currentStep > 0 ? "bg-primary" : "bg-gray-200"}`} />
+                {/* Step 2: Plan */}
+                <div className="flex items-center gap-2">
+                  <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-xs sm:text-sm font-semibold ${currentStep >= 1 ? "bg-primary text-white" : "bg-gray-200 text-gray-500"
+                    }`}>
+                    {currentStep > 1 ? "✓" : "2"}
+                  </div>
+                  <span className={`text-xs sm:text-sm font-medium ${currentStep === 1 ? "text-primary" : currentStep > 1 ? "text-gray-700" : "text-gray-400"
+                    }`}>
+                    Plan
+                  </span>
+                </div>
+                {/* Connector */}
+                <div className={`w-8 sm:w-16 h-0.5 mx-1 sm:mx-2 ${currentStep > 1 ? "bg-primary" : "bg-gray-200"}`} />
+                {/* Step 3: Pay */}
+                <div className="flex items-center gap-2">
+                  <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-xs sm:text-sm font-semibold ${currentStep >= 2 ? "bg-primary text-white" : "bg-gray-200 text-gray-500"
+                    }`}>
+                    {currentStep > 4 ? "✓" : "3"}
+                  </div>
+                  <span className={`text-xs sm:text-sm font-medium ${currentStep >= 2 && currentStep < 5 ? "text-primary" : currentStep >= 5 ? "text-gray-700" : "text-gray-400"
+                    }`}>
+                    Pay
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center justify-center gap-0">
+                {/* Step 1: Details */}
+                <div className="flex items-center gap-2">
+                  <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-xs sm:text-sm font-semibold ${currentStep >= 0 ? "bg-primary text-white" : "bg-gray-200 text-gray-500"
+                    }`}>
+                    {currentStep > 0 ? "✓" : "1"}
+                  </div>
+                  <span className={`text-xs sm:text-sm font-medium ${currentStep === 0 ? "text-primary" : currentStep > 0 ? "text-gray-700" : "text-gray-400"
+                    }`}>
+                    Details
+                  </span>
+                </div>
+                {/* Connector */}
+                <div className={`w-8 sm:w-16 h-0.5 mx-1 sm:mx-2 ${currentStep >= 2 ? "bg-primary" : "bg-gray-200"}`} />
+                {/* Step 2: Confirm */}
+                <div className="flex items-center gap-2">
+                  <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-xs sm:text-sm font-semibold ${currentStep >= 2 ? "bg-primary text-white" : "bg-gray-200 text-gray-500"
+                    }`}>
+                    {currentStep > 2 ? "✓" : "2"}
+                  </div>
+                  <span className={`text-xs sm:text-sm font-medium ${currentStep >= 2 ? "text-primary" : "text-gray-400"
+                    }`}>
+                    Confirm
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         <div className={`grid grid-cols-1 ${hasRightSectionContent && currentStep === 0 ? "lg:grid-cols-3" : ""} gap-6`}>
           {/* Main Form Area */}
           <div className={`${hasRightSectionContent && currentStep === 0 ? "lg:col-span-2" : "w-full max-w-2xl mx-auto"} space-y-4`}>
@@ -1834,6 +2172,11 @@ const EnrollByInvite = ({ vendor: propVendor }: EnrollByInviteProps = {}) => {
                     : false
                 }
                 hasUnappliedReferral={hasUnappliedReferral}
+                hidePrimaryButton={
+                  currentStep === 3 &&
+                  getPaymentVendor(inviteData) === "CASHFREE" &&
+                  !!cashfreeSessionData
+                }
               />
             )}
           </div>

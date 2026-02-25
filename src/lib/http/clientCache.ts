@@ -20,31 +20,12 @@ function getHeaderValue(headers: AxiosRequestHeaders | Record<string, unknown> |
   return "";
 }
 
+// Simplified non-recursive stringify to avoid stack issues
 function stableStringify(value: unknown): string {
   try {
-    if (typeof value === "string") return value;
-    if (value === undefined || value === null) return "";
-    if (typeof value !== "object") return String(value);
-    const seen = new WeakSet<object>();
-    const normalize = (obj: unknown): unknown => {
-      if (obj && typeof obj === "object") {
-        if (seen.has(obj as object)) return undefined;
-        seen.add(obj as object);
-        if (Array.isArray(obj)) return obj.map((v) => normalize(v));
-        const keys = Object.keys(obj as Record<string, unknown>).sort();
-        const out: Record<string, unknown> = {};
-        for (const k of keys) out[k] = normalize((obj as Record<string, unknown>)[k]);
-        return out;
-      }
-      return obj;
-    };
-    return JSON.stringify(normalize(value));
+    return JSON.stringify(value);
   } catch {
-    try {
-      return JSON.stringify(value);
-    } catch {
-      return String(value);
-    }
+    return String(value);
   }
 }
 
@@ -181,7 +162,21 @@ export function maybeServeFromCache(config: InternalAxiosRequestConfig): Interna
     const defaultsAdapterUnknown = axios.defaults.adapter as unknown;
 
     let selectedAdapter: AxiosAdapter | undefined;
-    if (typeof cfgAdapterUnknown === "function") {
+    
+    // Check if the current adapter is already our wrapper to avoid infinite recursion
+    type WrappedAdapter = AxiosAdapter & { 
+      __isClientCacheWrapper?: boolean; 
+      __originalAdapter?: AxiosAdapter;
+      __recursionDepth?: number;
+    };
+
+    if (typeof cfgAdapterUnknown === "function" && (cfgAdapterUnknown as WrappedAdapter).__isClientCacheWrapper) {
+      if (((cfgAdapterUnknown as WrappedAdapter).__recursionDepth || 0) > 3) {
+        console.error("[client-cache] Max recursion depth reached in adapter. Bypassing cache to prevent stack overflow.");
+        return config;
+      }
+      selectedAdapter = (cfgAdapterUnknown as WrappedAdapter).__originalAdapter;
+    } else if (typeof cfgAdapterUnknown === "function") {
       selectedAdapter = cfgAdapterUnknown as AxiosAdapter;
     } else if (Array.isArray(defaultsAdapterUnknown)) {
       selectedAdapter = (defaultsAdapterUnknown.find((a) => typeof a === "function") as AxiosAdapter | undefined);
@@ -190,7 +185,7 @@ export function maybeServeFromCache(config: InternalAxiosRequestConfig): Interna
     }
 
     if (selectedAdapter) {
-      config.adapter = async (cfg) => {
+      const adapterWrapper: WrappedAdapter = async (cfg) => {
         const p = selectedAdapter!(cfg as InternalAxiosRequestConfig);
         inFlightRequests.set(key, p);
         try {
@@ -200,6 +195,12 @@ export function maybeServeFromCache(config: InternalAxiosRequestConfig): Interna
           inFlightRequests.delete(key);
         }
       };
+      // Mark our wrapper so we can identify and unwrap it later
+      adapterWrapper.__isClientCacheWrapper = true;
+      adapterWrapper.__originalAdapter = selectedAdapter;
+      adapterWrapper.__recursionDepth = ((cfgAdapterUnknown as WrappedAdapter)?.__recursionDepth || 0) + 1;
+      
+      config.adapter = adapterWrapper;
     }
     return config;
   }

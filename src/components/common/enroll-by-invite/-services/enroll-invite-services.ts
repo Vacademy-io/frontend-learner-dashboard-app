@@ -120,8 +120,8 @@ interface EnrollLearnerForPaymentProps {
     razorpay_order_id: string;
     razorpay_signature: string;
   };
-  // Payment vendor (STRIPE, EWAY, or RAZORPAY)
-  paymentVendor?: "STRIPE" | "EWAY" | "RAZORPAY";
+  // Payment vendor (STRIPE, EWAY, RAZORPAY, or CASHFREE)
+  paymentVendor?: "STRIPE" | "EWAY" | "RAZORPAY" | "CASHFREE";
   // Flag to indicate if using institute custom fields (don't exclude from custom_field_values)
   isUsingInstituteCustomFields?: boolean;
   // Optional User ID from form-submit step
@@ -226,6 +226,24 @@ const getFullNameField = (registrationData: RegistrationDataType): string => {
   const combinedName = `${firstName} ${lastName}`.trim();
 
   return combinedName;
+};
+
+/**
+ * Helper function to find password field from registration data
+ * Used for storing credentials before Cashfree redirect (login after payment)
+ */
+export const getPasswordField = (
+  registrationData: RegistrationDataType
+): string => {
+  const passwordEntry = Object.entries(registrationData).find(([key, value]) => {
+    const lowerKey = key.toLowerCase();
+    const lowerName = (value.name || "").toLowerCase();
+    return (
+      lowerKey.includes("password") ||
+      lowerName.includes("password")
+    );
+  });
+  return passwordEntry ? String(passwordEntry[1]?.value || "") : "";
 };
 
 /**
@@ -366,10 +384,11 @@ export const handleEnrollLearnerForPayment = async ({
   isUsingInstituteCustomFields = false,
   userId,
 }: EnrollLearnerForPaymentProps) => {
-  // Dynamically extract email, phone, and full name using helper functions
+  // Dynamically extract email, phone, full name, and password using helper functions
   const email = getEmailField(registrationData);
   const phoneNumber = getPhoneField(registrationData);
   const fullName = getFullNameField(registrationData);
+  const password = getPasswordField(registrationData);
 
   // Dynamically identify keys to exclude from custom field values
   // If using institute custom fields, don't exclude name, email, phone
@@ -420,6 +439,14 @@ export const handleEnrollLearnerForPayment = async ({
         }
       : {};
 
+  // For Cashfree: Creates enrollment with payment pending; return_url is set when calling user-plan-payment
+  const cashfree_request =
+    paymentVendor === "CASHFREE"
+      ? {
+        return_url: "", // Set by frontend when calling user-plan-payment API
+      }
+      : {};
+
   const convertedData = {
     user: {
       email: email,
@@ -431,7 +458,7 @@ export const handleEnrollLearnerForPayment = async ({
       mobile_number: phoneNumber,
       date_of_birth: "",
       gender: "",
-      password: "",
+      password: password || "",
       profile_pic_file_id: "",
       roles: allowLearnersToCreateCourses
         ? ["STUDENT", "TEACHER"]
@@ -460,6 +487,7 @@ export const handleEnrollLearnerForPayment = async ({
         institute_id: instituteId,
         stripe_request,
         razorpay_request,
+        cashfree_request,
         pay_pal_request: {},
         eway_request,
         include_pending_items: true,

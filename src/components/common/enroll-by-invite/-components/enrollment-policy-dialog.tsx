@@ -299,10 +299,7 @@ const EnrollmentPolicyDialog = ({
                         Re-enrollment Not Available
                     </DialogTitle>
                     <DialogDescription className="text-gray-600 text-sm sm:text-base leading-relaxed">
-                        {reenrollmentPolicy?.reenrollmentBlockedMessage?.replace(
-                            "{{allowed_date}}",
-                            new Date(Date.now() + (reenrollmentPolicy?.reenrollmentGapInDays || 180) * 24 * 60 * 60 * 1000).toLocaleDateString()
-                        ) || "Demo re-enrollment is not available at this time. Please try again later or upgrade to our paid plan."}
+                     Your free trial has ended. If you would like to continue regular practice, you can register for a membership by clicking the button below.
                     </DialogDescription>
                 </div>
             </DialogHeader>

@@ -1,4 +1,4 @@
-import { ReactNode, Suspense } from "react";
+import { ReactNode, Suspense, useMemo } from "react";
 import { Elements } from "@stripe/react-stripe-js";
 import { loadStripe, Stripe } from "@stripe/stripe-js";
 import { useSuspenseQuery } from "@tanstack/react-query";
@@ -58,6 +58,10 @@ export const PaymentGatewayWrapper = ({
         </RazorpayPaymentWrapper>
       );
 
+    case "CASHFREE":
+      // Cashfree doesn't need gateway keys - uses paymentSessionId from backend
+      return <>{children}</>;
+
     case "PAYPAL":
       // TODO: Implement PayPal wrapper
       console.warn("PayPal integration not yet implemented");
@@ -95,9 +99,10 @@ const StripePaymentWrapper = ({
     handlePaymentGatewaykeys(instituteId, "STRIPE")
   );
 
-  // Load Stripe with publishable key
-  const stripePromise: Promise<Stripe | null> = loadStripe(
-    stripeKeys.publishableKey
+  // Load Stripe with publishable key - memoize to prevent recreating on every render
+  const stripePromise: Promise<Stripe | null> = useMemo(() => 
+    loadStripe(stripeKeys.publishableKey), 
+    [stripeKeys.publishableKey]
   );
 
   return (

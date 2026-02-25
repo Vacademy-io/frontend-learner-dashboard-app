@@ -10,7 +10,14 @@ export default defineConfig({
     plugins: [
         TanStackRouterVite(),
         viteReact(),
-        svgr({ include: "**/*.svg" }),
+        svgr({
+            include: "**/*.svg",
+            exclude: [
+                "**/ssdc-logo*.svg",
+                "**/ssdc_logo.svg",
+                "**/registration-logo.svg"
+            ]
+        }),
     ],
     resolve: {
         alias: {
@@ -33,6 +40,7 @@ export default defineConfig({
             output: {
                 // Conservative chunking strategy - only split truly independent heavy libs
                 manualChunks: (id) => {
+
                     // Firebase - can be safely split as it's dynamically imported
                     if (id.includes('firebase/') || id.includes('@firebase/')) {
                         return 'firebase';
@@ -53,6 +61,7 @@ export default defineConfig({
                         return 'pdf-viewer';
                     }
 
+
                     // Pyodide - Python runtime, for code execution
                     if (id.includes('pyodide')) {
                         return 'pyodide';
@@ -70,10 +79,37 @@ export default defineConfig({
 
                     // Charts libraries - for dashboard
                     if (id.includes('recharts') ||
-                        id.includes('echarts') ||
                         id.includes('@nivo/') ||
                         id.includes('@visx/')) {
                         return 'charts';
+                    }
+
+                    // Huge Icon Libraries - Need to be split
+                    if (id.includes('react-icons')) {
+                        return 'react-icons';
+                    }
+                    if (id.includes('@phosphor-icons') || id.includes('phosphor-react')) {
+                        return 'phosphor-icons';
+                    }
+                    if (id.includes('@tabler/icons-react')) {
+                        return 'tabler-icons';
+                    }
+
+                    // Large Data Processing Libraries
+                    if (id.includes('country-state-city')) {
+                        return 'country-state-city';
+                    }
+                    if (id.includes('xlsx')) {
+                        return 'excel-processor';
+                    }
+                    if (id.includes('mermaid')) {
+                        return 'mermaid';
+                    }
+                    if (id.includes('lottie-react')) {
+                        return 'lottie';
+                    }
+                    if (id.includes('framer-motion')) {
+                        return 'framer-motion';
                     }
 
                     // Don't split React, Radix, or other core UI libs - keep them together

@@ -1,14 +1,14 @@
 import { LayoutContainer } from "@/components/common/layout-container/layout-container";
 import { createFileRoute } from "@tanstack/react-router";
 import { Helmet } from "react-helmet";
-import { useEffect, useState, useLayoutEffect } from "react";
+import { useEffect, useState, useLayoutEffect, useCallback, useMemo } from "react";
 import { useNavHeadingStore } from "@/stores/layout-container/useNavHeadingStore";
 import { useLiveSessions } from "./-hooks/useLiveSessions";
 import { SessionDetails } from "./-types/types";
 
 import { useNavigate } from "@tanstack/react-router";
 import { SessionStreamingServiceType } from "@/routes/register/live-class/-types/enum";
-import { getPackageSessionId } from "@/utils/study-library/get-list-from-stores/getPackageSessionId";
+import { getAllPackageSessionIds } from "@/utils/study-library/get-list-from-stores/getPackageSessionId";
 import { useMarkAttendance } from "./-hooks/useMarkAttendance";
 import { toast } from "sonner";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -19,8 +19,6 @@ import {
   MapPin,
   Users,
   ArrowSquareOut,
-  X,
-  FunnelSimple,
 } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import {
@@ -29,7 +27,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import {
   Pagination,
   PaginationContent,
@@ -45,6 +42,10 @@ import {
   getTimezoneDisplayInfo,
 } from "@/utils/timezone";
 import { getUserTimezone } from "@/hooks/use-server-time";
+import { DefaultClassCard } from "./-components/DefaultClassCard";
+import { getTerminology } from "@/components/common/layout-container/sidebar/utils";
+import { ContentTerms, SystemTerms } from "@/types/naming-settings";
+import { SessionFilter, FilterChangePayload } from "@/components/common/session-filter";
 export const Route = createFileRoute("/study-library/live-class/")({
   component: RouteComponent,
 });
@@ -53,7 +54,7 @@ function RouteComponent() {
 
   const { setNavHeading } = useNavHeadingStore();
   const navigate = useNavigate();
-  const [batchId, setBatchId] = useState<string>("");
+  const [batchIds, setBatchIds] = useState<string[]>([]);
   const [selectedView, setSelectedView] = useState<string>("list");
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [dayModalOpen, setDayModalOpen] = useState<boolean>(false);
@@ -63,16 +64,26 @@ function RouteComponent() {
   } | null>(null);
 
 
-  // Filter states
+  // Filter states — updated by SessionFilter via onFilterChange callback
   const [startDateFilter, setStartDateFilter] = useState<string>("");
   const [endDateFilter, setEndDateFilter] = useState<string>("");
+  // Mirrors the active filterType returned from SessionFilter (used for display/labels)
+  const [activeFilterType, setActiveFilterType] = useState<FilterChangePayload["filterType"]>("none");
   const [apiPage, setApiPage] = useState<number>(0);
+  const [upcomingPage, setUpcomingPage] = useState<number>(0); // Client-side pagination for upcoming sessions
+  const SESSIONS_PER_PAGE = 5;
 
-  const clearFilters = () => {
-    setStartDateFilter("");
-    setEndDateFilter("");
+  /**
+   * Called by SessionFilter whenever the user picks or clears a filter.
+   * The parent's only job here is to store the dates and reset pagination.
+   */
+  const handleFilterChange = useCallback(({ filterType, startDate, endDate }: FilterChangePayload) => {
+    setActiveFilterType(filterType);
+    setStartDateFilter(startDate);
+    setEndDateFilter(endDate);
+    setUpcomingPage(0);
     setApiPage(0);
-  };
+  }, []);
 
 
   // Helper function to format date as YYYY-MM-DD
@@ -86,12 +97,23 @@ function RouteComponent() {
 
   const { mutateAsync: markAttendance } = useMarkAttendance();
 
+  // State to trigger re-renders for time-based updates
+  const [currentTime, setCurrentTime] = useState(new Date());
+
   useEffect(() => {
-    const fetchBatchId = async () => {
-      const id = await getPackageSessionId();
-      setBatchId(id);
+    const interval = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 10000); // Check every 10 seconds for smoother transitions
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    const fetchBatchIds = async () => {
+      const ids = await getAllPackageSessionIds();
+      console.log('Fetched batch IDs:', ids);
+      setBatchIds(ids);
     };
-    fetchBatchId();
+    fetchBatchIds();
   }, []);
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -102,31 +124,27 @@ function RouteComponent() {
     isLoading,
     isFetching,
     error,
-  } = useLiveSessions(batchId, {
+  } = useLiveSessions(batchIds, {
     startDate:
       selectedView === "calendar"
         ? formatDateToISO(
           new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1)
         )
-        : startDateFilter || undefined,
+        : undefined,
     endDate:
       selectedView === "calendar"
         ? formatDateToISO(
           new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 0)
         )
-        : endDateFilter || undefined,
-    size: selectedView === "list" ? 10 : 500,
+        : undefined,
+    size: 500,
     page: selectedView === "list" ? apiPage : 0,
   });
 
 
 
   useLayoutEffect(() => {
-    setNavHeading(
-      <div className="flex items-center gap-2">
-        <div>Live Classes</div>
-      </div>
-    );
+    setNavHeading(getTerminology(ContentTerms.LiveSession, SystemTerms.LiveSession));
   }, [setNavHeading]);
   const hasNextPage = (sessions?.totalReturned ?? 0) === 10;
 
@@ -165,7 +183,7 @@ function RouteComponent() {
     }
     const now = new Date();
 
-    let sessionDate, waitingRoomStart;
+    let sessionDate, sessionEndDate, waitingRoomStart;
 
     if (session.timezone) {
       // Use timezone-aware calculation
@@ -174,6 +192,17 @@ function RouteComponent() {
         session.start_time,
         session.timezone
       );
+      sessionEndDate = convertSessionTimeToUserTimezone(
+        session.meeting_date,
+        session.last_entry_time,
+        session.timezone
+      );
+
+      // If end time is before start time, session spans midnight - add 1 day
+      if (sessionEndDate < sessionDate) {
+        sessionEndDate = new Date(sessionEndDate.getTime() + 24 * 60 * 60 * 1000);
+      }
+
       waitingRoomStart = new Date(sessionDate);
       waitingRoomStart.setMinutes(
         waitingRoomStart.getMinutes() - session.waiting_room_time
@@ -181,6 +210,13 @@ function RouteComponent() {
     } else {
       // Fallback to original logic
       sessionDate = new Date(`${session.meeting_date}T${session.start_time}`);
+      sessionEndDate = new Date(`${session.meeting_date}T${session.last_entry_time}`);
+
+      // If end time is before start time, session spans midnight - add 1 day
+      if (sessionEndDate < sessionDate) {
+        sessionEndDate = new Date(sessionEndDate.getTime() + 24 * 60 * 60 * 1000);
+      }
+
       waitingRoomStart = new Date(sessionDate);
       waitingRoomStart.setMinutes(
         waitingRoomStart.getMinutes() - session.waiting_room_time
@@ -191,6 +227,13 @@ function RouteComponent() {
     const isBeforeWaitingRoom = now < waitingRoomStart;
     const isInWaitingRoom = now >= waitingRoomStart && now < sessionDate;
     const isLiveClassStarted = now >= sessionDate;
+    const hasSessionEnded = now > sessionEndDate;
+
+    // If session has ended, show error
+    if (hasSessionEnded) {
+      toast.error("This class has ended");
+      return;
+    }
 
     // If it's before waiting room time, show error
     if (isBeforeWaitingRoom) {
@@ -229,7 +272,10 @@ function RouteComponent() {
         ) {
           (navigate as any)({
             to: "/study-library/live-class/embed",
-            search: { sessionId: session.schedule_id },
+            search: {
+              sessionId: session.schedule_id,
+              learnerButtonConfig: session.learner_button_config ?? undefined,
+            },
           });
         } else {
           window.open(session.meeting_link, "_blank", "noopener,noreferrer");
@@ -245,7 +291,10 @@ function RouteComponent() {
         ) {
           (navigate as any)({
             to: "/study-library/live-class/embed",
-            search: { sessionId: session.schedule_id },
+            search: {
+              sessionId: session.schedule_id,
+              learnerButtonConfig: session.learner_button_config ?? undefined,
+            },
           });
         } else {
           window.open(session.meeting_link, "_blank", "noopener,noreferrer");
@@ -282,34 +331,59 @@ function RouteComponent() {
     setApiPage(0);
   }, [startDateFilter, endDateFilter, selectedView]);
 
-  // Helper function to determine if a session is currently live (in waiting room or live)
-  const isSessionLive = (session: SessionDetails) => {
+  // Helper function to determine if a session is currently live (in waiting room or active)
+  const isSessionLive = useCallback((session: SessionDetails) => {
+    // We access currentTime here just to ensure this function (and dependents) updating
+    // But we still use new Date() for the most precise check at moment of execution
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const _tick = currentTime;
     const now = new Date();
-    let sessionDate, waitingRoomStart;
+
+    let sessionStart, sessionEnd, waitingRoomStart;
 
     if (session.timezone) {
       // Use timezone-aware calculation
-      sessionDate = convertSessionTimeToUserTimezone(
+      sessionStart = convertSessionTimeToUserTimezone(
         session.meeting_date,
         session.start_time,
         session.timezone
       );
-      waitingRoomStart = new Date(sessionDate);
+      sessionEnd = convertSessionTimeToUserTimezone(
+        session.meeting_date,
+        session.last_entry_time,
+        session.timezone
+      );
+
+      // If end time is before start time, session spans midnight - add 1 day
+      if (sessionEnd < sessionStart) {
+        sessionEnd = new Date(sessionEnd.getTime() + 24 * 60 * 60 * 1000);
+      }
+
+      waitingRoomStart = new Date(sessionStart);
       waitingRoomStart.setMinutes(
         waitingRoomStart.getMinutes() - session.waiting_room_time
       );
     } else {
       // Fallback to original logic
-      sessionDate = new Date(`${session.meeting_date}T${session.start_time}`);
-      waitingRoomStart = new Date(sessionDate);
+      sessionStart = new Date(`${session.meeting_date}T${session.start_time}`);
+      sessionEnd = new Date(`${session.meeting_date}T${session.last_entry_time}`);
+
+      // If end time is before start time, session spans midnight - add 1 day
+      if (sessionEnd < sessionStart) {
+        sessionEnd = new Date(sessionEnd.getTime() + 24 * 60 * 60 * 1000);
+      }
+
+      waitingRoomStart = new Date(sessionStart);
       waitingRoomStart.setMinutes(
         waitingRoomStart.getMinutes() - session.waiting_room_time
       );
     }
 
-    // Session is considered "live" if we're in waiting room period or main session
-    return now >= waitingRoomStart;
-  };
+    // Session is considered "live" if:
+    // 1. Current time is after waiting room start
+    // 2. Current time is before session end
+    return now >= waitingRoomStart && now <= sessionEnd;
+  }, [currentTime]);
 
   const renderSession = (session: SessionDetails, isLive: boolean) => {
     // Calculate session timing for button text and status
@@ -340,18 +414,19 @@ function RouteComponent() {
 
     return (
       <div
-        key={session.session_id}
+        key={session.schedule_id}
         className="group p-4 border rounded-xl bg-white dark:bg-neutral-900 hover:bg-primary-50/30 dark:hover:bg-primary-900/20 border-neutral-200 dark:border-neutral-800 hover:border-primary-200/60 dark:hover:border-primary-700/60 hover:shadow-sm transition-all duration-200 w-full"
       >
-        <div className="flex justify-between items-start">
+        {/* Desktop Layout: Button on the right */}
+        <div className="hidden sm:flex justify-between items-start gap-4">
           <div className="flex-1">
-            <div className="flex items-center gap-2 mb-2">
+            <div className="flex flex-wrap items-center gap-2 mb-2">
               <h3 className="font-semibold text-lg text-neutral-800 dark:text-neutral-100 group-hover:text-primary-700 dark:group-hover:text-primary-300 transition-colors">
                 {session.title}
               </h3>
               {isLive && (
                 <span
-                  className={`px-2 py-1 text-white text-xs font-medium rounded-full animate-pulse ${isInWaitingRoom
+                  className={`px-2 py-1 text-white text-xs font-medium rounded-full animate-pulse whitespace-nowrap ${isInWaitingRoom
                     ? "bg-orange-600"
                     : isLiveClassStarted
                       ? "bg-danger-600"
@@ -366,62 +441,191 @@ function RouteComponent() {
                 </span>
               )}
             </div>
-            <div className="flex items-center gap-1 text-sm text-neutral-600 mb-2">
-              <MapPin
+            {/* Subject - Display if not 'none', for both Live and Upcoming */}
+            {session.subject && session.subject.toLowerCase() !== 'none' && (
+              <div className="flex items-center gap-1 text-sm text-neutral-600 mb-2">
+                <MapPin
+                  size={16}
+                  className="text-neutral-500 dark:text-neutral-400"
+                />
+                <span className="capitalize dark:text-neutral-300">
+                  {session.subject}
+                </span>
+              </div>
+            )}
+
+            {/* Date - Display only for Upcoming sessions */}
+            {!isLive && (
+              <div className="flex items-center gap-1 text-sm text-neutral-600 mb-2">
+                <Calendar
+                  size={16}
+                  className="text-neutral-500 dark:text-neutral-400"
+                />
+                <span className="capitalize dark:text-neutral-300">
+                  {new Date(session.meeting_date).toLocaleDateString("en-US", {
+                    weekday: "short",
+                    year: "numeric",
+                    month: "short",
+                    day: "numeric",
+                  })}
+                </span>
+              </div>
+            )}
+
+            <div className="flex flex-col sm:flex-row gap-4 text-sm">
+              <div className="flex items-center gap-2">
+                <Clock
+                  size={16}
+                  className="text-neutral-500 dark:text-neutral-400"
+                />
+                <span className="text-neutral-600 dark:text-neutral-300">
+                  <span className="font-medium">Starts:</span>{" "}
+                  {formatDateTime(
+                    session.meeting_date,
+                    session.start_time,
+                    session.timezone
+                  )}
+                  {session.timezone && (
+                    <span className="text-xs text-neutral-500 dark:text-neutral-400 ml-1">
+                      ({getTimezoneDisplayInfo(session.timezone).sessionTz})
+                    </span>
+                  )}
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Users
+                  size={16}
+                  className="text-neutral-500 dark:text-neutral-400"
+                />
+                <span className="text-neutral-600 dark:text-neutral-300">
+                  <span className="font-medium">Duration:</span>{" "}
+                  {calculateDuration(session.start_time, session.last_entry_time)}
+                </span>
+              </div>
+            </div>
+          </div>
+          <div className="flex flex-col items-end gap-2 shrink-0">
+            {isLive && session.meeting_link && (
+              <Button
+                variant="default"
+                size="sm"
+                className="shrink-0 bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 text-white shadow-sm hover:shadow-md transition-all duration-200"
+                onClick={() => handleJoinSession(session)}
+              >
+                <ArrowSquareOut size={16} className="mr-1.5" />
+                {isBeforeWaitingRoom
+                  ? "Not Started"
+                  : isInWaitingRoom
+                    ? "Join Waiting Room"
+                    : "Join Session"}
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {/* Mobile Layout: Button at the bottom */}
+        <div className="flex flex-col gap-3 sm:hidden">
+          <div className="flex-1">
+            <div className="flex flex-wrap items-center gap-2 mb-2">
+              <h3 className="font-semibold text-lg text-neutral-800 dark:text-neutral-100 group-hover:text-primary-700 dark:group-hover:text-primary-300 transition-colors">
+                {session.title}
+              </h3>
+              {isLive && (
+                <span
+                  className={`px-2 py-1 text-white text-xs font-medium rounded-full animate-pulse whitespace-nowrap ${isInWaitingRoom
+                    ? "bg-orange-600"
+                    : isLiveClassStarted
+                      ? "bg-danger-600"
+                      : "bg-gray-600"
+                    }`}
+                >
+                  {isInWaitingRoom
+                    ? "WAITING ROOM"
+                    : isLiveClassStarted
+                      ? "LIVE"
+                      : "STARTING SOON"}
+                </span>
+              )}
+            </div>
+            {/* Subject - Display if not 'none', for both Live and Upcoming */}
+            {session.subject && session.subject.toLowerCase() !== 'none' && (
+              <div className="flex items-center gap-1 text-sm text-neutral-600 mb-2">
+                <MapPin
+                  size={16}
+                  className="text-neutral-500 dark:text-neutral-400"
+                />
+                <span className="capitalize dark:text-neutral-300">
+                  {session.subject}
+                </span>
+              </div>
+            )}
+
+            {/* Date - Display only for Upcoming sessions */}
+            {!isLive && (
+              <div className="flex items-center gap-1 text-sm text-neutral-600 mb-2">
+                <Calendar
+                  size={16}
+                  className="text-neutral-500 dark:text-neutral-400"
+                />
+                <span className="capitalize dark:text-neutral-300">
+                  {new Date(session.meeting_date).toLocaleDateString("en-US", {
+                    weekday: "short",
+                    year: "numeric",
+                    month: "short",
+                    day: "numeric",
+                  })}
+                </span>
+              </div>
+            )}
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-4 text-sm">
+            <div className="flex items-center gap-2">
+              <Clock
                 size={16}
                 className="text-neutral-500 dark:text-neutral-400"
               />
-              <span className="capitalize dark:text-neutral-300">
-                {session.subject}
+              <span className="text-neutral-600 dark:text-neutral-300">
+                <span className="font-medium">Starts:</span>{" "}
+                {formatDateTime(
+                  session.meeting_date,
+                  session.start_time,
+                  session.timezone
+                )}
+                {session.timezone && (
+                  <span className="text-xs text-neutral-500 dark:text-neutral-400 ml-1">
+                    ({getTimezoneDisplayInfo(session.timezone).sessionTz})
+                  </span>
+                )}
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Users
+                size={16}
+                className="text-neutral-500 dark:text-neutral-400"
+              />
+              <span className="text-neutral-600 dark:text-neutral-300">
+                <span className="font-medium">Duration:</span>{" "}
+                {calculateDuration(session.start_time, session.last_entry_time)}
               </span>
             </div>
           </div>
-          {isLive && session.meeting_link && (
-            <Button
-              variant="default"
-              size="sm"
-              className="bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 text-white shadow-sm hover:shadow-md transition-all duration-200"
-              onClick={() => handleJoinSession(session)}
-            >
-              <ArrowSquareOut size={16} className="mr-1.5" />
-              {isBeforeWaitingRoom
-                ? "Not Started"
-                : isInWaitingRoom
-                  ? "Join Waiting Room"
-                  : "Join Session"}
-            </Button>
-          )}
-        </div>
-
-        <div className="flex flex-col sm:flex-row gap-4 text-sm">
-          <div className="flex items-center gap-2">
-            <Clock
-              size={16}
-              className="text-neutral-500 dark:text-neutral-400"
-            />
-            <span className="text-neutral-600 dark:text-neutral-300">
-              <span className="font-medium">Starts:</span>{" "}
-              {formatDateTime(
-                session.meeting_date,
-                session.start_time,
-                session.timezone
-              )}
-              {session.timezone && (
-                <span className="text-xs text-neutral-500 dark:text-neutral-400 ml-1">
-                  ({getTimezoneDisplayInfo(session.timezone).sessionTz})
-                </span>
-              )}
-            </span>
-          </div>
-          <div className="flex items-center gap-2">
-            <Users
-              size={16}
-              className="text-neutral-500 dark:text-neutral-400"
-            />
-            <span className="text-neutral-600 dark:text-neutral-300">
-              <span className="font-medium">Duration:</span>{" "}
-              {calculateDuration(session.start_time, session.last_entry_time)}
-            </span>
+          <div className="space-y-2">
+            {isLive && session.meeting_link && (
+              <Button
+                variant="default"
+                size="sm"
+                className="w-full bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 text-white shadow-sm hover:shadow-md transition-all duration-200"
+                onClick={() => handleJoinSession(session)}
+              >
+                <ArrowSquareOut size={16} className="mr-1.5" />
+                {isBeforeWaitingRoom
+                  ? "Not Started"
+                  : isInWaitingRoom
+                    ? "Join Waiting Room"
+                    : "Join Session"}
+              </Button>
+            )}
           </div>
         </div>
       </div>
@@ -470,7 +674,9 @@ function RouteComponent() {
 
 
   const handleDayClick = (date: Date, sessionsForDay: SessionDetails[]) => {
-    if (sessionsForDay.length > 0) {
+    const isToday = date.toDateString() === new Date().toDateString();
+    const hasDefaultClass = !!(sessions as any)?.defaultDayConfig?.defaultClassLink;
+    if (sessionsForDay.length > 0 || (isToday && hasDefaultClass)) {
       setSelectedDayData({ date, sessions: sessionsForDay });
       setDayModalOpen(true);
     }
@@ -486,6 +692,10 @@ function RouteComponent() {
       sessions?.upcoming_sessions?.includes(session)
     );
 
+    const isToday = selectedDayData.date.toDateString() === new Date().toDateString();
+    const defaultDayConfig = (sessions as any)?.defaultDayConfig;
+    const showDefaultClass = isToday && defaultDayConfig?.defaultClassLink && liveSessions.length === 0;
+
     return (
       <Dialog open={dayModalOpen} onOpenChange={setDayModalOpen}>
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
@@ -500,7 +710,7 @@ function RouteComponent() {
               <div>
                 <h3 className="text-lg font-semibold text-neutral-800 dark:text-neutral-100 mb-3 flex items-center gap-2">
                   <div className="w-3 h-3 rounded-full bg-danger-600 animate-pulse"></div>
-                  Live Sessions
+                  {getTerminology(ContentTerms.LiveSession, SystemTerms.LiveSession)}s
                 </h3>
                 <div className="space-y-3">
                   {liveSessions
@@ -542,27 +752,31 @@ function RouteComponent() {
                                   )}
                                 </span>
                               </div>
-                              <div className="flex items-center gap-1">
-                                <MapPin size={14} />
-                                <span className="capitalize dark:text-neutral-300">
-                                  {session.subject}
-                                </span>
-                              </div>
+                              {session.subject && session.subject.toLowerCase() !== "none" && (
+                                <div className="flex items-center gap-1">
+                                  <MapPin size={14} />
+                                  <span className="capitalize dark:text-neutral-300">
+                                    {session.subject}
+                                  </span>
+                                </div>
+                              )}
                             </div>
                           </div>
-                          {session.meeting_link && (
-                            <Button
-                              size="sm"
-                              className="bg-danger-600 hover:bg-danger-700 text-white"
-                              onClick={() => {
-                                handleJoinSession(session);
-                                setDayModalOpen(false);
-                              }}
-                            >
-                              <ArrowSquareOut size={14} className="mr-1" />
-                              Join
-                            </Button>
-                          )}
+                          <div className="flex flex-col items-end gap-2 shrink-0 ml-4">
+                            {session.meeting_link && (
+                              <Button
+                                size="sm"
+                                className="bg-danger-600 hover:bg-danger-700 text-white"
+                                onClick={() => {
+                                  handleJoinSession(session);
+                                  setDayModalOpen(false);
+                                }}
+                              >
+                                <ArrowSquareOut size={14} className="mr-1" />
+                                Join
+                              </Button>
+                            )}
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -616,12 +830,14 @@ function RouteComponent() {
                                   )}
                                 </span>
                               </div>
-                              <div className="flex items-center gap-1">
-                                <MapPin size={14} />
-                                <span className="capitalize dark:text-neutral-300">
-                                  {session.subject}
-                                </span>
-                              </div>
+                              {session.subject && session.subject.toLowerCase() !== "none" && (
+                                <div className="flex items-center gap-1">
+                                  <MapPin size={14} />
+                                  <span className="capitalize dark:text-neutral-300">
+                                    {session.subject}
+                                  </span>
+                                </div>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -688,7 +904,9 @@ function RouteComponent() {
       const hasLive = sessionsForDay.some((session) =>
         sessions?.live_sessions?.includes(session)
       );
+      const hasDefaultClass = isToday && !!(sessions as any)?.defaultDayConfig?.defaultClassLink && !hasLive;
       const sessionCount = sessionsForDay.length;
+      const isClickable = sessionCount > 0 || hasDefaultClass;
 
       days.push(
         <div
@@ -696,7 +914,7 @@ function RouteComponent() {
           className={`h-24 border border-neutral-200 dark:border-neutral-800 p-1 transition-all duration-200 hover:bg-neutral-50 dark:hover:bg-neutral-800 cursor-pointer ${isToday
             ? "bg-primary-50/50 border-primary-200 dark:bg-primary-950/30 dark:border-primary-700"
             : "bg-white dark:bg-neutral-900"
-            } ${sessionCount > 0 ? "hover:shadow-sm" : ""}`}
+            } ${isClickable ? "hover:shadow-sm" : ""}`}
           onClick={() => handleDayClick(currentDate, sessionsForDay)}
         >
           <div
@@ -748,6 +966,16 @@ function RouteComponent() {
                 </div>
               );
             })}
+
+            {/* Default class indicator for today */}
+            {hasDefaultClass && sessionCount === 0 && (
+              <div
+                className="text-xs p-1 rounded truncate transition-all duration-200 bg-green-100 text-green-700 border border-green-200 dark:bg-green-950/40 dark:text-green-300 dark:border-green-900"
+                title={(sessions as any)?.defaultDayConfig?.defaultClassName || "Session"}
+              >
+                {(sessions as any)?.defaultDayConfig?.defaultClassName || "Session"}
+              </div>
+            )}
 
             {sessionCount > 1 && (
               <div
@@ -819,7 +1047,7 @@ function RouteComponent() {
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 rounded bg-gradient-to-r from-red-500/20 to-red-600/20 border border-red-200 dark:from-red-900/40 dark:to-red-800/40 dark:border-red-900"></div>
             <span className="text-neutral-600 dark:text-neutral-300">
-              Live Sessions
+              {getTerminology(ContentTerms.LiveSession, SystemTerms.LiveSession)}s
             </span>
           </div>
           <div className="flex items-center gap-2">
@@ -835,6 +1063,50 @@ function RouteComponent() {
       </div>
     );
   };
+
+  // Combine and re-classify sessions dynamically
+  // This ensures that if a session enters waiting room, it moves to "Live" immediately
+  const { derivedLiveSessions, derivedUpcomingSessions } = useMemo(() => {
+    if (!sessions) return { derivedLiveSessions: [], derivedUpcomingSessions: [] };
+
+    // Combine all sessions from backend (since backend categorization might lag behind client time)
+    const allSessions = [
+      ...(sessions.live_sessions || []),
+      ...(sessions.upcoming_sessions || []),
+    ];
+
+    // Deduplicate in case API returns same session in both
+    const uniqueSessionsMap = new Map<string, SessionDetails>();
+    allSessions.forEach(s => uniqueSessionsMap.set(s.schedule_id, s));
+    const uniqueSessions = Array.from(uniqueSessionsMap.values());
+
+    const live: SessionDetails[] = [];
+    const upcoming: SessionDetails[] = [];
+
+    uniqueSessions.forEach(session => {
+      if (isSessionLive(session)) {
+        live.push(session);
+      } else {
+        upcoming.push(session);
+      }
+    });
+
+    // Sort live sessions: earliest start time first
+    live.sort((a, b) => {
+      const startA = new Date(`${a.meeting_date}T${a.start_time}`).getTime();
+      const startB = new Date(`${b.meeting_date}T${b.start_time}`).getTime();
+      return startA - startB;
+    });
+
+    // Sort upcoming sessions: earliest start time first
+    upcoming.sort((a, b) => {
+      const startA = new Date(`${a.meeting_date}T${a.start_time}`).getTime();
+      const startB = new Date(`${b.meeting_date}T${b.start_time}`).getTime();
+      return startA - startB;
+    });
+
+    return { derivedLiveSessions: live, derivedUpcomingSessions: upcoming };
+  }, [sessions, isSessionLive]); // Re-calculate when sessions change or isSessionLive logic changes (which depends on currentTime)
 
   if (isLoading) {
     return (
@@ -864,10 +1136,8 @@ function RouteComponent() {
     );
   }
 
-  const liveSessions = selectedView === "list" ? sessions?.live_sessions ?? [] : [];
-
-
-  const upcomingSessions = selectedView === "list" ? sessions?.upcoming_sessions ?? [] : [];
+  const liveSessions = selectedView === "list" ? derivedLiveSessions : [];
+  const upcomingSessions = selectedView === "list" ? derivedUpcomingSessions : [];
   return (
     <LayoutContainer>
       <Helmet>
@@ -899,155 +1169,133 @@ function RouteComponent() {
             </TabsTrigger>
           </TabsList>
           <TabsContent value="list" className="mt-6" key={`list-view-${apiPage}`}>
-            {/* Filters Section */}
-
-            <div className="mb-6 p-4 bg-gradient-to-r from-white to-neutral-50/50 dark:from-neutral-900 dark:to-neutral-900/60 border border-neutral-200 dark:border-neutral-800 rounded-lg">
-              <div className="flex items-center gap-2 mb-4">
-                <FunnelSimple
-                  size={20}
-                  className="text-neutral-600 dark:text-neutral-300"
-                />
-                <h3 className="text-lg font-semibold text-neutral-800 dark:text-neutral-100">
-                  Filters
-                </h3>
-                {(startDateFilter || endDateFilter) && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={clearFilters}
-                    className="ml-auto border-red-300 dark:border-red-900 text-red-600 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-950/20 hover:border-red-400 dark:hover:border-red-800"
-                  >
-                    <X size={14} className="mr-1" />
-                    Clear
-                  </Button>
+            <div className={`space-y-6 transition-opacity duration-200 ${isFetching && !isLoading ? 'opacity-50' : 'opacity-100'}`} key={`page-${apiPage}`}>
+              {/* Live Sessions Section */}
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-semibold text-neutral-800 dark:text-neutral-100">
+                    {getTerminology(ContentTerms.LiveSession, SystemTerms.LiveSession)}s - {getUserTimezone()}
+                  </h2>
+                  {liveSessions.length > 0 && (
+                    <span className="text-sm text-neutral-600 dark:text-neutral-300">
+                      {liveSessions.length} session
+                      {liveSessions.length !== 1 ? "s" : ""}
+                    </span>
+                  )}
+                </div>
+                {liveSessions.length > 0 ? (
+                  <div className="space-y-4 w-full">
+                    {liveSessions.map((session) =>
+                      renderSession(session, isSessionLive(session))
+                    )}
+                  </div>
+                ) : (sessions as any)?.defaultDayConfig?.defaultClassLink ? (
+                  <div className="w-full">
+                    <DefaultClassCard
+                      defaultClassLink={(sessions as any)?.defaultDayConfig?.defaultClassLink}
+                      defaultClassName={(sessions as any)?.defaultDayConfig?.defaultClassName}
+                    />
+                  </div>
+                ) : (
+                  <div className="text-neutral-600 dark:text-neutral-300 p-4 sm:p-6 bg-gradient-to-br from-neutral-50 to-neutral-100 dark:from-neutral-900 dark:to-neutral-900/60 rounded-lg w-full border border-neutral-200 dark:border-neutral-800">
+                    <div className="text-center">
+                      <Users
+                        size={48}
+                        className="mx-auto text-neutral-400 dark:text-neutral-500 mb-3"
+                      />
+                      <p className="font-medium">
+                        No {getTerminology(ContentTerms.LiveSession, SystemTerms.LiveSession).toLowerCase()}s at the moment
+                      </p>
+                      <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-1">
+                        Check back later or view upcoming {getTerminology(ContentTerms.Session, SystemTerms.Session).toLowerCase()}s
+                      </p>
+                    </div>
+                  </div>
                 )}
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-200 mb-2">
-                    Start Date
-                  </label>
-                  <Input
-                    type="date"
-                    value={startDateFilter}
-                    onChange={(e) => {
-                      setStartDateFilter(e.target.value);
-                      setApiPage(0);
-                    }}
-                    className="w-full"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-200 mb-2">
-                    End Date
-                  </label>
-                  <Input
-                    type="date"
-                    value={endDateFilter}
-                    onChange={(e) => {
-                      setEndDateFilter(e.target.value);
-                      setApiPage(0);
-                    }}
-                    className="w-full"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className={`space-y-8 transition-opacity duration-200 ${isFetching && !isLoading ? 'opacity-50' : 'opacity-100'}`} key={`page-${apiPage}`}>
+              {/* Upcoming Sessions Section */}
               <div>
-                <div className="flex items-center justify-between mb-4">
+                {/* Row 1: Title + SessionFilter (reusable component) */}
+                <div className="flex items-center justify-between mb-1">
                   <h2 className="text-xl font-semibold text-neutral-800 dark:text-neutral-100">
-                    Live Sessions - {getUserTimezone()}
+                    Upcoming {getTerminology(ContentTerms.Session, SystemTerms.Session)}s
                   </h2>
-                  {(() => {
-                    const filteredLiveSessions = filterSessions(liveSessions);
-                    return (
-                      filteredLiveSessions.length > 0 && (
-                        <span className="text-sm text-neutral-600 dark:text-neutral-300">
-                          {filteredLiveSessions.length} session
-                          {filteredLiveSessions.length !== 1 ? "s" : ""} found
-                        </span>
-                      )
-                    );
-                  })()}
-                </div>
-                {(() => {
-                  const filteredLiveSessions = filterSessions(liveSessions);
 
+                  {/* Drop-in SessionFilter — all state, dropdown, and animation live inside it */}
+                  <SessionFilter
+                    onFilterChange={handleFilterChange}
+                    alignment="right"
+                  />
+                </div>
+
+                {/* Row 2: Session count subtitle */}
+                {(() => {
+                  const filteredUpcomingSessions = filterSessions(upcomingSessions);
                   return (
-                    <>
-                      {filteredLiveSessions.length > 0 ? (
-                        <div className="space-y-4 w-full">
-                          {filteredLiveSessions.map((session) =>
-                            renderSession(session, isSessionLive(session))
-                          )}
-                        </div>
-                      ) : (
-                        <div className="text-neutral-600 dark:text-neutral-300 p-6 bg-gradient-to-br from-neutral-50 to-neutral-100 dark:from-neutral-900 dark:to-neutral-900/60 rounded-lg w-full border border-neutral-200 dark:border-neutral-800">
-                          <div className="text-center">
-                            <Users
-                              size={48}
-                              className="mx-auto text-neutral-400 dark:text-neutral-500 mb-3"
-                            />
-                            <p className="font-medium">
-                              {startDateFilter || endDateFilter
-                                ? "No live sessions match your filters"
-                                : "No live sessions at the moment"}
-                            </p>
-                            <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-1">
-                              {startDateFilter || endDateFilter
-                                ? "Try adjusting your filters or clear them to see all sessions"
-                                : "Check back later or view upcoming sessions"}
-                            </p>
-                          </div>
-                        </div>
+                    <p className="text-sm text-neutral-500 dark:text-neutral-400 mb-4">
+                      {filteredUpcomingSessions.length > 0
+                        ? `${filteredUpcomingSessions.length} session${filteredUpcomingSessions.length !== 1 ? "s" : ""} found`
+                        : "No sessions found"}
+                      {activeFilterType !== "none" && (
+                        <span className="ml-1 text-primary-500 font-medium">
+                          · {activeFilterType === "custom" && startDateFilter && endDateFilter
+                            ? `${startDateFilter.split("-").reverse().join("/")} - ${endDateFilter.split("-").reverse().join("/")}`
+                            : activeFilterType === "1day" ? "1 Day"
+                              : activeFilterType === "3days" ? "3 Days"
+                                : activeFilterType === "7days" ? "7 Days"
+                                  : activeFilterType === "15days" ? "15 Days"
+                                    : ""}
+                        </span>
                       )}
-                    </>
+                    </p>
                   );
                 })()}
-              </div>
-
-              <div>
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-xl font-semibold text-neutral-800 dark:text-neutral-100">
-                    Upcoming Sessions
-                  </h2>
-                  {(() => {
-                    const filteredUpcomingSessions =
-                      filterSessions(upcomingSessions);
-                    return (
-                      filteredUpcomingSessions.length > 0 && (
-                        <span className="text-sm text-neutral-600 dark:text-neutral-300">
-                          {filteredUpcomingSessions.length} session
-                          {filteredUpcomingSessions.length !== 1
-                            ? "s"
-                            : ""}{" "}
-                          found
-                        </span>
-                      )
-                    );
-                  })()}
-                </div>
                 {(() => {
                   const filteredUpcomingSessions =
                     filterSessions(upcomingSessions);
 
-
-
+                  // Client-side pagination
+                  const startIndex = upcomingPage * SESSIONS_PER_PAGE;
+                  const endIndex = startIndex + SESSIONS_PER_PAGE;
+                  const paginatedSessions = filteredUpcomingSessions.slice(startIndex, endIndex);
+                  const totalPages = Math.ceil(filteredUpcomingSessions.length / SESSIONS_PER_PAGE);
 
                   return (
                     <>
                       {filteredUpcomingSessions.length > 0 ? (
-                        <div className="space-y-4 w-full">
-                          {filteredUpcomingSessions.map((session) =>
-                            renderSession(session, false)
-                          )}
-                        </div>
+                        <>
+                          <div className="space-y-4 w-full">
+                            {paginatedSessions.map((session) =>
+                              renderSession(session, false)
+                            )}
+                          </div>
+
+                          {/* Client-side pagination for upcoming sessions */}
+                          <div className="mt-6 flex items-center justify-center gap-4">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setUpcomingPage(p => Math.max(0, p - 1))}
+                              disabled={upcomingPage === 0}
+                            >
+                              Previous
+                            </Button>
+                            <span className="text-sm text-neutral-600 dark:text-neutral-300">
+                              Page {upcomingPage + 1} of {totalPages}
+                            </span>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setUpcomingPage(p => Math.min(totalPages - 1, p + 1))}
+                              disabled={upcomingPage >= totalPages - 1}
+                            >
+                              Next
+                            </Button>
+                          </div>
+                        </>
                       ) : (
-                        <div className="text-neutral-600 dark:text-neutral-300 p-6 bg-gradient-to-br from-neutral-50 to-neutral-100 dark:from-neutral-900 dark:to-neutral-900/60 rounded-lg w-full border border-neutral-200 dark:border-neutral-800">
+                        <div className="text-neutral-600 dark:text-neutral-300 p-4 sm:p-6 bg-gradient-to-br from-neutral-50 to-neutral-100 dark:from-neutral-900 dark:to-neutral-900/60 rounded-lg w-full border border-neutral-200 dark:border-neutral-800">
                           <div className="text-center">
                             <Clock
                               size={48}
@@ -1055,13 +1303,13 @@ function RouteComponent() {
                             />
                             <p className="font-medium">
                               {startDateFilter || endDateFilter
-                                ? "No upcoming sessions match your filters"
-                                : "No upcoming sessions scheduled"}
+                                ? `No upcoming ${getTerminology(ContentTerms.Session, SystemTerms.Session).toLowerCase()}s match your filters`
+                                : `No upcoming ${getTerminology(ContentTerms.Session, SystemTerms.Session).toLowerCase()}s scheduled`}
                             </p>
                             <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-1">
                               {startDateFilter || endDateFilter
                                 ? "Try adjusting your filters or clear them to see all sessions"
-                                : "New sessions will appear here when scheduled"}
+                                : `New ${getTerminology(ContentTerms.Session, SystemTerms.Session).toLowerCase()}s will appear here when scheduled`}
                             </p>
                           </div>
                         </div>
@@ -1072,7 +1320,7 @@ function RouteComponent() {
               </div>
 
               {/* API Pagination - To navigate through the sized results */}
-              {(sessions as any)?.totalReturned >= 10 || apiPage > 0 ? (
+              {(sessions as any)?.totalReturned >= 500 || apiPage > 0 ? (
                 <div className="mt-12 flex flex-col items-center gap-4 border-t pt-8">
                   <div className="text-sm text-neutral-500">
                     Viewing Page {apiPage + 1}
@@ -1111,11 +1359,11 @@ function RouteComponent() {
           <TabsContent value="calendar" className="mt-6">
             {renderCalendarView()}
           </TabsContent>
-        </Tabs>
+        </Tabs >
 
         {/* Day Details Modal */}
         {renderDayModal()}
-      </div>
-    </LayoutContainer>
+      </div >
+    </LayoutContainer >
   );
 }

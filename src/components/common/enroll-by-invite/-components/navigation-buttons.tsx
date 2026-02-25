@@ -15,6 +15,7 @@ interface NavigationButtonsProps {
   paymentVendor?: PaymentVendor;
   isPaymentDataReady?: boolean; // For Stripe processor or Eway encrypted data
   hasUnappliedReferral?: boolean;
+  hidePrimaryButton?: boolean; // For CASHFREE inline card - pay via form's Pay Now
 }
 
 const NavigationButtons = ({
@@ -29,6 +30,7 @@ const NavigationButtons = ({
   paymentVendor,
   isPaymentDataReady = false,
   hasUnappliedReferral = false,
+  hidePrimaryButton = false,
 }: NavigationButtonsProps) => {
   const isNextDisabled = () => {
     if (loading) return true;
@@ -57,7 +59,7 @@ const NavigationButtons = ({
   };
 
   return (
-    <div className="p-6 flex flex-col-reverse sm:flex-row items-center justify-between w-full gap-4 mt-8 fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-50">
+    <div className="p-4 sm:p-6 flex flex-col-reverse sm:flex-row items-center justify-between w-full gap-3 mt-4 bg-white border border-gray-200 rounded-lg shadow-sm">
       <MyButton
         type="button"
         buttonType="secondary"
@@ -69,6 +71,7 @@ const NavigationButtons = ({
         <ArrowLeft className="w-4 h-4" />
         Previous
       </MyButton>
+      {!hidePrimaryButton && (
       <MyButton
         type="button"
         buttonType="primary"
@@ -84,23 +87,20 @@ const NavigationButtons = ({
       >
         {loading
           ? "Processing..."
-          : currentStep === 3 || (currentStep === 2 && paymentType === "FREE")
-            ? currentStep === 3 && !isPaymentDataReady
-              ? paymentVendor === "EWAY"
-                ? "Enter Card Details"
-                : paymentVendor === "RAZORPAY"
-                  ? "Pay Now"
-                  : "Complete Payment"
-              : paymentType === "FREE"
-                ? "Complete Enrollment"
+          : currentStep === 2 && paymentType === "FREE"
+            ? "Complete Enrollment"
+            : currentStep === 3
+              ? paymentVendor === "RAZORPAY"
+                ? "Pay Now"
                 : "Confirm & Pay"
-            : "Next"}
+              : "Next"}
         {loading ? (
           <Loader2 className="w-4 h-4 animate-spin" />
         ) : (
           <ArrowRight className="w-4 h-4" />
         )}
       </MyButton>
+      )}
     </div>
   );
 };
