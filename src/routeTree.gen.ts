@@ -18,6 +18,7 @@ import { Route as RegisterIndexRouteImport } from './routes/register/index'
 import { Route as ReferralIndexRouteImport } from './routes/referral/index'
 import { Route as PrivacyPolicyIndexRouteImport } from './routes/privacy-policy/index'
 import { Route as PlanningIndexRouteImport } from './routes/planning/index'
+import { Route as PaymentResultIndexRouteImport } from './routes/payment-result/index'
 import { Route as ParentIndexRouteImport } from './routes/parent/index'
 import { Route as MyReportsIndexRouteImport } from './routes/my-reports/index'
 import { Route as MyFilesIndexRouteImport } from './routes/my-files/index'
@@ -125,6 +126,11 @@ const PrivacyPolicyIndexRoute = PrivacyPolicyIndexRouteImport.update({
 const PlanningIndexRoute = PlanningIndexRouteImport.update({
   id: '/planning/',
   path: '/planning/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PaymentResultIndexRoute = PaymentResultIndexRouteImport.update({
+  id: '/payment-result/',
+  path: '/payment-result/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ParentIndexRoute = ParentIndexRouteImport.update({
@@ -494,6 +500,7 @@ export interface FileRoutesByFullPath {
   '/my-files': typeof MyFilesIndexRoute
   '/my-reports': typeof MyReportsIndexRoute
   '/parent': typeof ParentIndexRoute
+  '/payment-result': typeof PaymentResultIndexRoute
   '/planning': typeof PlanningIndexRoute
   '/privacy-policy': typeof PrivacyPolicyIndexRoute
   '/referral': typeof ReferralIndexRoute
@@ -567,6 +574,7 @@ export interface FileRoutesByTo {
   '/my-files': typeof MyFilesIndexRoute
   '/my-reports': typeof MyReportsIndexRoute
   '/parent': typeof ParentIndexRoute
+  '/payment-result': typeof PaymentResultIndexRoute
   '/planning': typeof PlanningIndexRoute
   '/privacy-policy': typeof PrivacyPolicyIndexRoute
   '/referral': typeof ReferralIndexRoute
@@ -642,6 +650,7 @@ export interface FileRoutesById {
   '/my-files/': typeof MyFilesIndexRoute
   '/my-reports/': typeof MyReportsIndexRoute
   '/parent/': typeof ParentIndexRoute
+  '/payment-result/': typeof PaymentResultIndexRoute
   '/planning/': typeof PlanningIndexRoute
   '/privacy-policy/': typeof PrivacyPolicyIndexRoute
   '/referral/': typeof ReferralIndexRoute
@@ -718,6 +727,7 @@ export interface FileRouteTypes {
     | '/my-files'
     | '/my-reports'
     | '/parent'
+    | '/payment-result'
     | '/planning'
     | '/privacy-policy'
     | '/referral'
@@ -791,6 +801,7 @@ export interface FileRouteTypes {
     | '/my-files'
     | '/my-reports'
     | '/parent'
+    | '/payment-result'
     | '/planning'
     | '/privacy-policy'
     | '/referral'
@@ -865,6 +876,7 @@ export interface FileRouteTypes {
     | '/my-files/'
     | '/my-reports/'
     | '/parent/'
+    | '/payment-result/'
     | '/planning/'
     | '/privacy-policy/'
     | '/referral/'
@@ -940,6 +952,7 @@ export interface RootRouteChildren {
   MyFilesIndexRoute: typeof MyFilesIndexRoute
   MyReportsIndexRoute: typeof MyReportsIndexRoute
   ParentIndexRoute: typeof ParentIndexRoute
+  PaymentResultIndexRoute: typeof PaymentResultIndexRoute
   PlanningIndexRoute: typeof PlanningIndexRoute
   PrivacyPolicyIndexRoute: typeof PrivacyPolicyIndexRoute
   ReferralIndexRoute: typeof ReferralIndexRoute
@@ -1057,6 +1070,13 @@ declare module '@tanstack/react-router' {
       path: '/planning'
       fullPath: '/planning'
       preLoaderRoute: typeof PlanningIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/payment-result/': {
+      id: '/payment-result/'
+      path: '/payment-result'
+      fullPath: '/payment-result'
+      preLoaderRoute: typeof PaymentResultIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/parent/': {
@@ -1535,6 +1555,7 @@ const rootRouteChildren: RootRouteChildren = {
   MyFilesIndexRoute: MyFilesIndexRoute,
   MyReportsIndexRoute: MyReportsIndexRoute,
   ParentIndexRoute: ParentIndexRoute,
+  PaymentResultIndexRoute: PaymentResultIndexRoute,
   PlanningIndexRoute: PlanningIndexRoute,
   PrivacyPolicyIndexRoute: PrivacyPolicyIndexRoute,
   ReferralIndexRoute: ReferralIndexRoute,
