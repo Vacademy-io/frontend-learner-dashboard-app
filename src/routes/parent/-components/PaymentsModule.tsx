@@ -4,13 +4,18 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import type { ChildProfile, PaymentFeeItem, PaymentTransaction } from "@/types/parent-portal";
+import type {
+  ChildProfile,
+  PaymentFeeItem,
+  PaymentTransaction,
+} from "@/types/parent-portal";
 import {
   usePaymentSummary,
   usePaymentHistory,
   useInitiatePayment,
 } from "@/hooks/use-parent-portal";
 import { downloadReceipt } from "@/services/parent-portal/parent-api";
+import { AdmissionPaymentSection } from "./AdmissionPaymentSection";
 import {
   Card,
   CardContent,
@@ -40,10 +45,10 @@ interface PaymentsModuleProps {
 
 export function PaymentsModule({ child }: PaymentsModuleProps) {
   const { data: summary, isLoading: loadingSummary } = usePaymentSummary(
-    child.id
+    child.id,
   );
   const { data: history, isLoading: loadingHistory } = usePaymentHistory(
-    child.id
+    child.id,
   );
   const paymentMutation = useInitiatePayment();
   const [selectedFees, setSelectedFees] = useState<string[]>([]);
@@ -62,7 +67,7 @@ export function PaymentsModule({ child }: PaymentsModuleProps) {
     setSelectedFees((prev) =>
       prev.includes(feeId)
         ? prev.filter((id) => id !== feeId)
-        : [...prev, feeId]
+        : [...prev, feeId],
     );
   };
 
@@ -87,7 +92,7 @@ export function PaymentsModule({ child }: PaymentsModuleProps) {
             toast.success("Payment initiated. Redirecting...");
           }
         },
-      }
+      },
     );
   };
 
@@ -135,6 +140,9 @@ export function PaymentsModule({ child }: PaymentsModuleProps) {
         </p>
       </div>
 
+      {/* ── Admission Payment Flow ─────────────────────────────── */}
+      <AdmissionPaymentSection child={child} />
+
       {/* ── Summary Cards ─────────────────────────────────────── */}
       {summary && (
         <motion.div
@@ -176,7 +184,9 @@ export function PaymentsModule({ child }: PaymentsModuleProps) {
         >
           <Card className="shadow-sm">
             <CardHeader className="pb-3">
-              <CardTitle className="text-base">Outstanding Payment Items</CardTitle>
+              <CardTitle className="text-base">
+                Outstanding Payment Items
+              </CardTitle>
               <CardDescription className="text-xs">
                 Select items to proceed with payment
               </CardDescription>
@@ -244,10 +254,7 @@ export function PaymentsModule({ child }: PaymentsModuleProps) {
               className="w-full flex items-center justify-between"
             >
               <div className="flex items-center gap-2">
-                <Receipt
-                  size={18}
-                  className="text-muted-foreground"
-                />
+                <Receipt size={18} className="text-muted-foreground" />
                 <CardTitle className="text-base">Payment History</CardTitle>
               </div>
               {showHistory ? (
@@ -348,14 +355,20 @@ function FeeItemRow({
   const isOverdue = item.status === "OVERDUE";
 
   const categoryColors: Record<string, string> = {
-    REGISTRATION: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300",
-    ADMISSION: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300",
-    TUITION: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300",
-    HOSTEL: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300",
+    REGISTRATION:
+      "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300",
+    ADMISSION:
+      "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300",
+    TUITION:
+      "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300",
+    HOSTEL:
+      "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300",
     MESS: "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300",
     LIBRARY: "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300",
-    TRANSPORT: "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300",
-    ADDITIONAL: "bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-300",
+    TRANSPORT:
+      "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300",
+    ADDITIONAL:
+      "bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-300",
   };
 
   return (
@@ -380,10 +393,7 @@ function FeeItemRow({
         />
       )}
       {isPaid && (
-        <CheckCircle
-          size={16}
-          className="text-emerald-500 shrink-0"
-        />
+        <CheckCircle size={16} className="text-emerald-500 shrink-0" />
       )}
 
       {/* Details */}
@@ -401,7 +411,9 @@ function FeeItemRow({
         {item.due_date && !isPaid && (
           <p
             className={`text-[11px] ${
-              isOverdue ? "text-destructive font-medium" : "text-muted-foreground"
+              isOverdue
+                ? "text-destructive font-medium"
+                : "text-muted-foreground"
             }`}
           >
             {isOverdue ? "⚠ Overdue — " : "Due "}
@@ -466,9 +478,7 @@ function TransactionRow({
 
   return (
     <div className="flex items-center gap-3 p-3 rounded-lg border border-border/50 hover:bg-muted/20 transition-colors">
-      <div
-        className={`p-1.5 rounded-lg ${style.bg} shrink-0`}
-      >
+      <div className={`p-1.5 rounded-lg ${style.bg} shrink-0`}>
         {transaction.status === "SUCCESS" ? (
           <CheckCircle size={16} className={style.text} />
         ) : transaction.status === "FAILED" ? (

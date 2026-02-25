@@ -6,20 +6,14 @@ import { Preferences } from "@capacitor/preferences";
 import { getTokenFromStorage } from "@/lib/auth/sessionUtility";
 import { TokenKey } from "@/constants/auth/tokens";
 import type {
-  ChildProfileListResponse,
   ChildProfile,
   RegistrationFormData,
   RegistrationSavePayload,
-  InterviewSchedule,
-  AssessmentSchedule,
   PaymentSummary,
   PaymentHistoryResponse,
   InitiatePaymentPayload,
   InitiatePaymentResponse,
-  DocumentListResponse,
-  DocumentUploadPayload,
   AdmissionOverview,
-  ParentNotification,
   AdmissionTimelineEvent,
   UserRole,
 } from "@/types/parent-portal";
@@ -42,22 +36,9 @@ async function getHeaders(): Promise<Record<string, string>> {
   };
 }
 
-async function getMultipartHeaders(): Promise<Record<string, string>> {
-  const token = await getTokenFromStorage(TokenKey.accessToken);
-  const instituteDetails = await Preferences.get({ key: "InstituteDetails" });
-  const instituteId = instituteDetails.value
-    ? JSON.parse(instituteDetails.value)?.id
-    : "";
-
-  return {
-    Authorization: `Bearer ${token}`,
-    "x-institute-id": instituteId,
-  };
-}
-
 async function apiRequest<T>(
   endpoint: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
 ): Promise<T> {
   const headers = await getHeaders();
   const response = await fetch(`${BASE_URL}${endpoint}`, {
@@ -68,7 +49,7 @@ async function apiRequest<T>(
   if (!response.ok) {
     const errorBody = await response.text().catch(() => "Unknown error");
     throw new Error(
-      `API Error ${response.status}: ${response.statusText} — ${errorBody}`
+      `API Error ${response.status}: ${response.statusText} — ${errorBody}`,
     );
   }
 
@@ -121,12 +102,7 @@ export async function detectUserRole(): Promise<UserRole> {
   }
 }
 
-// ── Child Profiles ─────────────────────────────────────────────
-
-/** Fetch all children linked to the authenticated parent. */
-export async function getChildProfiles(): Promise<ChildProfileListResponse> {
-  return apiRequest<ChildProfileListResponse>("/parent-portal/children");
-}
+// ── Child Profile ──────────────────────────────────────────────
 
 /** Fetch single child profile by ID. */
 export async function getChildProfile(childId: string): Promise<ChildProfile> {
@@ -137,19 +113,19 @@ export async function getChildProfile(childId: string): Promise<ChildProfile> {
 
 /** Fetch full admission overview for a child. */
 export async function getAdmissionOverview(
-  childId: string
+  childId: string,
 ): Promise<AdmissionOverview> {
   return apiRequest<AdmissionOverview>(
-    `/parent-portal/children/${childId}/admission-overview`
+    `/parent-portal/children/${childId}/admission-overview`,
   );
 }
 
 /** Fetch admission timeline events for a child. */
 export async function getAdmissionTimeline(
-  childId: string
+  childId: string,
 ): Promise<AdmissionTimelineEvent[]> {
   return apiRequest<AdmissionTimelineEvent[]>(
-    `/parent-portal/children/${childId}/timeline`
+    `/parent-portal/children/${childId}/timeline`,
   );
 }
 
@@ -157,16 +133,16 @@ export async function getAdmissionTimeline(
 
 /** Get registration form structure and current data for a child. */
 export async function getRegistrationForm(
-  childId: string
+  childId: string,
 ): Promise<RegistrationFormData> {
   return apiRequest<RegistrationFormData>(
-    `/parent-portal/children/${childId}/registration`
+    `/parent-portal/children/${childId}/registration`,
   );
 }
 
 /** Save (draft or submit) a registration form section. */
 export async function saveRegistrationSection(
-  payload: RegistrationSavePayload
+  payload: RegistrationSavePayload,
 ): Promise<RegistrationFormData> {
   return apiRequest<RegistrationFormData>(
     `/parent-portal/registration/${payload.registration_id}/sections/${payload.section_id}`,
@@ -176,56 +152,48 @@ export async function saveRegistrationSection(
         fields: payload.fields,
         is_draft: payload.is_draft,
       }),
-    }
+    },
   );
 }
 
 /** Submit completed registration form. */
 export async function submitRegistration(
-  registrationId: string
+  registrationId: string,
 ): Promise<RegistrationFormData> {
   return apiRequest<RegistrationFormData>(
     `/parent-portal/registration/${registrationId}/submit`,
-    { method: "POST" }
+    { method: "POST" },
   );
 }
 
-// ── Interview & Assessment ─────────────────────────────────────
+// ── Application Stages ─────────────────────────────────────────
 
-/** Fetch interview schedule for a child. */
-export async function getInterviewSchedule(
-  childId: string
-): Promise<InterviewSchedule | null> {
-  try {
-    return await apiRequest<InterviewSchedule>(
-      `/parent-portal/children/${childId}/interview`
-    );
-  } catch {
-    return null;
-  }
+/** Fetch admission stages for a child. */
+export async function getAdmissionStages(
+  childId: string,
+): Promise<AdmissionOverview> {
+  return apiRequest<AdmissionOverview>(
+    `/parent-portal/children/${childId}/admission-stages`,
+  );
 }
 
-/** Fetch assessment schedule for a child. */
-export async function getAssessmentSchedule(
-  childId: string
-): Promise<AssessmentSchedule | null> {
-  try {
-    return await apiRequest<AssessmentSchedule>(
-      `/parent-portal/children/${childId}/assessment`
-    );
-  } catch {
-    return null;
-  }
+/** Fetch applicant stages for a child. */
+export async function getApplicantStages(
+  childId: string,
+): Promise<AdmissionTimelineEvent[]> {
+  return apiRequest<AdmissionTimelineEvent[]>(
+    `/parent-portal/children/${childId}/applicant-stages`,
+  );
 }
 
 // ── Payments ───────────────────────────────────────────────────
 
 /** Get fee breakdown and payment summary for a child. */
 export async function getPaymentSummary(
-  childId: string
+  childId: string,
 ): Promise<PaymentSummary> {
   return apiRequest<PaymentSummary>(
-    `/parent-portal/children/${childId}/payments/summary`
+    `/parent-portal/children/${childId}/payments/summary`,
   );
 }
 
@@ -233,30 +201,30 @@ export async function getPaymentSummary(
 export async function getPaymentHistory(
   childId: string,
   page: number = 0,
-  pageSize: number = 20
+  pageSize: number = 20,
 ): Promise<PaymentHistoryResponse> {
   return apiRequest<PaymentHistoryResponse>(
-    `/parent-portal/children/${childId}/payments/history?page=${page}&size=${pageSize}`
+    `/parent-portal/children/${childId}/payments/history?page=${page}&size=${pageSize}`,
   );
 }
 
 /** Initiate a payment for selected fee items. */
 export async function initiatePayment(
-  payload: InitiatePaymentPayload
+  payload: InitiatePaymentPayload,
 ): Promise<InitiatePaymentResponse> {
   return apiRequest<InitiatePaymentResponse>(
     `/parent-portal/payments/initiate`,
     {
       method: "POST",
       body: JSON.stringify(payload),
-    }
+    },
   );
 }
 
 /** Verify payment completion callback. */
 export async function verifyPayment(
   paymentSessionId: string,
-  gatewayPaymentId: string
+  gatewayPaymentId: string,
 ): Promise<{ status: string; message: string }> {
   return apiRequest(`/parent-portal/payments/verify`, {
     method: "POST",
@@ -272,83 +240,8 @@ export async function downloadReceipt(transactionId: string): Promise<Blob> {
   const headers = await getHeaders();
   const response = await fetch(
     `${BASE_URL}/parent-portal/payments/receipt/${transactionId}`,
-    { headers }
+    { headers },
   );
   if (!response.ok) throw new Error("Failed to download receipt");
   return response.blob();
-}
-
-// ── Documents ──────────────────────────────────────────────────
-
-/** Get list of required and uploaded documents for a child. */
-export async function getDocuments(
-  childId: string
-): Promise<DocumentListResponse> {
-  return apiRequest<DocumentListResponse>(
-    `/parent-portal/children/${childId}/documents`
-  );
-}
-
-/** Upload a document for a specific requirement. */
-export async function uploadDocument(
-  payload: DocumentUploadPayload
-): Promise<DocumentListResponse> {
-  const headers = await getMultipartHeaders();
-  const formData = new FormData();
-  formData.append("file", payload.file);
-  formData.append("requirement_id", payload.requirement_id);
-
-  const response = await fetch(
-    `${BASE_URL}/parent-portal/children/${payload.child_id}/documents/upload`,
-    {
-      method: "POST",
-      headers,
-      body: formData,
-    }
-  );
-
-  if (!response.ok) {
-    throw new Error(`Upload failed: ${response.statusText}`);
-  }
-
-  return response.json();
-}
-
-/** Delete an uploaded document. */
-export async function deleteDocument(
-  childId: string,
-  requirementId: string
-): Promise<void> {
-  await apiRequest<void>(
-    `/parent-portal/children/${childId}/documents/${requirementId}`,
-    { method: "DELETE" }
-  );
-}
-
-// ── Notifications ──────────────────────────────────────────────
-
-/** Get parent notifications. */
-export async function getParentNotifications(
-  page: number = 0,
-  pageSize: number = 20
-): Promise<{ notifications: ParentNotification[]; total_count: number }> {
-  return apiRequest(
-    `/parent-portal/notifications?page=${page}&size=${pageSize}`
-  );
-}
-
-/** Mark a notification as read. */
-export async function markNotificationRead(
-  notificationId: string
-): Promise<void> {
-  await apiRequest(`/parent-portal/notifications/${notificationId}/read`, {
-    method: "PUT",
-  });
-}
-
-/** Mark all notifications as read. */
-export async function markAllNotificationsRead(): Promise<void> {
-  await apiRequest(`/parent-portal/notifications/read-all`, {
-    method: "PUT",
-  });
 }

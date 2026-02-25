@@ -48,17 +48,21 @@ export interface ChildProfile {
   student_id: string;
   parent_id: string;
   full_name: string;
+  email?: string;
   date_of_birth?: string;
   gender?: string;
   avatar_file_id?: string;
   grade_applying?: string;
   academic_year?: string;
   admission_status: AdmissionStatus;
+  applicant_id?: string;
   inquiry_id?: string;
   registration_id?: string;
   institute_id: string;
   institute_name?: string;
   batch_name?: string;
+  /** Package-session the applicant is targeting — used to prefill & lock the form */
+  destinationPackageSessionId?: string;
   created_at: string;
   updated_at: string;
 }

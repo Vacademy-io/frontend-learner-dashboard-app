@@ -5,11 +5,7 @@
 import { useRef, useState } from "react";
 import { motion } from "framer-motion";
 import type { ChildProfile, DocumentRequirement } from "@/types/parent-portal";
-import { useDocuments, useUploadDocument, useDeleteDocument } from "@/hooks/use-parent-portal";
-import {
-  Card,
-  CardContent,
-} from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -35,10 +31,10 @@ interface DocumentsModuleProps {
 }
 
 export function DocumentsModule({ child }: DocumentsModuleProps) {
-  const { data: docData, isLoading } = useDocuments(child.id);
-  const uploadMutation = useUploadDocument();
-  const deleteMutation = useDeleteDocument();
-  const [uploadingId, setUploadingId] = useState<string | null>(null);
+  // Placeholder data - Document upload API endpoints not implemented yet
+  const docData = null;
+  const isLoading = false;
+  const uploadingId = null;
 
   const progress = docData
     ? {
@@ -47,19 +43,14 @@ export function DocumentsModule({ child }: DocumentsModuleProps) {
         rejected: docData.total_rejected,
         total: docData.total_required,
         percent: Math.round(
-          (docData.total_approved / Math.max(docData.total_required, 1)) * 100
+          (docData.total_approved / Math.max(docData.total_required, 1)) * 100,
         ),
       }
     : null;
 
-  const handleFileSelect = async (
-    requirementId: string,
-    file: File
-  ) => {
+  const handleFileSelect = async (requirementId: string, file: File) => {
     // Validate file size (max size from requirement)
-    const requirement = docData?.documents.find(
-      (d) => d.id === requirementId
-    );
+    const requirement = docData?.documents.find((d) => d.id === requirementId);
     if (requirement && file.size > requirement.max_size_mb * 1024 * 1024) {
       toast.error(`File exceeds ${requirement.max_size_mb}MB limit`);
       return;
@@ -74,7 +65,7 @@ export function DocumentsModule({ child }: DocumentsModuleProps) {
       },
       {
         onSettled: () => setUploadingId(null),
-      }
+      },
     );
   };
 
@@ -128,10 +119,7 @@ export function DocumentsModule({ child }: DocumentsModuleProps) {
             <CardContent className="p-4">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
-                  <ShieldCheck
-                    size={18}
-                    className="text-primary"
-                  />
+                  <ShieldCheck size={18} className="text-primary" />
                   <p className="text-sm font-semibold text-foreground">
                     Submission Progress: {progress.percent}%
                   </p>
@@ -262,9 +250,7 @@ function DocumentCard({
       <CardContent className="p-4">
         <div className="flex items-start gap-3">
           {/* Icon */}
-          <div
-            className={`p-2 rounded-lg shrink-0 ${statusConfig.iconBg}`}
-          >
+          <div className={`p-2 rounded-lg shrink-0 ${statusConfig.iconBg}`}>
             {statusConfig.icon}
           </div>
 
@@ -348,9 +334,7 @@ function DocumentCard({
                   ref={fileInputRef}
                   type="file"
                   className="hidden"
-                  accept={doc.allowed_formats
-                    .map((f) => `.${f}`)
-                    .join(",")}
+                  accept={doc.allowed_formats.map((f) => `.${f}`).join(",")}
                   onChange={(e) => {
                     const file = e.target.files?.[0];
                     if (file) onFileSelect(file);
@@ -431,12 +415,7 @@ function getDocStatusConfig(status: string) {
     },
     UPLOADED: {
       label: "Uploaded",
-      icon: (
-        <FileText
-          size={18}
-          className="text-blue-600 dark:text-blue-400"
-        />
-      ),
+      icon: <FileText size={18} className="text-blue-600 dark:text-blue-400" />,
       iconBg: "bg-blue-100 dark:bg-blue-900/30",
       badgeBg: "bg-blue-100 dark:bg-blue-900/30",
       badgeText: "text-blue-700 dark:text-blue-300",
@@ -444,12 +423,7 @@ function getDocStatusConfig(status: string) {
     },
     UNDER_REVIEW: {
       label: "Under Review",
-      icon: (
-        <Clock
-          size={18}
-          className="text-amber-600 dark:text-amber-400"
-        />
-      ),
+      icon: <Clock size={18} className="text-amber-600 dark:text-amber-400" />,
       iconBg: "bg-amber-100 dark:bg-amber-900/30",
       badgeBg: "bg-amber-100 dark:bg-amber-900/30",
       badgeText: "text-amber-700 dark:text-amber-300",
@@ -470,12 +444,7 @@ function getDocStatusConfig(status: string) {
     },
     REJECTED: {
       label: "Rejected",
-      icon: (
-        <XCircle
-          size={18}
-          className="text-red-600 dark:text-red-400"
-        />
-      ),
+      icon: <XCircle size={18} className="text-red-600 dark:text-red-400" />,
       iconBg: "bg-red-100 dark:bg-red-900/30",
       badgeBg: "bg-red-100 dark:bg-red-900/30",
       badgeText: "text-red-700 dark:text-red-300",
@@ -483,8 +452,5 @@ function getDocStatusConfig(status: string) {
     },
   };
 
-  return (
-    map[status] ||
-    map["NOT_UPLOADED"]!
-  );
+  return map[status] || map["NOT_UPLOADED"]!;
 }

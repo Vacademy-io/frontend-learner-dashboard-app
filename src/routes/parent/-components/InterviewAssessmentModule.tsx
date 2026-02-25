@@ -5,10 +5,6 @@
 import { motion } from "framer-motion";
 import type { ChildProfile } from "@/types/parent-portal";
 import {
-  useInterviewSchedule,
-  useAssessmentSchedule,
-} from "@/hooks/use-parent-portal";
-import {
   Card,
   CardContent,
   CardHeader,
@@ -37,12 +33,10 @@ interface InterviewAssessmentModuleProps {
 export function InterviewAssessmentModule({
   child,
 }: InterviewAssessmentModuleProps) {
-  const { data: interview, isLoading: loadingInterview } =
-    useInterviewSchedule(child.id);
-  const { data: assessment, isLoading: loadingAssessment } =
-    useAssessmentSchedule(child.id);
-
-  const isLoading = loadingInterview || loadingAssessment;
+  // Placeholder data - API endpoints for interview/assessment not implemented yet
+  const interview = null;
+  const assessment = null;
+  const isLoading = false;
 
   if (isLoading) {
     return (
@@ -89,7 +83,8 @@ export function InterviewAssessmentModule({
                 No sessions scheduled yet
               </p>
               <p className="text-xs text-muted-foreground/60 mt-1">
-                Details will appear here once the admissions team schedules an interview or assessment.
+                Details will appear here once the admissions team schedules an
+                interview or assessment.
               </p>
             </CardContent>
           </Card>
@@ -219,9 +214,7 @@ function ScheduleCard({
       ? "bg-violet-50 dark:bg-violet-950/20"
       : "bg-blue-50 dark:bg-blue-950/20";
   const accentBorder =
-    accentColor === "violet"
-      ? "border-l-violet-500"
-      : "border-l-blue-500";
+    accentColor === "violet" ? "border-l-violet-500" : "border-l-blue-500";
 
   return (
     <Card

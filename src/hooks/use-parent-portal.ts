@@ -4,70 +4,48 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import authenticatedAxiosInstance from "@/lib/auth/axiosInstance";
 import {
-  getChildProfiles,
   getChildProfile,
-  getAdmissionOverview,
-  getAdmissionTimeline,
   getRegistrationForm,
   saveRegistrationSection,
   submitRegistration,
-  getInterviewSchedule,
-  getAssessmentSchedule,
   getPaymentSummary,
   getPaymentHistory,
   initiatePayment,
   verifyPayment,
-  getDocuments,
-  uploadDocument,
-  deleteDocument,
-  getParentNotifications,
-  markNotificationRead as markNotifReadApi,
-  markAllNotificationsRead as markAllReadApi,
+  downloadReceipt,
 } from "@/services/parent-portal/parent-api";
 import type {
   RegistrationSavePayload,
   InitiatePaymentPayload,
-  DocumentUploadPayload,
 } from "@/types/parent-portal";
+import {
+  GET_PARENT_DATA,
+  SEARCH_ENQUIRY,
+  SUBMIT_APPLICATION,
+  GET_APPLICATION_STAGES,
+  GET_APPLICANT_STAGES,
+} from "@/constants/urls";
 
 // ── Query Keys ─────────────────────────────────────────────────
 
 export const parentQueryKeys = {
   all: ["parent-portal"] as const,
-  children: () => [...parentQueryKeys.all, "children"] as const,
-  child: (id: string) => [...parentQueryKeys.children(), id] as const,
-  admissionOverview: (childId: string) =>
-    [...parentQueryKeys.child(childId), "admission-overview"] as const,
-  timeline: (childId: string) =>
-    [...parentQueryKeys.child(childId), "timeline"] as const,
+  child: (id: string) => [...parentQueryKeys.all, "child", id] as const,
+  admissionStages: (childId: string) =>
+    [...parentQueryKeys.child(childId), "admission-stages"] as const,
+  applicantStages: (childId: string) =>
+    [...parentQueryKeys.child(childId), "applicant-stages"] as const,
   registration: (childId: string) =>
     [...parentQueryKeys.child(childId), "registration"] as const,
-  interview: (childId: string) =>
-    [...parentQueryKeys.child(childId), "interview"] as const,
-  assessment: (childId: string) =>
-    [...parentQueryKeys.child(childId), "assessment"] as const,
   paymentSummary: (childId: string) =>
     [...parentQueryKeys.child(childId), "payment-summary"] as const,
   paymentHistory: (childId: string, page: number) =>
     [...parentQueryKeys.child(childId), "payment-history", page] as const,
-  documents: (childId: string) =>
-    [...parentQueryKeys.child(childId), "documents"] as const,
-  notifications: (page: number) =>
-    [...parentQueryKeys.all, "notifications", page] as const,
 };
 
-// ── Children Hooks ─────────────────────────────────────────────
-
-/** Fetch all children linked to the parent account. */
-export function useChildProfiles() {
-  return useQuery({
-    queryKey: parentQueryKeys.children(),
-    queryFn: getChildProfiles,
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    retry: 2,
-  });
-}
+// ── Child Profile Hook ────────────────────────────────────────
 
 /** Fetch single child profile. */
 export function useChildProfile(childId: string | undefined) {
@@ -79,24 +57,44 @@ export function useChildProfile(childId: string | undefined) {
   });
 }
 
-// ── Admission Hooks ────────────────────────────────────────────
+// ── Application Stages Hooks ───────────────────────────────────
 
-/** Fetch full admission overview for a child. */
-export function useAdmissionOverview(childId: string | undefined) {
+/** Fetch admission stages for a child by institute ID. */
+export function useAdmissionStages(instituteId: string | undefined) {
   return useQuery({
-    queryKey: parentQueryKeys.admissionOverview(childId ?? ""),
-    queryFn: () => getAdmissionOverview(childId!),
-    enabled: !!childId,
-    staleTime: 2 * 60 * 1000,
+    queryKey: ["parent-portal", "admission-stages", instituteId],
+    queryFn: async () => {
+      if (!instituteId) return [];
+
+      const response = await authenticatedAxiosInstance.get(
+        GET_APPLICATION_STAGES,
+        {
+          params: {
+            instituteId,
+          },
+        },
+      );
+
+      return response.data;
+    },
+    enabled: !!instituteId,
+    staleTime: 5 * 60 * 1000,
   });
 }
 
-/** Fetch admission timeline events. */
-export function useAdmissionTimeline(childId: string | undefined) {
+/** Fetch applicant stages for a child by applicant ID. */
+export function useApplicantStages(applicantId: string | undefined) {
   return useQuery({
-    queryKey: parentQueryKeys.timeline(childId ?? ""),
-    queryFn: () => getAdmissionTimeline(childId!),
-    enabled: !!childId,
+    queryKey: ["parent-portal", "applicant-stages", applicantId],
+    queryFn: async () => {
+      if (!applicantId) return [];
+
+      const response = await authenticatedAxiosInstance.get(
+        GET_APPLICANT_STAGES(applicantId),
+      );
+      return response.data;
+    },
+    enabled: !!applicantId,
     staleTime: 2 * 60 * 1000,
   });
 }
@@ -153,26 +151,6 @@ export function useSubmitRegistration() {
   });
 }
 
-// ── Interview & Assessment Hooks ───────────────────────────────
-
-export function useInterviewSchedule(childId: string | undefined) {
-  return useQuery({
-    queryKey: parentQueryKeys.interview(childId ?? ""),
-    queryFn: () => getInterviewSchedule(childId!),
-    enabled: !!childId,
-    staleTime: 5 * 60 * 1000,
-  });
-}
-
-export function useAssessmentSchedule(childId: string | undefined) {
-  return useQuery({
-    queryKey: parentQueryKeys.assessment(childId ?? ""),
-    queryFn: () => getAssessmentSchedule(childId!),
-    enabled: !!childId,
-    staleTime: 5 * 60 * 1000,
-  });
-}
-
 // ── Payment Hooks ──────────────────────────────────────────────
 
 export function usePaymentSummary(childId: string | undefined) {
@@ -186,7 +164,7 @@ export function usePaymentSummary(childId: string | undefined) {
 
 export function usePaymentHistory(
   childId: string | undefined,
-  page: number = 0
+  page: number = 0,
 ) {
   return useQuery({
     queryKey: parentQueryKeys.paymentHistory(childId ?? "", page),
@@ -231,86 +209,144 @@ export function useVerifyPayment() {
   });
 }
 
-// ── Document Hooks ─────────────────────────────────────────────
+export function useDownloadReceipt() {
+  return useMutation({
+    mutationFn: (transactionId: string) => downloadReceipt(transactionId),
+    onSuccess: () => {
+      toast.success("Receipt downloaded successfully");
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "Failed to download receipt");
+    },
+  });
+}
 
-export function useDocuments(childId: string | undefined) {
+// ── Application Form Hooks ────────────────────────────────────
+
+/** Query for searching applicant by tracking ID */
+export function useSearchApplicant(
+  instituteId: string | undefined,
+  trackingId: string | undefined,
+  searching: boolean = false,
+) {
   return useQuery({
-    queryKey: parentQueryKeys.documents(childId ?? ""),
-    queryFn: () => getDocuments(childId!),
-    enabled: !!childId,
+    queryKey: ["parent-portal", "search-applicant", instituteId, trackingId],
+    queryFn: async () => {
+      if (!instituteId || !trackingId) return null;
+
+      const response = await authenticatedAxiosInstance({
+        method: "GET",
+        url: SEARCH_ENQUIRY,
+        params: {
+          enquiryTrackingId: trackingId,
+        },
+      });
+
+      console.log("search:", response.data);
+
+      return response.data;
+    },
+    enabled: !!instituteId && !!trackingId && searching,
     staleTime: 2 * 60 * 1000,
   });
 }
 
-export function useUploadDocument() {
+/** Mutation for submitting an application */
+export function useSubmitApplication() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (payload: DocumentUploadPayload) => uploadDocument(payload),
+    mutationFn: async (payload: Record<string, unknown>) => {
+      const response = await authenticatedAxiosInstance.post(
+        SUBMIT_APPLICATION,
+        payload,
+      );
+
+      return response.data;
+    },
     onSuccess: () => {
-      toast.success("Document uploaded successfully");
-      queryClient.invalidateQueries({ queryKey: parentQueryKeys.all });
+      toast.success("Application submitted successfully!");
+      queryClient.invalidateQueries({
+        queryKey: ["parent-portal", "search-applicant"],
+      });
     },
     onError: (error: Error) => {
-      toast.error(error.message || "Failed to upload document");
+      toast.error(error.message || "Failed to submit application");
     },
   });
 }
 
-export function useDeleteDocument() {
-  const queryClient = useQueryClient();
+// ── Parent Data Hook ──────────────────────────────────────────
 
-  return useMutation({
-    mutationFn: ({
-      childId,
-      requirementId,
-    }: {
-      childId: string;
-      requirementId: string;
-    }) => deleteDocument(childId, requirementId),
-    onSuccess: () => {
-      toast.success("Document removed");
-      queryClient.invalidateQueries({ queryKey: parentQueryKeys.all });
-    },
-    onError: (error: Error) => {
-      toast.error(error.message || "Failed to remove document");
-    },
-  });
+export interface ParentPortalResponse {
+  parentInfo: {
+    id: string;
+    username: string;
+    email: string;
+    full_name: string;
+    address_line: string;
+    city: string;
+    region: string;
+    pin_code: string;
+    mobile_number: string;
+    date_of_birth: string;
+    gender: string;
+    is_parent: boolean;
+    root_user: boolean;
+  };
+  children: Array<{
+    childInfo: {
+      id: string;
+      username: string;
+      email: string;
+      full_name: string;
+      date_of_birth: string;
+      gender: string;
+      is_parent: boolean;
+    };
+    applications: Array<{
+      id: string;
+      userId: string;
+      studentUserId: string;
+      sourceType: string;
+      sourceId: string;
+      enquiryId: string;
+      parentName: string;
+      parentEmail: string;
+      parentMobile: string;
+      submittedAt: string;
+      applicantId: string;
+      conversionStatus: string;
+      overallStatus: string;
+      destinationPackageSessionId?: string;
+    }>;
+    enrollments: Array<{
+      id: string;
+      userId: string;
+      email: string;
+      fullName: string;
+      applyingForClass: string;
+      academicYear: string;
+    }>;
+  }>;
 }
 
-// ── Notification Hooks ─────────────────────────────────────────
-
-export function useParentNotifications(page: number = 0) {
+/** Fetch parent's children, applications, and enrollments data */
+export function useParentData(parentUserId: string | undefined) {
   return useQuery({
-    queryKey: parentQueryKeys.notifications(page),
-    queryFn: () => getParentNotifications(page),
-    staleTime: 1 * 60 * 1000,
-  });
-}
+    queryKey: ["parent-portal", "parent-data", parentUserId],
+    queryFn: async () => {
+      if (!parentUserId) {
+        throw new Error("Parent user ID is required");
+      }
 
-export function useMarkNotificationRead() {
-  const queryClient = useQueryClient();
+      const response = await authenticatedAxiosInstance.get(
+        `${GET_PARENT_DATA}/${parentUserId}`,
+      );
 
-  return useMutation({
-    mutationFn: (notificationId: string) => markNotifReadApi(notificationId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: [...parentQueryKeys.all, "notifications"],
-      });
+      return response.data as ParentPortalResponse;
     },
-  });
-}
-
-export function useMarkAllNotificationsRead() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: () => markAllReadApi(),
-    onSuccess: () => {
-      toast.success("All notifications marked as read");
-      queryClient.invalidateQueries({
-        queryKey: [...parentQueryKeys.all, "notifications"],
-      });
-    },
+    enabled: !!parentUserId,
+    staleTime: 5 * 60 * 1000,
   });
 }

@@ -18,7 +18,7 @@ import { Route as RegisterIndexRouteImport } from './routes/register/index'
 import { Route as ReferralIndexRouteImport } from './routes/referral/index'
 import { Route as PrivacyPolicyIndexRouteImport } from './routes/privacy-policy/index'
 import { Route as PlanningIndexRouteImport } from './routes/planning/index'
-import { Route as ParentPortalIndexRouteImport } from './routes/parent-portal/index'
+import { Route as ParentIndexRouteImport } from './routes/parent/index'
 import { Route as MyReportsIndexRouteImport } from './routes/my-reports/index'
 import { Route as MyFilesIndexRouteImport } from './routes/my-files/index'
 import { Route as LogoutIndexRouteImport } from './routes/logout/index'
@@ -36,12 +36,20 @@ import { Route as AudienceResponseIndexRouteImport } from './routes/audience-res
 import { Route as AssessmentIndexRouteImport } from './routes/assessment/index'
 import { Route as AiSettingsIndexRouteImport } from './routes/ai-settings/index'
 import { Route as TagNameIndexRouteImport } from './routes/$tagName/index'
+import { Route as ParentDocumentsRouteImport } from './routes/parent/documents'
 import { Route as UserProfileEditIndexRouteImport } from './routes/user-profile/edit/index'
 import { Route as StudyLibraryLiveClassIndexRouteImport } from './routes/study-library/live-class/index'
 import { Route as StudyLibraryCoursesIndexRouteImport } from './routes/study-library/courses/index'
 import { Route as RegisterLiveClassIndexRouteImport } from './routes/register/live-class/index'
 import { Route as PlanningPlanningLogsIndexRouteImport } from './routes/planning/planning-logs/index'
 import { Route as PlanningActivityLogsIndexRouteImport } from './routes/planning/activity-logs/index'
+import { Route as ParentTrackerIndexRouteImport } from './routes/parent/tracker/index'
+import { Route as ParentScheduleIndexRouteImport } from './routes/parent/schedule/index'
+import { Route as ParentPaymentIndexRouteImport } from './routes/parent/payment/index'
+import { Route as ParentDocumentsIndexRouteImport } from './routes/parent/documents/index'
+import { Route as ParentDashboardIndexRouteImport } from './routes/parent/dashboard/index'
+import { Route as ParentApplicationIndexRouteImport } from './routes/parent/application/index'
+import { Route as ParentAdmissionIndexRouteImport } from './routes/parent/admission/index'
 import { Route as MyReportsProcessIdIndexRouteImport } from './routes/my-reports/$processId/index'
 import { Route as MyFilesFolderNameIndexRouteImport } from './routes/my-files/$folderName/index'
 import { Route as LoginForgotPasswordIndexRouteImport } from './routes/login/forgot-password/index'
@@ -119,9 +127,9 @@ const PlanningIndexRoute = PlanningIndexRouteImport.update({
   path: '/planning/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ParentPortalIndexRoute = ParentPortalIndexRouteImport.update({
-  id: '/parent-portal/',
-  path: '/parent-portal/',
+const ParentIndexRoute = ParentIndexRouteImport.update({
+  id: '/parent/',
+  path: '/parent/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const MyReportsIndexRoute = MyReportsIndexRouteImport.update({
@@ -210,6 +218,11 @@ const TagNameIndexRoute = TagNameIndexRouteImport.update({
   path: '/$tagName/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ParentDocumentsRoute = ParentDocumentsRouteImport.update({
+  id: '/parent/documents',
+  path: '/parent/documents',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const UserProfileEditIndexRoute = UserProfileEditIndexRouteImport.update({
   id: '/user-profile/edit/',
   path: '/user-profile/edit/',
@@ -244,6 +257,41 @@ const PlanningActivityLogsIndexRoute =
     path: '/planning/activity-logs/',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ParentTrackerIndexRoute = ParentTrackerIndexRouteImport.update({
+  id: '/parent/tracker/',
+  path: '/parent/tracker/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ParentScheduleIndexRoute = ParentScheduleIndexRouteImport.update({
+  id: '/parent/schedule/',
+  path: '/parent/schedule/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ParentPaymentIndexRoute = ParentPaymentIndexRouteImport.update({
+  id: '/parent/payment/',
+  path: '/parent/payment/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ParentDocumentsIndexRoute = ParentDocumentsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => ParentDocumentsRoute,
+} as any)
+const ParentDashboardIndexRoute = ParentDashboardIndexRouteImport.update({
+  id: '/parent/dashboard/',
+  path: '/parent/dashboard/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ParentApplicationIndexRoute = ParentApplicationIndexRouteImport.update({
+  id: '/parent/application/',
+  path: '/parent/application/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ParentAdmissionIndexRoute = ParentAdmissionIndexRouteImport.update({
+  id: '/parent/admission/',
+  path: '/parent/admission/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const MyReportsProcessIdIndexRoute = MyReportsProcessIdIndexRouteImport.update({
   id: '/my-reports/$processId/',
   path: '/my-reports/$processId/',
@@ -427,6 +475,7 @@ const StudyLibraryCoursesCourseDetailsSubjectsModulesChaptersSlidesIndexRoute =
   )
 
 export interface FileRoutesByFullPath {
+  '/parent/documents': typeof ParentDocumentsRouteWithChildren
   '/$tagName': typeof TagNameIndexRoute
   '/ai-settings': typeof AiSettingsIndexRoute
   '/assessment': typeof AssessmentIndexRoute
@@ -444,7 +493,7 @@ export interface FileRoutesByFullPath {
   '/logout': typeof LogoutIndexRoute
   '/my-files': typeof MyFilesIndexRoute
   '/my-reports': typeof MyReportsIndexRoute
-  '/parent-portal': typeof ParentPortalIndexRoute
+  '/parent': typeof ParentIndexRoute
   '/planning': typeof PlanningIndexRoute
   '/privacy-policy': typeof PrivacyPolicyIndexRoute
   '/referral': typeof ReferralIndexRoute
@@ -470,6 +519,13 @@ export interface FileRoutesByFullPath {
   '/login/forgot-password': typeof LoginForgotPasswordIndexRoute
   '/my-files/$folderName': typeof MyFilesFolderNameIndexRoute
   '/my-reports/$processId': typeof MyReportsProcessIdIndexRoute
+  '/parent/admission': typeof ParentAdmissionIndexRoute
+  '/parent/application': typeof ParentApplicationIndexRoute
+  '/parent/dashboard': typeof ParentDashboardIndexRoute
+  '/parent/documents/': typeof ParentDocumentsIndexRoute
+  '/parent/payment': typeof ParentPaymentIndexRoute
+  '/parent/schedule': typeof ParentScheduleIndexRoute
+  '/parent/tracker': typeof ParentTrackerIndexRoute
   '/planning/activity-logs': typeof PlanningActivityLogsIndexRoute
   '/planning/planning-logs': typeof PlanningPlanningLogsIndexRoute
   '/register/live-class': typeof RegisterLiveClassIndexRoute
@@ -510,7 +566,7 @@ export interface FileRoutesByTo {
   '/logout': typeof LogoutIndexRoute
   '/my-files': typeof MyFilesIndexRoute
   '/my-reports': typeof MyReportsIndexRoute
-  '/parent-portal': typeof ParentPortalIndexRoute
+  '/parent': typeof ParentIndexRoute
   '/planning': typeof PlanningIndexRoute
   '/privacy-policy': typeof PrivacyPolicyIndexRoute
   '/referral': typeof ReferralIndexRoute
@@ -536,6 +592,13 @@ export interface FileRoutesByTo {
   '/login/forgot-password': typeof LoginForgotPasswordIndexRoute
   '/my-files/$folderName': typeof MyFilesFolderNameIndexRoute
   '/my-reports/$processId': typeof MyReportsProcessIdIndexRoute
+  '/parent/admission': typeof ParentAdmissionIndexRoute
+  '/parent/application': typeof ParentApplicationIndexRoute
+  '/parent/dashboard': typeof ParentDashboardIndexRoute
+  '/parent/documents': typeof ParentDocumentsIndexRoute
+  '/parent/payment': typeof ParentPaymentIndexRoute
+  '/parent/schedule': typeof ParentScheduleIndexRoute
+  '/parent/tracker': typeof ParentTrackerIndexRoute
   '/planning/activity-logs': typeof PlanningActivityLogsIndexRoute
   '/planning/planning-logs': typeof PlanningPlanningLogsIndexRoute
   '/register/live-class': typeof RegisterLiveClassIndexRoute
@@ -560,6 +623,7 @@ export interface FileRoutesByTo {
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
+  '/parent/documents': typeof ParentDocumentsRouteWithChildren
   '/$tagName/': typeof TagNameIndexRoute
   '/ai-settings/': typeof AiSettingsIndexRoute
   '/assessment/': typeof AssessmentIndexRoute
@@ -577,7 +641,7 @@ export interface FileRoutesById {
   '/logout/': typeof LogoutIndexRoute
   '/my-files/': typeof MyFilesIndexRoute
   '/my-reports/': typeof MyReportsIndexRoute
-  '/parent-portal/': typeof ParentPortalIndexRoute
+  '/parent/': typeof ParentIndexRoute
   '/planning/': typeof PlanningIndexRoute
   '/privacy-policy/': typeof PrivacyPolicyIndexRoute
   '/referral/': typeof ReferralIndexRoute
@@ -603,6 +667,13 @@ export interface FileRoutesById {
   '/login/forgot-password/': typeof LoginForgotPasswordIndexRoute
   '/my-files/$folderName/': typeof MyFilesFolderNameIndexRoute
   '/my-reports/$processId/': typeof MyReportsProcessIdIndexRoute
+  '/parent/admission/': typeof ParentAdmissionIndexRoute
+  '/parent/application/': typeof ParentApplicationIndexRoute
+  '/parent/dashboard/': typeof ParentDashboardIndexRoute
+  '/parent/documents/': typeof ParentDocumentsIndexRoute
+  '/parent/payment/': typeof ParentPaymentIndexRoute
+  '/parent/schedule/': typeof ParentScheduleIndexRoute
+  '/parent/tracker/': typeof ParentTrackerIndexRoute
   '/planning/activity-logs/': typeof PlanningActivityLogsIndexRoute
   '/planning/planning-logs/': typeof PlanningPlanningLogsIndexRoute
   '/register/live-class/': typeof RegisterLiveClassIndexRoute
@@ -628,6 +699,7 @@ export interface FileRoutesById {
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
+    | '/parent/documents'
     | '/$tagName'
     | '/ai-settings'
     | '/assessment'
@@ -645,7 +717,7 @@ export interface FileRouteTypes {
     | '/logout'
     | '/my-files'
     | '/my-reports'
-    | '/parent-portal'
+    | '/parent'
     | '/planning'
     | '/privacy-policy'
     | '/referral'
@@ -671,6 +743,13 @@ export interface FileRouteTypes {
     | '/login/forgot-password'
     | '/my-files/$folderName'
     | '/my-reports/$processId'
+    | '/parent/admission'
+    | '/parent/application'
+    | '/parent/dashboard'
+    | '/parent/documents/'
+    | '/parent/payment'
+    | '/parent/schedule'
+    | '/parent/tracker'
     | '/planning/activity-logs'
     | '/planning/planning-logs'
     | '/register/live-class'
@@ -711,7 +790,7 @@ export interface FileRouteTypes {
     | '/logout'
     | '/my-files'
     | '/my-reports'
-    | '/parent-portal'
+    | '/parent'
     | '/planning'
     | '/privacy-policy'
     | '/referral'
@@ -737,6 +816,13 @@ export interface FileRouteTypes {
     | '/login/forgot-password'
     | '/my-files/$folderName'
     | '/my-reports/$processId'
+    | '/parent/admission'
+    | '/parent/application'
+    | '/parent/dashboard'
+    | '/parent/documents'
+    | '/parent/payment'
+    | '/parent/schedule'
+    | '/parent/tracker'
     | '/planning/activity-logs'
     | '/planning/planning-logs'
     | '/register/live-class'
@@ -760,6 +846,7 @@ export interface FileRouteTypes {
     | '/study-library/courses/course-details/subjects/modules/chapters/slides'
   id:
     | '__root__'
+    | '/parent/documents'
     | '/$tagName/'
     | '/ai-settings/'
     | '/assessment/'
@@ -777,7 +864,7 @@ export interface FileRouteTypes {
     | '/logout/'
     | '/my-files/'
     | '/my-reports/'
-    | '/parent-portal/'
+    | '/parent/'
     | '/planning/'
     | '/privacy-policy/'
     | '/referral/'
@@ -803,6 +890,13 @@ export interface FileRouteTypes {
     | '/login/forgot-password/'
     | '/my-files/$folderName/'
     | '/my-reports/$processId/'
+    | '/parent/admission/'
+    | '/parent/application/'
+    | '/parent/dashboard/'
+    | '/parent/documents/'
+    | '/parent/payment/'
+    | '/parent/schedule/'
+    | '/parent/tracker/'
     | '/planning/activity-logs/'
     | '/planning/planning-logs/'
     | '/register/live-class/'
@@ -827,6 +921,7 @@ export interface FileRouteTypes {
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
+  ParentDocumentsRoute: typeof ParentDocumentsRouteWithChildren
   TagNameIndexRoute: typeof TagNameIndexRoute
   AiSettingsIndexRoute: typeof AiSettingsIndexRoute
   AssessmentIndexRoute: typeof AssessmentIndexRoute
@@ -844,7 +939,7 @@ export interface RootRouteChildren {
   LogoutIndexRoute: typeof LogoutIndexRoute
   MyFilesIndexRoute: typeof MyFilesIndexRoute
   MyReportsIndexRoute: typeof MyReportsIndexRoute
-  ParentPortalIndexRoute: typeof ParentPortalIndexRoute
+  ParentIndexRoute: typeof ParentIndexRoute
   PlanningIndexRoute: typeof PlanningIndexRoute
   PrivacyPolicyIndexRoute: typeof PrivacyPolicyIndexRoute
   ReferralIndexRoute: typeof ReferralIndexRoute
@@ -870,6 +965,12 @@ export interface RootRouteChildren {
   LoginForgotPasswordIndexRoute: typeof LoginForgotPasswordIndexRoute
   MyFilesFolderNameIndexRoute: typeof MyFilesFolderNameIndexRoute
   MyReportsProcessIdIndexRoute: typeof MyReportsProcessIdIndexRoute
+  ParentAdmissionIndexRoute: typeof ParentAdmissionIndexRoute
+  ParentApplicationIndexRoute: typeof ParentApplicationIndexRoute
+  ParentDashboardIndexRoute: typeof ParentDashboardIndexRoute
+  ParentPaymentIndexRoute: typeof ParentPaymentIndexRoute
+  ParentScheduleIndexRoute: typeof ParentScheduleIndexRoute
+  ParentTrackerIndexRoute: typeof ParentTrackerIndexRoute
   PlanningActivityLogsIndexRoute: typeof PlanningActivityLogsIndexRoute
   PlanningPlanningLogsIndexRoute: typeof PlanningPlanningLogsIndexRoute
   RegisterLiveClassIndexRoute: typeof RegisterLiveClassIndexRoute
@@ -958,11 +1059,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PlanningIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/parent-portal/': {
-      id: '/parent-portal/'
-      path: '/parent-portal'
-      fullPath: '/parent-portal'
-      preLoaderRoute: typeof ParentPortalIndexRouteImport
+    '/parent/': {
+      id: '/parent/'
+      path: '/parent'
+      fullPath: '/parent'
+      preLoaderRoute: typeof ParentIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/my-reports/': {
@@ -1084,6 +1185,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TagNameIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/parent/documents': {
+      id: '/parent/documents'
+      path: '/parent/documents'
+      fullPath: '/parent/documents'
+      preLoaderRoute: typeof ParentDocumentsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/user-profile/edit/': {
       id: '/user-profile/edit/'
       path: '/user-profile/edit'
@@ -1124,6 +1232,55 @@ declare module '@tanstack/react-router' {
       path: '/planning/activity-logs'
       fullPath: '/planning/activity-logs'
       preLoaderRoute: typeof PlanningActivityLogsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/parent/tracker/': {
+      id: '/parent/tracker/'
+      path: '/parent/tracker'
+      fullPath: '/parent/tracker'
+      preLoaderRoute: typeof ParentTrackerIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/parent/schedule/': {
+      id: '/parent/schedule/'
+      path: '/parent/schedule'
+      fullPath: '/parent/schedule'
+      preLoaderRoute: typeof ParentScheduleIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/parent/payment/': {
+      id: '/parent/payment/'
+      path: '/parent/payment'
+      fullPath: '/parent/payment'
+      preLoaderRoute: typeof ParentPaymentIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/parent/documents/': {
+      id: '/parent/documents/'
+      path: '/'
+      fullPath: '/parent/documents/'
+      preLoaderRoute: typeof ParentDocumentsIndexRouteImport
+      parentRoute: typeof ParentDocumentsRoute
+    }
+    '/parent/dashboard/': {
+      id: '/parent/dashboard/'
+      path: '/parent/dashboard'
+      fullPath: '/parent/dashboard'
+      preLoaderRoute: typeof ParentDashboardIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/parent/application/': {
+      id: '/parent/application/'
+      path: '/parent/application'
+      fullPath: '/parent/application'
+      preLoaderRoute: typeof ParentApplicationIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/parent/admission/': {
+      id: '/parent/admission/'
+      path: '/parent/admission'
+      fullPath: '/parent/admission'
+      preLoaderRoute: typeof ParentAdmissionIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/my-reports/$processId/': {
@@ -1346,7 +1503,20 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface ParentDocumentsRouteChildren {
+  ParentDocumentsIndexRoute: typeof ParentDocumentsIndexRoute
+}
+
+const ParentDocumentsRouteChildren: ParentDocumentsRouteChildren = {
+  ParentDocumentsIndexRoute: ParentDocumentsIndexRoute,
+}
+
+const ParentDocumentsRouteWithChildren = ParentDocumentsRoute._addFileChildren(
+  ParentDocumentsRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
+  ParentDocumentsRoute: ParentDocumentsRouteWithChildren,
   TagNameIndexRoute: TagNameIndexRoute,
   AiSettingsIndexRoute: AiSettingsIndexRoute,
   AssessmentIndexRoute: AssessmentIndexRoute,
@@ -1364,7 +1534,7 @@ const rootRouteChildren: RootRouteChildren = {
   LogoutIndexRoute: LogoutIndexRoute,
   MyFilesIndexRoute: MyFilesIndexRoute,
   MyReportsIndexRoute: MyReportsIndexRoute,
-  ParentPortalIndexRoute: ParentPortalIndexRoute,
+  ParentIndexRoute: ParentIndexRoute,
   PlanningIndexRoute: PlanningIndexRoute,
   PrivacyPolicyIndexRoute: PrivacyPolicyIndexRoute,
   ReferralIndexRoute: ReferralIndexRoute,
@@ -1390,6 +1560,12 @@ const rootRouteChildren: RootRouteChildren = {
   LoginForgotPasswordIndexRoute: LoginForgotPasswordIndexRoute,
   MyFilesFolderNameIndexRoute: MyFilesFolderNameIndexRoute,
   MyReportsProcessIdIndexRoute: MyReportsProcessIdIndexRoute,
+  ParentAdmissionIndexRoute: ParentAdmissionIndexRoute,
+  ParentApplicationIndexRoute: ParentApplicationIndexRoute,
+  ParentDashboardIndexRoute: ParentDashboardIndexRoute,
+  ParentPaymentIndexRoute: ParentPaymentIndexRoute,
+  ParentScheduleIndexRoute: ParentScheduleIndexRoute,
+  ParentTrackerIndexRoute: ParentTrackerIndexRoute,
   PlanningActivityLogsIndexRoute: PlanningActivityLogsIndexRoute,
   PlanningPlanningLogsIndexRoute: PlanningPlanningLogsIndexRoute,
   RegisterLiveClassIndexRoute: RegisterLiveClassIndexRoute,
