@@ -33,6 +33,7 @@ interface UsernameLoginProps {
     type?: string;
     courseId?: string;
     allowEmailOtpAuth?: boolean;
+    allowPhoneAuth?: boolean;
     initialUsername?: string;
     initialPassword?: string;
 }
@@ -40,12 +41,15 @@ export function UsernameLogin({
     onSwitchToEmail,
     type,
     courseId,
-    onSwitchToSignup,
-    onSwitchToForgotPassword,
     allowEmailOtpAuth,
+    allowPhoneAuth,
     initialUsername,
     initialPassword,
+    onSwitchToPhone,
+    onSwitchToSignup,
+    onSwitchToForgotPassword,
 }: UsernameLoginProps & {
+    onSwitchToPhone?: () => void;
     onSwitchToSignup?: () => void;
     onSwitchToForgotPassword?: () => void;
 }) {
@@ -139,7 +143,7 @@ export function UsernameLogin({
                                 } else {
                                     setPrimaryColor(
                                         details?.institute_theme_code ??
-                                            "primary"
+                                        "primary"
                                     );
                                 }
                             } catch (error) {
@@ -171,14 +175,14 @@ export function UsernameLogin({
 
                         // Determine redirect URL based on type and courseId
                         let redirectUrl = "/dashboard";
-                        
+
                         if (type === "courseDetailsPage" && courseId) {
                             redirectUrl = `/study-library/courses/course-details?courseId=${courseId}&selectedTab=ALL`;
                         } else if (type === "courseDetailsPage") {
                             redirectUrl = "/study-library/courses";
                         }
-                        
-                                                                           // Redirect in same tab if login originated from course-related pages or if type is courseDetailsPage
+
+                        // Redirect in same tab if login originated from course-related pages or if type is courseDetailsPage
                         if (type === "courseDetailsPage" || (type && type !== "mainLogin")) {
                             // For course-related pages, redirect to the appropriate study library page
                             if (redirectUrl !== "/dashboard") {
@@ -337,19 +341,19 @@ export function UsernameLogin({
                                                     </div>
                                                     {form.formState.errors
                                                         .password?.message && (
-                                                        <div className="flex items-center gap-1 pl-1 text-body font-regular text-danger-600">
-                                                            <VscError />
-                                                            <span className="mt-[3px]">
-                                                                {
-                                                                    form
-                                                                        .formState
-                                                                        .errors
-                                                                        .password
-                                                                        .message
-                                                                }
-                                                            </span>
-                                                        </div>
-                                                    )}
+                                                            <div className="flex items-center gap-1 pl-1 text-body font-regular text-danger-600">
+                                                                <VscError />
+                                                                <span className="mt-[3px]">
+                                                                    {
+                                                                        form
+                                                                            .formState
+                                                                            .errors
+                                                                            .password
+                                                                            .message
+                                                                    }
+                                                                </span>
+                                                            </div>
+                                                        )}
                                                 </div>
                                             </div>
                                         </div>
@@ -428,7 +432,19 @@ export function UsernameLogin({
                         <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gray-800 transition-all duration-200 group-hover:w-full"></span>
                     </motion.button>
                 )}
- 
+
+                {(allowPhoneAuth ?? true) && onSwitchToPhone && (
+                    <motion.button
+                        type="button"
+                        whileHover={{ scale: 1.02 }}
+                        className="text-sm text-gray-600 hover:text-gray-800 transition-colors duration-200 relative group font-medium pt-2 block mx-auto"
+                        onClick={onSwitchToPhone}
+                    >
+                        Use Phone OTP Instead?
+                        <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gray-800 transition-all duration-200 group-hover:w-full"></span>
+                    </motion.button>
+                )}
+
                 {(() => {
                     try {
                         const raw = localStorage.getItem("InstituteId");
