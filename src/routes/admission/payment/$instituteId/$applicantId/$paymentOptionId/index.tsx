@@ -8,7 +8,8 @@ import {
 } from "@/routes/courses/-services/payment-options-api";
 import {
   INITIATE_APPLICANT_PAYMENT,
-  INITIATE_APPLICANT_PAYMENT_OPEN,
+  GET_SIGNED_URL_PUBLIC,
+  GET_PUBLIC_URL_PUBLIC,
 } from "@/constants/urls";
 import {
   RazorpayCheckoutForm,
@@ -19,13 +20,17 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import {
-  CreditCard,
   CheckCircle,
   Loader2,
   IndianRupee,
   AlertCircle,
   GraduationCap,
   Mail,
+  QrCode,
+  Upload,
+  Smartphone,
+  X,
+  ImageIcon,
 } from "lucide-react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -48,19 +53,53 @@ interface InitiatePaymentResponse {
   };
 }
 
+interface PaymentSearchParams {
+  /** "ONLINE" (default) or "UPI" */
+  method?: string;
+  /** Pre-resolved file UUID for the institute's UPI QR code image */
+  qrCodeFileId?: string;
+}
+
 // ── Route definition ──────────────────────────────────────────────────────────
 
 export const Route = createFileRoute(
   "/admission/payment/$instituteId/$applicantId/$paymentOptionId/",
 )({
+  validateSearch: (search: Record<string, unknown>): PaymentSearchParams => ({
+    method: typeof search.method === "string" ? search.method : undefined,
+    qrCodeFileId:
+      typeof search.qrCodeFileId === "string" ? search.qrCodeFileId : undefined,
+  }),
   component: AdmissionPaymentPage,
 });
+
+// ── Public screenshot upload (no auth needed) ─────────────────────────────────
+
+async function uploadScreenshotPublic(file: File): Promise<string> {
+  const signedResp = await axios.post(
+    GET_SIGNED_URL_PUBLIC,
+    {
+      file_name: file.name.toLowerCase().replace(/\s+/g, "_"),
+      file_type: file.type,
+      source: "PAYMENT_SCREENSHOTS",
+      source_id: "ADMISSION",
+    },
+    { withCredentials: false },
+  );
+  const { id, url } = signedResp.data as { id: string; url: string };
+  await axios.put(url, file, { headers: { "Content-Type": file.type } });
+  return id;
+}
 
 // ── Page Component ────────────────────────────────────────────────────────────
 
 function AdmissionPaymentPage() {
   const { instituteId, applicantId, paymentOptionId } = Route.useParams();
+  const { method, qrCodeFileId } = Route.useSearch();
 
+  const isUpiMode = method === "UPI";
+
+  // ── Razorpay refs / state (online mode) ──────────────────────────────────
   const razorpayRef = useRef<RazorpayCheckoutFormRef>(null);
   const [email, setEmail] = useState("");
   const [emailError, setEmailError] = useState("");
@@ -68,8 +107,14 @@ function AdmissionPaymentPage() {
   const [razorpayError, setRazorpayError] = useState<string | null>(null);
   const [paymentDone, setPaymentDone] = useState(false);
 
-  // ── Fetch payment option via the existing public service ─────────────────
-  // fetchPaymentOptions uses open/v1/payment-option/default-payment-option (no auth)
+  // ── UPI state ─────────────────────────────────────────────────────────────
+  const [transactionId, setTransactionId] = useState("");
+  const [transactionIdError, setTransactionIdError] = useState("");
+  const [screenshotFile, setScreenshotFile] = useState<File | null>(null);
+  const [screenshotFileId, setScreenshotFileId] = useState<string | null>(null);
+  const [isUploadingScreenshot, setIsUploadingScreenshot] = useState(false);
+
+  // ── Fetch payment option ──────────────────────────────────────────────────
   const { data: option, isLoading: loadingOptions } =
     useQuery<PaymentOption | null>({
       queryKey: ["admission-payment-option", paymentOptionId, instituteId],
@@ -80,7 +125,21 @@ function AdmissionPaymentPage() {
 
   const plan = option?.payment_plans?.[0];
 
-  // ── Initiate payment mutation (open/no-auth endpoint) ────────────────────
+  // ── Fetch QR code image URL (UPI mode only, when qrCodeFileId is present) ─
+  const { data: qrImageUrl, isLoading: loadingQr } = useQuery<string>({
+    queryKey: ["upi-qr-url", qrCodeFileId],
+    queryFn: async () => {
+      const resp = await axios.get(GET_PUBLIC_URL_PUBLIC, {
+        params: { fileId: qrCodeFileId, expiryDays: 1 },
+        withCredentials: false,
+      });
+      return resp.data as string;
+    },
+    enabled: isUpiMode && !!qrCodeFileId,
+    staleTime: 60 * 60_000, // 1 hour
+  });
+
+  // ── Online payment mutation (Razorpay) ────────────────────────────────────
   const initiateMutation = useMutation({
     mutationFn: async ({
       amount,
@@ -105,14 +164,36 @@ function AdmissionPaymentPage() {
     },
   });
 
-  // ── Pay handler ───────────────────────────────────────────────────────────
-  const handlePay = async () => {
+  // ── UPI / manual payment mutation ────────────────────────────────────────
+  const upiMutation = useMutation({
+    mutationFn: async ({
+      file_id,
+      transaction_id,
+    }: {
+      file_id: string | null;
+      transaction_id: string;
+    }): Promise<InitiatePaymentResponse> => {
+      const resp = await axios.post(
+        INITIATE_APPLICANT_PAYMENT(applicantId),
+        {
+          vendor: "MANUAL",
+          amount: plan?.actual_price,
+          currency: plan?.currency || "INR",
+          email: email.trim(),
+          manual_request: { file_id, transaction_id },
+        },
+        { params: { paymentOptionId } },
+      );
+      return resp.data;
+    },
+  });
+
+  // ── Online pay handler ────────────────────────────────────────────────────
+  const handleOnlinePay = async () => {
     if (!plan || !option) {
       toast.error("No payment plan configured. Please contact the institute.");
       return;
     }
-
-    // Validate email
     const trimmedEmail = email.trim();
     if (!trimmedEmail) {
       setEmailError("Email is required.");
@@ -123,39 +204,29 @@ function AdmissionPaymentPage() {
       return;
     }
     setEmailError("");
-
     setIsPaying(true);
     setRazorpayError(null);
-
     try {
       const initiated = await initiateMutation.mutateAsync({
         amount: plan.actual_price,
         currency: plan.currency || "INR",
         email: trimmedEmail,
       });
-
-      // Unwrap order details from response_data (top-level in API response)
       const rd = initiated?.response_data;
       const razorpayKeyId = rd?.razorpayKeyId;
       const razorpayOrderId = rd?.razorpayOrderId;
       const orderAmount = rd?.amount ?? plan.actual_price;
       const orderCurrency = rd?.currency ?? plan.currency ?? "INR";
-
-      // If server returns a hosted link, open it directly
       if (initiated?.payment_link) {
         window.location.href = initiated.payment_link;
         return;
       }
-
       if (!razorpayKeyId || !razorpayOrderId) {
-        console.error("Missing Razorpay keys in response:", initiated);
         toast.error(
           "Could not retrieve payment details from the server. Please try again.",
         );
         return;
       }
-
-      // Open embedded Razorpay modal
       razorpayRef.current?.openPayment({
         razorpayKeyId,
         razorpayOrderId,
@@ -177,6 +248,72 @@ function AdmissionPaymentPage() {
     }
   };
 
+  // ── Screenshot file change handler ────────────────────────────────────────
+  const handleScreenshotChange = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setScreenshotFile(file);
+    setScreenshotFileId(null);
+    setIsUploadingScreenshot(true);
+    try {
+      const fileId = await uploadScreenshotPublic(file);
+      setScreenshotFileId(fileId);
+      toast.success("Screenshot uploaded successfully.");
+    } catch {
+      toast.error("Screenshot upload failed. You can still submit without it.");
+      setScreenshotFile(null);
+    } finally {
+      setIsUploadingScreenshot(false);
+    }
+  };
+
+  // ── UPI confirm handler ───────────────────────────────────────────────────
+  const handleUpiConfirm = async () => {
+    if (!plan || !option) {
+      toast.error("No payment plan configured. Please contact the institute.");
+      return;
+    }
+    const trimmedEmail = email.trim();
+    if (!trimmedEmail) {
+      setEmailError("Email is required.");
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+      setEmailError("Please enter a valid email address.");
+      return;
+    }
+    setEmailError("");
+    const trimmed = transactionId.trim();
+    if (!trimmed) {
+      setTransactionIdError("UPI Transaction ID is required.");
+      return;
+    }
+    setTransactionIdError("");
+    setIsPaying(true);
+    try {
+      await upiMutation.mutateAsync({
+        file_id: screenshotFileId,
+        transaction_id: trimmed,
+      });
+      setPaymentDone(true);
+      toast.success(
+        "Payment submitted! The institute will verify and update your status.",
+      );
+    } catch (err: unknown) {
+      const msg =
+        (err as { response?: { data?: { ex?: string; message?: string } } })
+          ?.response?.data?.ex ||
+        (err as { response?: { data?: { message?: string } } })?.response?.data
+          ?.message ||
+        (err instanceof Error ? err.message : "Failed to submit payment");
+      toast.error(msg);
+    } finally {
+      setIsPaying(false);
+    }
+  };
+
   const handlePaymentSuccess = () => {
     setPaymentDone(true);
     toast.success(
@@ -184,7 +321,7 @@ function AdmissionPaymentPage() {
     );
   };
 
-  // ── Loading state ─────────────────────────────────────────────────────────
+  // ── Shared loading state ──────────────────────────────────────────────────
   if (loadingOptions) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
@@ -227,16 +364,17 @@ function AdmissionPaymentPage() {
             Payment Submitted!
           </h1>
           <p className="text-sm text-gray-500">
-            Thank you. Your payment is being processed and your admission status
-            will be updated shortly.
+            {isUpiMode
+              ? "Thank you. The institute will verify your payment and update your admission status shortly."
+              : "Thank you. Your payment is being processed and your admission status will be updated shortly."}
           </p>
         </div>
       </div>
     );
   }
 
-  // ── Main payment page ─────────────────────────────────────────────────────
-  return (
+  // ── Shared page wrapper ───────────────────────────────────────────────────
+  const pageWrapper = (children: React.ReactNode) => (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
       <div className="bg-white rounded-2xl shadow-sm border w-full max-w-md overflow-hidden">
         {/* Header */}
@@ -253,7 +391,7 @@ function AdmissionPaymentPage() {
         </div>
 
         {/* Amount */}
-        <div className="px-6 py-5 space-y-4">
+        <div className="px-6 pt-5">
           <div className="rounded-xl bg-orange-50 border border-orange-200 px-4 py-4">
             <p className="text-xs text-gray-500 mb-1">Amount Due</p>
             <p className="text-3xl font-bold text-gray-900 flex items-center gap-1">
@@ -271,7 +409,181 @@ function AdmissionPaymentPage() {
               </p>
             )}
           </div>
+        </div>
 
+        {children}
+      </div>
+    </div>
+  );
+
+  // ────────────────────────────────────────────────────────────────────────────
+  // Case 2 — UPI payment
+  // ────────────────────────────────────────────────────────────────────────────
+  if (isUpiMode) {
+    return pageWrapper(
+      <div className="px-6 pb-6 pt-4 space-y-5">
+        {/* QR Code section — only when qrCodeFileId is present */}
+        {qrCodeFileId && (
+          <div className="space-y-3">
+            <p className="text-sm font-semibold text-gray-800 flex items-center gap-2">
+              <QrCode className="w-4 h-4 text-primary" />
+              Scan QR Code to Pay
+            </p>
+            {loadingQr ? (
+              <Skeleton className="h-72 w-full rounded-2xl" />
+            ) : qrImageUrl ? (
+              <div className="rounded-2xl border-2 border-primary/20 bg-white shadow-md flex flex-col items-center justify-center p-6 gap-3">
+                <img
+                  src={qrImageUrl}
+                  alt="UPI QR Code"
+                  className="w-full max-w-xs aspect-square object-contain rounded-xl"
+                />
+                <p className="text-xs text-gray-500 flex items-center gap-1.5">
+                  <Smartphone className="w-3.5 h-3.5" />
+                  Open any UPI app and scan to pay
+                </p>
+              </div>
+            ) : (
+              <div className="rounded-2xl border border-dashed border-gray-300 bg-gray-50 flex flex-col items-center justify-center py-10 gap-2 text-gray-400">
+                <QrCode className="w-10 h-10" />
+                <p className="text-xs">QR code could not be loaded</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Email */}
+        <div className="space-y-1.5">
+          <label className="text-xs font-medium text-gray-700 flex items-center gap-1">
+            <Mail className="w-3.5 h-3.5" />
+            Email Address
+          </label>
+          <Input
+            type="email"
+            placeholder="Enter your email"
+            value={email}
+            onChange={(e) => {
+              setEmail(e.target.value);
+              if (emailError) setEmailError("");
+            }}
+            className={
+              emailError ? "border-red-400 focus-visible:ring-red-400" : ""
+            }
+          />
+          {emailError && <p className="text-xs text-red-500">{emailError}</p>}
+        </div>
+
+        {/* Screenshot upload */}
+        <div className="space-y-1.5">
+          <label className="text-xs font-medium text-gray-700 flex items-center gap-1">
+            <ImageIcon className="w-3.5 h-3.5" />
+            Payment Screenshot{" "}
+            <span className="text-gray-400 font-normal">(optional)</span>
+          </label>
+
+          {screenshotFile ? (
+            <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2.5">
+              {isUploadingScreenshot ? (
+                <Loader2 className="w-4 h-4 animate-spin text-emerald-600 shrink-0" />
+              ) : (
+                <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
+              )}
+              <span className="text-xs text-emerald-700 flex-1 truncate">
+                {isUploadingScreenshot
+                  ? `Uploading ${screenshotFile.name}…`
+                  : screenshotFile.name}
+              </span>
+              {!isUploadingScreenshot && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setScreenshotFile(null);
+                    setScreenshotFileId(null);
+                  }}
+                  className="text-gray-400 hover:text-gray-600 shrink-0"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+          ) : (
+            <label className="flex items-center justify-center gap-2 rounded-lg border border-dashed border-gray-300 bg-gray-50 hover:bg-gray-100 cursor-pointer px-4 py-3 transition-colors">
+              <Upload className="w-4 h-4 text-gray-400" />
+              <span className="text-xs text-gray-500">
+                Click to upload screenshot
+              </span>
+              <input
+                type="file"
+                accept="image/*,application/pdf"
+                className="hidden"
+                onChange={handleScreenshotChange}
+              />
+            </label>
+          )}
+        </div>
+
+        {/* UPI Transaction ID */}
+        <div className="space-y-1.5">
+          <label className="text-xs font-medium text-gray-700 flex items-center gap-1">
+            <Smartphone className="w-3.5 h-3.5" />
+            UPI Transaction ID <span className="text-red-500">*</span>
+          </label>
+          <Input
+            placeholder="e.g. 123456789012"
+            value={transactionId}
+            onChange={(e) => {
+              setTransactionId(e.target.value);
+              if (transactionIdError) setTransactionIdError("");
+            }}
+            className={
+              transactionIdError
+                ? "border-red-400 focus-visible:ring-red-400"
+                : ""
+            }
+          />
+          {transactionIdError && (
+            <p className="text-xs text-red-500">{transactionIdError}</p>
+          )}
+          <p className="text-xs text-gray-400">
+            Enter the 12-digit transaction reference from your UPI app.
+          </p>
+        </div>
+
+        {/* Confirm button */}
+        <Button
+          className="w-full gap-2"
+          size="lg"
+          disabled={isPaying || isUploadingScreenshot}
+          onClick={handleUpiConfirm}
+        >
+          {isPaying ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Submitting…
+            </>
+          ) : (
+            <>
+              <CheckCircle className="w-4 h-4" />
+              Confirm Payment
+            </>
+          )}
+        </Button>
+
+        <p className="text-center text-xs text-gray-400">
+          The institute will review your payment and update your admission
+          status.
+        </p>
+      </div>,
+    );
+  }
+
+  // ────────────────────────────────────────────────────────────────────────────
+  // Case 1 — Online payment (Razorpay)
+  // ────────────────────────────────────────────────────────────────────────────
+  return (
+    <>
+      {pageWrapper(
+        <div className="px-6 pb-6 pt-4 space-y-4">
           {/* Email input */}
           <div className="space-y-1">
             <label className="text-xs font-medium text-gray-700 flex items-center gap-1">
@@ -297,7 +609,7 @@ function AdmissionPaymentPage() {
             className="w-full gap-2"
             size="lg"
             disabled={isPaying}
-            onClick={handlePay}
+            onClick={handleOnlinePay}
           >
             {isPaying ? (
               <>
@@ -315,8 +627,8 @@ function AdmissionPaymentPage() {
           <p className="text-center text-xs text-gray-400">
             Secured by Razorpay · Your payment is encrypted and safe
           </p>
-        </div>
-      </div>
+        </div>,
+      )}
 
       {/* Hidden Razorpay checkout form */}
       <div className="hidden">
@@ -337,6 +649,6 @@ function AdmissionPaymentPage() {
           userName=""
         />
       </div>
-    </div>
+    </>
   );
 }
