@@ -39,6 +39,11 @@
                     android:host="${DEEP_LINK_HOST}"
                     android:pathPrefix="/assessment/reports"
                 />
+                <data
+                    android:scheme="https"
+                    android:host="${DEEP_LINK_HOST}"
+                    android:pathPrefix="/login/oauth/learner"
+                />
             </intent-filter>
         </activity>
 

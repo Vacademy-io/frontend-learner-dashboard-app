@@ -759,10 +759,13 @@ export function LoginForm({
     }
   };
 
-  const handleOAuthLogin = (provider: "google" | "github") => {
+  const handleOAuthLogin = async (provider: "google" | "github") => {
     try {
+      const { isNativePlatform, getOAuthRedirectOrigin, openNativeOAuth, parseOAuthCallbackUrl } = await import("@/utils/native-oauth");
+      const origin = await getOAuthRedirectOrigin();
+
       const stateObj: Record<string, unknown> = {
-        from: `${window.location.origin}/login/oauth/learner`,
+        from: `${origin}/login/oauth/learner`,
         account_type: "login",
         user_type: "learner",
         isModalLogin: false, // Flag to indicate this is a page login
@@ -777,7 +780,77 @@ export function LoginForm({
       const loginUrl = `${LOGIN_URL_GOOGLE_GITHUB}/${provider}?state=${encodeURIComponent(
         base64State,
       )}`;
-      window.location.href = loginUrl;
+
+      if (isNativePlatform()) {
+        // On native platforms, open in-app browser and handle the redirect
+        const callbackUrl = await openNativeOAuth(loginUrl);
+        const params = parseOAuthCallbackUrl(callbackUrl);
+
+        if (params.error) {
+          toast.error("We couldn't find an account with these details. Please try a different login method or contact support.");
+          return;
+        }
+
+        if (params.accessToken && params.refreshToken) {
+          // Process tokens the same way as the web OAuth callback handler
+          await setToStorage("accessToken", params.accessToken);
+          await setToStorage("refreshToken", params.refreshToken);
+          await setTokenInStorage(TokenKey.accessToken, params.accessToken);
+          await setTokenInStorage(TokenKey.refreshToken, params.refreshToken);
+
+          const decodedData = getTokenDecodedData(params.accessToken);
+          const authorities = decodedData?.authorities;
+          const userId = decodedData?.user;
+
+          if (userId) {
+            try {
+              identifyUser(userId, {
+                username: decodedData?.username,
+                email: decodedData?.email,
+              });
+            } catch {}
+          }
+
+          const authorityKeys = authorities ? Object.keys(authorities) : [];
+
+          if (!userId || authorityKeys.length === 0) {
+            toast.error("Invalid user or institute data. Please try logging in again.");
+            navigate({ to: "/login" });
+            return;
+          }
+
+          if (authorityKeys.length === 1) {
+            const instituteId = authorityKeys[0];
+            const details = await fetchAndStoreInstituteDetails(instituteId, userId);
+            if (setPrimaryColor) {
+              setPrimaryColor(details?.institute_theme_code ?? import.meta.env.VITE_DEFAULT_THEME_COLOR ?? "#E67E22");
+            }
+            await fetchAndStoreStudentDetails(instituteId, userId);
+
+            try {
+              const settings = await getStudentDisplaySettings(true);
+              const redirectRoute = settings?.postLoginRedirectRoute || "/dashboard";
+              if (/^https?:\/\//.test(redirectRoute)) {
+                window.location.assign(redirectRoute);
+              } else {
+                navigate({ to: redirectRoute as never });
+              }
+            } catch {
+              navigate({ to: "/dashboard" });
+            }
+          } else {
+            navigate({
+              to: "/institute-selection",
+              search: { redirect: "/dashboard/" },
+            });
+          }
+        } else {
+          toast.error("Missing tokens. Please try logging in again.");
+        }
+      } else {
+        // Web platform: navigate directly
+        window.location.href = loginUrl;
+      }
     } catch {
       toast.error("Failed to initiate login. Please try again.");
     }
