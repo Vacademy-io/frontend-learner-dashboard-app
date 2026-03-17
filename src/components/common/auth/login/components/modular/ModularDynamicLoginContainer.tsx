@@ -428,22 +428,24 @@ export function ModularDynamicLoginContainer({
     };
   }, [onLoginSuccess]);
 
-  const handleOAuthLogin = (provider: "google" | "github") => {
+  const handleOAuthLogin = async (provider: "google" | "github") => {
     try {
+      const { isNativePlatform, getOAuthRedirectOrigin, openNativeOAuth, parseOAuthCallbackUrl } = await import("@/utils/native-oauth");
+
       // Get current page information for redirection after login
       const currentPath = window.location.pathname;
       const currentSearch = window.location.search;
-      
+
       // Clean the current URL to remove sensitive data like instituteId
       const cleanCurrentUrl = cleanUrlOfSensitiveData(`${currentPath}${currentSearch}`);
-      
+
       // Extract instituteId from current URL (but don't expose it in redirect URLs)
       const urlParams = new URLSearchParams(currentSearch);
       const instituteIdFromUrl = urlParams.get("instituteId") || instituteId;
-      
+
       // Determine the appropriate study-library URL based on current page and type
       let studyLibraryUrl = "/study-library/courses";
-      
+
       if (type === "courseDetailsPage" && courseId) {
         studyLibraryUrl = `/study-library/courses/course-details?courseId=${courseId}&selectedTab=ALL`;
       } else if (currentPath.includes("/courses/course-details")) {
@@ -456,7 +458,7 @@ export function ModularDynamicLoginContainer({
         // For courses page, redirect to study-library courses
         studyLibraryUrl = "/study-library/courses";
       }
-      
+
       // Store additional data in sessionStorage to reduce state size
       const modalOAuthData = {
         redirectTo: studyLibraryUrl,
@@ -465,7 +467,7 @@ export function ModularDynamicLoginContainer({
         courseId: courseId,
         instituteId: instituteIdFromUrl, // Keep instituteId for backend processing but don't expose in URLs
       };
-      
+
       // Store in sessionStorage
       sessionStorage.setItem('modal_oauth_data', JSON.stringify(modalOAuthData));
 
@@ -474,11 +476,14 @@ export function ModularDynamicLoginContainer({
         localStorage.removeItem('OAUTH_RESULT');
         oauthPopupOpenedAtRef.current = Date.now();
       } catch { /* ignore */ }
-      
+
+      const origin = await getOAuthRedirectOrigin();
+
       // Create minimal state object
-      // Use static oauth-popup-handler.html so backend redirect lands on a simple page that sends tokens to parent and closes popup
       const stateObj: Record<string, unknown> = {
-        from: `${window.location.origin}/oauth-popup-handler.html?popup=1`,
+        from: isNativePlatform()
+          ? `${origin}/login/oauth/learner`
+          : `${origin}/oauth-popup-handler.html?popup=1`,
         account_type: "login",
         user_type: "learner",
       };
@@ -492,22 +497,87 @@ export function ModularDynamicLoginContainer({
       const base64State = btoa(stateJson);
       const encodedState = encodeURIComponent(base64State);
       const loginUrl = `${LOGIN_URL_GOOGLE_GITHUB}/${provider}?state=${encodedState}`;
-      
-      // Open OAuth in popup window
-      const popup = window.open(
-        loginUrl,
-        'oauth_popup',
-        'width=500,height=600,scrollbars=yes,resizable=yes'
-      );
 
-      if (!popup) {
-        console.error('[OAuth] Popup blocked');
-        toast.error("Popup blocked! Please allow popups for this site.");
-        return;
+      if (isNativePlatform()) {
+        // On native platforms, open in-app browser and handle the redirect
+        const callbackUrl = await openNativeOAuth(loginUrl);
+        const params = parseOAuthCallbackUrl(callbackUrl);
+
+        if (params.error) {
+          toast.error("We couldn't find an account with these details. Please try a different login method or contact support.");
+          sessionStorage.removeItem('modal_oauth_data');
+          return;
+        }
+
+        if (params.accessToken && params.refreshToken) {
+          setIsOAuthProcessing(true);
+          await setTokenInStorage(TokenKey.accessToken, params.accessToken);
+          await setTokenInStorage(TokenKey.refreshToken, params.refreshToken);
+
+          const decodedData = getTokenDecodedData(params.accessToken);
+          const authorities = decodedData?.authorities;
+          const userId = decodedData?.user;
+          const authorityKeys = authorities ? Object.keys(authorities) : [];
+
+          if (!userId || authorityKeys.length === 0) {
+            toast.error("Invalid user or institute data.");
+            setIsOAuthProcessing(false);
+            sessionStorage.removeItem('modal_oauth_data');
+            return;
+          }
+
+          // Multiple institutes: redirect to selection
+          if (authorityKeys.length > 1) {
+            if (onLoginSuccess) onLoginSuccess();
+            window.location.href = '/institute-selection';
+            sessionStorage.removeItem('modal_oauth_data');
+            return;
+          }
+
+          const targetInstituteId = instituteIdFromUrl && authorityKeys.includes(instituteIdFromUrl)
+            ? instituteIdFromUrl
+            : authorityKeys[0];
+
+          const details = await fetchAndStoreInstituteDetails(targetInstituteId, userId);
+          if (setPrimaryColor) {
+            setPrimaryColor(details?.institute_theme_code ?? import.meta.env.VITE_DEFAULT_THEME_COLOR ?? "#E67E22");
+          }
+          await fetchAndStoreStudentDetails(targetInstituteId, userId);
+
+          if (onLoginSuccess) onLoginSuccess();
+
+          try {
+            const settings = await getStudentDisplaySettings(true);
+            const redirectRoute = settings?.postLoginRedirectRoute || studyLibraryUrl;
+            if (/^https?:\/\//.test(redirectRoute)) {
+              window.location.assign(redirectRoute);
+            } else {
+              navigate({ to: redirectRoute as string });
+            }
+          } catch {
+            navigate({ to: studyLibraryUrl as string });
+          }
+        } else {
+          toast.error("Missing tokens. Please try logging in again.");
+        }
+        sessionStorage.removeItem('modal_oauth_data');
+      } else {
+        // Web platform: Open OAuth in popup window
+        const popup = window.open(
+          loginUrl,
+          'oauth_popup',
+          'width=500,height=600,scrollbars=yes,resizable=yes'
+        );
+
+        if (!popup) {
+          console.error('[OAuth] Popup blocked');
+          toast.error("Popup blocked! Please allow popups for this site.");
+          return;
+        }
+
+        // Focus the popup
+        popup.focus();
       }
-
-      // Focus the popup
-      popup.focus();
     } catch {
       toast.error("Failed to initiate login. Please try again.");
     }
