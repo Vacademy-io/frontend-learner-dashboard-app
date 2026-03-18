@@ -139,7 +139,7 @@ export function LoginForm({
           const family = mapFamily(parsed.fontFamily);
           document.documentElement.style.setProperty(
             "--app-font-family",
-            family
+            family,
           );
           document.body.style.fontFamily = family;
         }
@@ -247,7 +247,7 @@ export function LoginForm({
                 data: { accessToken, refreshToken },
                 isModalLogin: true,
               },
-              "*"
+              "*",
             );
           }
         } catch (e) {
@@ -264,7 +264,7 @@ export function LoginForm({
               data: { accessToken, refreshToken },
               ts: Date.now(),
               isModalLogin: true, // Mark as modal login so __root.tsx ignores it
-            })
+            }),
           );
         } catch (e) {
           console.log("[LoginForm] ❌ localStorage failed:", e);
@@ -313,13 +313,13 @@ export function LoginForm({
 
       if (error === "true") {
         console.log(
-          "[LoginForm] 🚫 POPUP DETECTED WITH ERROR - OAuth login failed"
+          "[LoginForm] 🚫 POPUP DETECTED WITH ERROR - OAuth login failed",
         );
 
         // Check if this is a signup scenario (user doesn't exist but we have OAuth data)
         if (signupData) {
           console.log(
-            "[LoginForm] 📝 SignupData present - switching to signup flow"
+            "[LoginForm] 📝 SignupData present - switching to signup flow",
           );
 
           // Decode signupData
@@ -340,7 +340,7 @@ export function LoginForm({
           try {
             if (window.opener && !window.opener.closed) {
               console.log(
-                "[LoginForm] 📨 Sending signup_needed postMessage to opener"
+                "[LoginForm] 📨 Sending signup_needed postMessage to opener",
               );
               window.opener.postMessage(
                 {
@@ -349,7 +349,7 @@ export function LoginForm({
                   needsSignup: true,
                   signupData: signupPayload,
                 },
-                "*"
+                "*",
               );
             }
           } catch (e) {
@@ -366,7 +366,7 @@ export function LoginForm({
                 data: signupPayload,
                 ts: Date.now(),
                 isModalLogin: true,
-              })
+              }),
             );
           } catch (e) {
             console.log("[LoginForm] ❌ localStorage signup write failed:", e);
@@ -376,7 +376,7 @@ export function LoginForm({
           try {
             if (typeof BroadcastChannel !== "undefined") {
               console.log(
-                "[LoginForm] 📡 Broadcasting signup_needed via BroadcastChannel"
+                "[LoginForm] 📡 Broadcasting signup_needed via BroadcastChannel",
               );
               const bc = new BroadcastChannel("OAUTH_CHANNEL");
               bc.postMessage({
@@ -408,7 +408,7 @@ export function LoginForm({
                   success: false,
                   error: errorMessage,
                 },
-                "*"
+                "*",
               );
             }
           } catch (e) {
@@ -425,7 +425,7 @@ export function LoginForm({
                 data: { message: errorMessage },
                 ts: Date.now(),
                 isModalLogin: true,
-              })
+              }),
             );
           } catch (e) {
             console.log("[LoginForm] ❌ localStorage error write failed:", e);
@@ -435,7 +435,7 @@ export function LoginForm({
           try {
             if (typeof BroadcastChannel !== "undefined") {
               console.log(
-                "[LoginForm] 📡 Broadcasting error via BroadcastChannel"
+                "[LoginForm] 📡 Broadcasting error via BroadcastChannel",
               );
               const bc = new BroadcastChannel("OAUTH_CHANNEL");
               bc.postMessage({
@@ -488,7 +488,7 @@ export function LoginForm({
 
       if (hasOpener) {
         console.log(
-          "[LoginForm] FAILSAFE: Detected opener after initial check - closing popup"
+          "[LoginForm] FAILSAFE: Detected opener after initial check - closing popup",
         );
         // Send tokens and close
         try {
@@ -498,7 +498,7 @@ export function LoginForm({
               data: { accessToken, refreshToken },
               isModalLogin: true,
             },
-            "*"
+            "*",
           );
         } catch {
           /* ignore */
@@ -511,7 +511,7 @@ export function LoginForm({
               data: { accessToken, refreshToken },
               ts: Date.now(),
               isModalLogin: true,
-            })
+            }),
           );
         } catch {
           /* ignore */
@@ -530,7 +530,11 @@ export function LoginForm({
       setIsSSOLoading(true);
       setTokenInStorage(TokenKey.accessToken, accessToken);
       setTokenInStorage(TokenKey.refreshToken, refreshToken);
-      handleSuccessfulLogin(accessToken, redirect);
+      // Call async function without awaiting (it will navigate when complete)
+      handleSuccessfulLogin(accessToken, redirect).catch((e) => {
+        console.error("Login failed:", e);
+        setIsSSOLoading(false);
+      });
     }
   }, [navigate]);
 
@@ -540,7 +544,7 @@ export function LoginForm({
 
     const finalizeLoginWithTokens = async (
       accessToken: string,
-      refreshToken: string
+      refreshToken: string,
     ) => {
       try {
         // Show loading screen immediately when processing OAuth tokens from popup
@@ -655,14 +659,14 @@ export function LoginForm({
 
   const handleSuccessfulLogin = async (
     accessToken: string,
-    redirect?: string | null
+    redirect?: string | null,
   ) => {
     try {
       const decodedData = getTokenDecodedData(accessToken);
       const authorities = decodedData?.authorities;
       const userId = decodedData?.user;
       const authorityKeys = authorities ? Object.keys(authorities) : [];
-
+      console.log("abc", userId);
       // Identify user in analytics as soon as we know the userId
       if (userId) {
         try {
@@ -673,6 +677,30 @@ export function LoginForm({
         } catch {
           console.warn("Failed to identify user for analytics");
         }
+      }
+
+      // Check if user has PARENT role by examining authorities
+      let isParent = false;
+      const allRoles: string[] = [];
+
+      if (authorities && typeof authorities === "object") {
+        for (const [, instAuthority] of Object.entries(authorities)) {
+          if (instAuthority && typeof instAuthority === "object") {
+            const instRoles = (instAuthority as { roles?: string[] }).roles;
+            if (Array.isArray(instRoles)) {
+              allRoles.push(...instRoles);
+            }
+          }
+        }
+      }
+
+      const upperRoles = allRoles.map((r) => r.toUpperCase());
+      isParent = upperRoles.includes("PARENT");
+
+      if (isParent) {
+        setIsSSOLoading(false);
+        navigate({ to: "/parent" });
+        return;
       }
 
       if (authorityKeys.length > 1) {
@@ -693,7 +721,7 @@ export function LoginForm({
             // Fetch and store institute details
             const details = await fetchAndStoreInstituteDetails(
               instituteId,
-              userId
+              userId,
             );
             setInstituteId(instituteId);
             if (instituteId === HOLISTIC_INSTITUTE_ID) {
@@ -701,8 +729,8 @@ export function LoginForm({
             } else {
               setPrimaryColor(
                 details?.institute_theme_code ??
-                import.meta.env.VITE_DEFAULT_THEME_COLOR ??
-                "#E67E22"
+                  import.meta.env.VITE_DEFAULT_THEME_COLOR ??
+                  "#E67E22",
               );
             }
           } catch (error) {
@@ -732,7 +760,7 @@ export function LoginForm({
         } catch (e) {
           console.error(
             "[Post-Login Redirect] Falling back to /dashboard due to error:",
-            e
+            e,
           );
           navigate({ to: "/dashboard" });
         }
@@ -741,7 +769,6 @@ export function LoginForm({
       toast.error("Failed to process user data");
     }
   };
-
 
   const handleOAuthLogin = (provider: "google" | "github") => {
     try {
@@ -759,7 +786,7 @@ export function LoginForm({
 
       const base64State = btoa(JSON.stringify(stateObj));
       const loginUrl = `${LOGIN_URL_GOOGLE_GITHUB}/${provider}?state=${encodeURIComponent(
-        base64State
+        base64State,
       )}`;
       window.location.href = loginUrl;
     } catch {
@@ -844,8 +871,9 @@ export function LoginForm({
 
   return (
     <div
-      className={`${type ? "h-[400px] overflow-auto" : "min-h-screen overflow-hidden"
-        } bg-background relative mt-10`}
+      className={`${
+        type ? "h-[400px] overflow-auto" : "min-h-screen overflow-hidden"
+      } bg-background relative mt-10`}
     >
       {/* Subtle Background Pattern (gradients removed) */}
       <div className="absolute inset-0 -z-10" />
@@ -1032,7 +1060,7 @@ export function LoginForm({
 
                 {/* Explore Courses (for institutes with public catalog) */}
                 {domainRouting?.redirectPath &&
-                  domainRouting.redirectPath !== "/login" ? (
+                domainRouting.redirectPath !== "/login" ? (
                   <motion.div
                     initial={{ y: 10, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}

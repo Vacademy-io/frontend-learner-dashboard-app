@@ -10,9 +10,16 @@ import {
   AIStatus,
   MessageIntent,
 } from "@/services/chatbot-api";
+import { enqueueMessage, peekQueue, dequeueMessage, QueuedMessage } from "@/services/offline-queue";
 import { useContentStore } from "@/stores/study-library/chapter-sidebar-store";
 import { useInstituteDetailsStore } from "@/stores/study-library/useInstituteDetails";
+import { useParentPortalStore } from "@/stores/parent-portal-store";
 import { useCourseDetailsStore } from "@/stores/study-library/useCourseDetailsStore";
+import { useStudyLibraryStore } from "@/stores/study-library/use-study-library-store";
+import { useModulesWithChaptersStore } from "@/stores/study-library/use-modules-with-chapters-store";
+import { getSubjectName } from "@/utils/study-library/get-name-by-id/getSubjectNameById";
+import { getModuleName } from "@/utils/study-library/get-name-by-id/getModuleNameById";
+import { getChapterName } from "@/utils/study-library/get-name-by-id/getChapterById";
 import {
   ChatbotSettingsData,
   DEFAULT_CHATBOT_SETTINGS,
@@ -21,13 +28,15 @@ import {
 import { isChatbotVisibleOnRoute } from "@/config/chatbot-routes";
 
 export const useChatbot = () => {
+  // Check if parent portal is active
+  const parentPortal = useParentPortalStore();
   const location = useLocation();
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [inputValue, setInputValue] = useState("");
   const [chatbotSettings, setChatbotSettings] = useState<ChatbotSettingsData>(
-    DEFAULT_CHATBOT_SETTINGS
+    DEFAULT_CHATBOT_SETTINGS,
   );
   const [instituteName, setInstituteName] = useState<string>("Vacademy");
   const [isExpanded, setIsExpanded] = useState(false);
@@ -36,7 +45,13 @@ export const useChatbot = () => {
   const [isInitializing, setIsInitializing] = useState(false);
   const [isWaitingForResponse, setIsWaitingForResponse] = useState(false);
   const [hasError, setHasError] = useState(false);
+  const [isCreditsExhausted, setIsCreditsExhausted] = useState(false);
   const [isSessionClosed, setIsSessionClosed] = useState(false);
+  const [activeToolCall, setActiveToolCall] = useState<string | null>(null);
+  const [streamingContent, setStreamingContent] = useState<string>("");
+  const [isStreaming, setIsStreaming] = useState(false);
+  const [isOffline, setIsOffline] = useState(!navigator.onLine);
+  const [pendingMessages, setPendingMessages] = useState<QueuedMessage[]>([]);
 
   // Ref to scroll to bottom
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -45,10 +60,16 @@ export const useChatbot = () => {
   // Subscribe to stores for reactive context
   const activeSlide = useContentStore((state) => state.activeItem);
   const instituteDetails = useInstituteDetailsStore(
-    (state) => state.instituteDetails
+    (state) => state.instituteDetails,
   );
   const getCourseDetails = useCourseDetailsStore(
-    (state) => state.getCourseDetails
+    (state) => state.getCourseDetails,
+  );
+  const studyLibraryData = useStudyLibraryStore(
+    (state) => state.studyLibraryData,
+  );
+  const modulesWithChaptersData = useModulesWithChaptersStore(
+    (state) => state.modulesWithChaptersData,
   );
 
   const scrollToBottom = () => {
@@ -70,6 +91,40 @@ export const useChatbot = () => {
       }
     };
   }, [sessionId]);
+
+  // Flush offline queue when back online
+  const flushOfflineQueue = useCallback(async () => {
+    if (!sessionId) return;
+    const queued = peekQueue();
+    for (const msg of queued) {
+      if (msg.sessionId === sessionId) {
+        try {
+          await chatbotAPI.sendMessage(sessionId, msg.message, msg.intent as MessageIntent | undefined);
+          dequeueMessage();
+        } catch (e) {
+          console.error("Failed to flush queued message:", e);
+          break; // Stop if sending fails
+        }
+      }
+    }
+    setPendingMessages([]);
+  }, [sessionId]);
+
+  // Online/offline detection
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOffline(false);
+      flushOfflineQueue();
+    };
+    const handleOffline = () => setIsOffline(true);
+
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, [flushOfflineQueue]);
 
   // Reset inactivity timer
   const resetInactivityTimer = useCallback(() => {
@@ -97,9 +152,10 @@ export const useChatbot = () => {
   }, []);
 
   const shouldShowChatbot = () => {
+    // Restrict chatbot for parent portal users
+    if (parentPortal.selectedChild) return false;
     // Check global visibility setting first
     if (!chatbotSettings.enable) return false;
-
     // Check centralized route configuration
     return isChatbotVisibleOnRoute(location.pathname);
   };
@@ -165,7 +221,7 @@ export const useChatbot = () => {
             questions = [activeSlide.question_slide.text_data?.content];
             options =
               activeSlide.question_slide.options?.map(
-                (opt) => opt.text?.content || ""
+                (opt) => opt.text?.content || "",
               ) || [];
           }
         } else if (activeSlide.source_type === "QUIZ") {
@@ -180,7 +236,7 @@ export const useChatbot = () => {
               // send like [["option1","option2"],["option1","option2"]]
               //@ts-expect-error : options type issue
               options = quizQuestions.map((q) =>
-                q.options?.map((opt) => opt.text?.content || "")
+                q.options?.map((opt) => opt.text?.content || ""),
               ) as string[][];
             }
           }
@@ -197,9 +253,8 @@ export const useChatbot = () => {
           let matches = instituteDetails?.batches_for_sessions || [];
           if (!matches || matches.length === 0) {
             try {
-              const { fetchBatchesForCourse } = await import(
-                "@/services/courseBatches"
-              );
+              const { fetchBatchesForCourse } =
+                await import("@/services/courseBatches");
               matches = await fetchBatchesForCourse(context.courseId);
             } catch (e) {
               console.error(e);
@@ -207,10 +262,21 @@ export const useChatbot = () => {
           }
 
           const batch = matches?.find(
-            (b) => b.package_dto.id === context.courseId
+            (b) => b.package_dto.id === context.courseId,
           );
           courseName = batch?.package_dto?.package_name || "";
         }
+
+        // Resolve chapter/subject/module names from stores using URL params
+        const chapterNameStr = context.chapterId
+          ? getChapterName(context.chapterId, modulesWithChaptersData) || ""
+          : "";
+        const moduleNameStr = context.moduleId
+          ? getModuleName(context.moduleId, modulesWithChaptersData)
+          : "";
+        const subjectNameStr = context.subjectId
+          ? getSubjectName(context.subjectId, studyLibraryData) || ""
+          : "";
 
         return {
           name: activeSlide.title || "Current Slide",
@@ -219,6 +285,9 @@ export const useChatbot = () => {
           questions: questions || undefined,
           options: options.length > 0 ? options : undefined,
           order: activeSlide.slide_order,
+          chapter: chapterNameStr,
+          module: moduleNameStr,
+          subject: subjectNameStr,
           course: courseName,
           progress: `${Math.round(activeSlide.percentage_completed || 0)}%`,
         };
@@ -254,9 +323,8 @@ export const useChatbot = () => {
         let matches = instituteDetails?.batches_for_sessions || [];
         if (!matches || matches.length === 0) {
           try {
-            const { fetchBatchesForCourse } = await import(
-              "@/services/courseBatches"
-            );
+            const { fetchBatchesForCourse } =
+              await import("@/services/courseBatches");
             matches = await fetchBatchesForCourse(context.courseId);
           } catch (e) {
             console.error(e);
@@ -264,7 +332,7 @@ export const useChatbot = () => {
         }
 
         const batch = matches?.find(
-          (b) => b.package_dto.id === context.courseId
+          (b) => b.package_dto.id === context.courseId,
         );
 
         if (courseDetails?.package_name) {
@@ -302,8 +370,6 @@ export const useChatbot = () => {
       };
     }
 
-
-
     return {};
   }, [
     getContextType,
@@ -311,6 +377,8 @@ export const useChatbot = () => {
     activeSlide,
     instituteDetails,
     getCourseDetails,
+    studyLibraryData,
+    modulesWithChaptersData,
   ]);
 
   const initializeSession = useCallback(async () => {
@@ -334,7 +402,7 @@ export const useChatbot = () => {
         } catch (error) {
           console.warn(
             "Failed to fetch course details, will use basic info:",
-            error
+            error,
           );
         }
       }
@@ -345,7 +413,7 @@ export const useChatbot = () => {
       const response = await chatbotAPI.initSession(
         undefined,
         contextType,
-        contextMeta
+        contextMeta,
       );
 
       setSessionId(response.session_id);
@@ -365,11 +433,34 @@ export const useChatbot = () => {
         try {
           const messageData: MessageEvent = JSON.parse(event.data);
 
-          // Skip tool_call and tool_result messages
+          // Check for credits exhausted error in message data
           if (
-            messageData.type === "tool_call" ||
-            messageData.type === "tool_result"
+            (messageData as any).type === "ERROR" &&
+            (messageData as any).code === 402
           ) {
+            setIsCreditsExhausted(true);
+            setIsWaitingForResponse(false);
+            setIsLoading(false);
+            setAiStatus("idle");
+
+            const creditsMessage: ChatMessage = {
+              id: Date.now(),
+              role: "assistant",
+              content:
+                "Your OpenRouter credits have been exhausted. Please recharge your credits to continue using the AI assistant.",
+              timestamp: Date.now(),
+            };
+            setMessages((prev) => [...prev, creditsMessage]);
+            return;
+          }
+
+           // Handle tool_call: show indicator; tool_result: clear it
+          if (messageData.type === "tool_call") {
+            setActiveToolCall(messageData.metadata?.tool_name || null);
+            return;
+          }
+          if (messageData.type === "tool_result") {
+            setActiveToolCall(null);
             return;
           }
 
@@ -378,8 +469,15 @@ export const useChatbot = () => {
             return;
           }
 
-          // Clear waiting state only when we get an actual assistant message
+          // Clear waiting state and tool indicator when we get an actual assistant message
           setIsWaitingForResponse(false);
+          setActiveToolCall(null);
+
+          // When we receive a full assistant message, clear streaming state
+          if (messageData.type === "assistant") {
+            setIsStreaming(false);
+            setStreamingContent("");
+          }
 
           const newMessage: ChatMessage = {
             id: messageData.id,
@@ -397,6 +495,17 @@ export const useChatbot = () => {
           });
         } catch (error) {
           console.error("Error parsing message event:", error);
+        }
+      });
+
+      eventSource.addEventListener("token", (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          setIsStreaming(true);
+          setStreamingContent((prev) => prev + (data.content || ""));
+          scrollToBottom();
+        } catch (e) {
+          console.error("Error parsing token event:", e);
         }
       });
 
@@ -419,6 +528,33 @@ export const useChatbot = () => {
       });
 
       eventSource.addEventListener("error", (event) => {
+        // Check if this is a structured error event with data (e.g. credits exhausted)
+        try {
+          const errorEvent = event as MessageEvent;
+          if (errorEvent.data) {
+            const errorData = JSON.parse(errorEvent.data);
+            if (errorData.type === "ERROR" && errorData.code === 402) {
+              console.error("Credits exhausted (402):", errorData.message);
+              setIsCreditsExhausted(true);
+              setIsWaitingForResponse(false);
+              setIsLoading(false);
+              setAiStatus("idle");
+
+              const creditsMessage: ChatMessage = {
+                id: Date.now(),
+                role: "assistant",
+                content:
+                  "Your OpenRouter credits have been exhausted. Please recharge your credits to continue using the AI assistant.",
+                timestamp: Date.now(),
+              };
+              setMessages((prev) => [...prev, creditsMessage]);
+              return;
+            }
+          }
+        } catch {
+          // Not a JSON error event, handle as regular SSE error below
+        }
+
         console.error("SSE Error event:", event);
         console.error("EventSource readyState:", eventSource.readyState);
         console.error("EventSource url:", eventSource.url);
@@ -515,16 +651,55 @@ export const useChatbot = () => {
     };
 
     updateContextAsync();
-  }, [sessionId, isOpen, isInitializing, getContextType, buildContextMeta, location.pathname, activeSlide]);
+  }, [
+    sessionId,
+    isOpen,
+    isInitializing,
+    getContextType,
+    buildContextMeta,
+    location.pathname,
+    activeSlide,
+  ]);
 
-  const sendMessage = async (content: string, intent?: MessageIntent) => {
+  const sendMessage = async (content: string, intent?: MessageIntent, attachments?: Array<{type: string; url: string; mime_type?: string; name?: string}>) => {
     if (!content.trim() || !sessionId) return;
+
+    if (isCreditsExhausted) {
+      const creditsMessage: ChatMessage = {
+        id: Date.now(),
+        role: "assistant",
+        content:
+          "Your OpenRouter credits have been exhausted. Please recharge your credits to continue using the AI assistant.",
+        timestamp: Date.now(),
+      };
+      setMessages((prev) => [...prev, creditsMessage]);
+      return;
+    }
+
+    // Queue message if offline
+    if (!navigator.onLine) {
+      const queued = enqueueMessage({ sessionId, message: content, intent });
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: Date.now(),
+          role: "user",
+          content,
+          timestamp: Date.now(),
+          status: "pending",
+        },
+      ]);
+      setPendingMessages(peekQueue());
+      setInputValue("");
+      return;
+    }
 
     const newMessage: ChatMessage = {
       id: Date.now(),
       role: "user",
       content,
       timestamp: Date.now(),
+      attachments: attachments?.map(att => ({ ...att, type: att.type as 'image' | 'video' })),
     };
 
     setMessages((prev) => [...prev, newMessage]);
@@ -534,20 +709,35 @@ export const useChatbot = () => {
     setAiStatus(intent === "practice" ? "generating_quiz" : "thinking");
 
     try {
-      await chatbotAPI.sendMessage(sessionId, content, intent);
+      await chatbotAPI.sendMessage(sessionId, content, intent, undefined, attachments);
       // Response will come through SSE
     } catch (error) {
       console.error("Failed to send message:", error);
-      setHasError(true);
-      const errorMessage: ChatMessage = {
-        id: Date.now(),
-        role: "assistant",
-        content:
-          "I'm sorry, I encountered an error while processing your request. Please try again.",
-        timestamp: Date.now(),
-      };
-      setMessages((prev) => [...prev, errorMessage]);
-      setAiStatus("idle");
+
+      // Check for 402 credits exhausted
+      if (axios.isAxiosError(error) && error.response?.status === 402) {
+        setIsCreditsExhausted(true);
+        const creditsMsg: ChatMessage = {
+          id: Date.now(),
+          role: "assistant",
+          content:
+            "Your OpenRouter credits have been exhausted. Please recharge your credits to continue using the AI assistant.",
+          timestamp: Date.now(),
+        };
+        setMessages((prev) => [...prev, creditsMsg]);
+        setAiStatus("idle");
+      } else {
+        setHasError(true);
+        const errorMessage: ChatMessage = {
+          id: Date.now(),
+          role: "assistant",
+          content:
+            "I'm sorry, I encountered an error while processing your request. Please try again.",
+          timestamp: Date.now(),
+        };
+        setMessages((prev) => [...prev, errorMessage]);
+        setAiStatus("idle");
+      }
     } finally {
       setIsLoading(false);
     }
@@ -564,7 +754,7 @@ export const useChatbot = () => {
         sessionId,
         "Quiz completed",
         undefined,
-        submission
+        submission,
       );
       // Response will come through SSE as quiz_feedback
     } catch (error) {
@@ -573,8 +763,7 @@ export const useChatbot = () => {
       const errorMessage: ChatMessage = {
         id: Date.now(),
         role: "assistant",
-        content:
-          "I'm sorry, I couldn't submit your quiz. Please try again.",
+        content: "I'm sorry, I couldn't submit your quiz. Please try again.",
         timestamp: Date.now(),
       };
       setMessages((prev) => [...prev, errorMessage]);
@@ -609,7 +798,11 @@ export const useChatbot = () => {
     setIsInitializing(false);
     setIsWaitingForResponse(false);
     setHasError(false);
+    setIsCreditsExhausted(false);
     setIsSessionClosed(false);
+    setActiveToolCall(null);
+    setStreamingContent("");
+    setIsStreaming(false);
 
     // Initialize new session
     await initializeSession();
@@ -641,13 +834,17 @@ export const useChatbot = () => {
     setIsWaitingForResponse(false);
     setHasError(false);
     setIsSessionClosed(true);
+    setActiveToolCall(null);
+    setStreamingContent("");
+    setIsStreaming(false);
   }, [sessionId]);
 
   return {
     isOpen,
     setIsOpen,
     messages,
-    isLoading: isLoading || aiStatus === "thinking" || aiStatus === "generating_quiz",
+    isLoading:
+      isLoading || aiStatus === "thinking" || aiStatus === "generating_quiz",
     inputValue,
     setInputValue,
     sendMessage,
@@ -664,7 +861,13 @@ export const useChatbot = () => {
     sessionId,
     isWaitingForResponse,
     hasError,
+    isCreditsExhausted,
     isSessionClosed,
     isInitializing,
+    activeToolCall,
+    streamingContent,
+    isStreaming,
+    isOffline,
+    pendingMessages,
   };
 };

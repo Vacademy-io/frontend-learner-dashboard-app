@@ -44,6 +44,7 @@ export const LOGIN_BY_USERNAME_TRUSTED = `${BASE_URL}/auth-service/learner/v1/lo
 
 export const REFRESH_TOKEN_URL = `${BASE_URL}/auth-service/learner/v1/refresh-token`;
 export const INSTITUTE_DETAIL = `${BASE_URL}/admin-core-service/learner/v1/details-without-batches`;
+export const INSTITUTE_COMPLETE_DETAILS = `${BASE_URL}/admin-core-service/learner/v1/details`;
 export const STUDENT_DETAIL = `${BASE_URL}/admin-core-service/learner/info/v1/details`;
 
 export const Assessment_List_Filter = `${BASE_URL}/assessment-service/assessment/learner/assessment-list-filter`;
@@ -108,6 +109,9 @@ export const REGISTER_PARTICIPANT_URL = `${BASE_URL}/assessment-service/open-reg
 export const GET_USERID_URL = `${BASE_URL}/admin-core-service/institute/open_learner/v1/add-institute_learner`;
 export const GET_LAST_7_DAYS_PROGRESS = `${BASE_URL}/admin-core-service/learner-tracking/activity-log/learner/v1/daily-time-spent`;
 
+// Live session — Zoho Meeting integration
+export const ZOHO_PARTICIPANT_JOIN_LINK = `${BASE_URL}/admin-core-service/live-sessions/provider/meeting/participant-join-link`;
+
 // Live session
 export const LIVE_SESSION_REQUEST_OTP = `${BASE_URL}/notification-service/v1/send-email-otp`;
 export const LIVE_SESSION_VERIFY_OTP = `${BASE_URL}/notification-service/v1/verify-email-otp`;
@@ -144,6 +148,7 @@ export const urlInstructor = `${BASE_URL}/admin-core-service/open/institute/v1/f
 export const FEEDBACK_URL = `${BASE_URL}/admin-core-service/rating`;
 
 export const SUBMIT_QUIZ_SLIDE_ACTIVITY_LOG = `${BASE_URL}/admin-core-service/learner-tracking/activity-log/quiz-slide/add-or-update-quiz-slide-activity-log`;
+export const GET_QUIZ_SLIDE_ACTIVITY_LOGS = `${BASE_URL}/admin-core-service/learner-tracking/activity-log/quiz-slide/quiz-slide-activity-logs`;
 export const LIVE_SESSION_ATTENDANCE_REPORT_BY_BATCH = `${BASE_URL}/admin-core-service/live-session-report/by-batch-session`;
 export const LIVE_SESSION_ATTENDANCE_REPORT_BY_STUDENT = `${BASE_URL}/admin-core-service/live-session-report/student-report`;
 
@@ -209,5 +214,32 @@ export const USER_LINKED_DATA = `${BASE_URL}/admin-core-service/v1/student-analy
 export const USER_AI_KEY = `${BASE_URL}/ai-service/api-keys/v1/user`;
 export const USER_TOKEN_USAGE = `${BASE_URL}/ai-service/token-usage/v1/user`;
 
+export const GET_PARENT_DATA = `${BASE_URL}/admin-core-service/v1/applicant/parent`;
+
+// Parent Portal API endpoints
+export const SEARCH_ENQUIRY = `${BASE_URL}/admin-core-service/applicant/v1/enquiry/details`;
+export const SUBMIT_APPLICATION = `${BASE_URL}/admin-core-service/v1/applicant/apply`;
+export const GET_APPLICATION_STAGES = `${BASE_URL}/admin-core-service/v1/application/stages`;
+export const GET_APPLICANT_STAGES = (applicantId: string) =>
+  `${BASE_URL}/admin-core-service/v1/applicant/${applicantId}/stages`;
+
+export const SUBMIT_ADMISSION = `${BASE_URL}/admin-core-service/v1/admission/submit`;
+
+// Admission payment flow
+// GET_ADMISSION_PAYMENT_OPTIONS: fetch available payment options for this institute (requires auth)
+export const GET_ADMISSION_PAYMENT_OPTIONS = `${BASE_URL}/admin-core-service/v1/payment-option/get-payment-options`;
+// INITIATE_APPLICANT_PAYMENT: POST /v1/applicant/{applicantId}/payment/initiate?paymentOptionId={id} (requires auth)
+// body: { vendor, amount, currency, razorpay_request: {} }
+// returns razorpay order details (razorpayKeyId, razorpayOrderId, amount, currency)
+export const INITIATE_APPLICANT_PAYMENT = (applicantId: string) =>
+  `${BASE_URL}/admin-core-service/v1/applicant/${applicantId}/payment/initiate`;
+
+// Open (no-auth) admission payment endpoints — used by the public /admission/payment/:id link
+// Fetch a single payment option by its ID (no JWT needed)
+export const GET_PAYMENT_OPTION_BY_ID = (paymentOptionId: string) =>
+  `${BASE_URL}/admin-core-service/open/v1/payment-option/${paymentOptionId}`;
+// Initiate applicant payment without JWT — open variant
+export const INITIATE_APPLICANT_PAYMENT_OPEN = (applicantId: string) =>
+  `${BASE_URL}/admin-core-service/open/v1/applicant/${applicantId}/payment/initiate`;
 // AI service base url
 export const AI_SERVICE_URL = `${BASE_URL}/ai-service`;
