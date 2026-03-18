@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { MyInput } from "@/components/design-system/input";
 import { loginSchema } from "@/schemas/login/login";
 import { z } from "zod";
@@ -8,6 +8,8 @@ import { Form, FormControl, FormField, FormItem } from "@/components/ui/form";
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { loginUser } from "@/components/common/auth/login/hooks/login-button";
+import type { ActiveSession } from "@/components/common/auth/login/hooks/login-button";
+import { ActiveSessionsModal } from "@/components/common/auth/login/components/active-sessions-modal";
 import { TokenKey } from "@/constants/auth/tokens";
 import { useNavigate, useRouterState } from "@tanstack/react-router";
 import { motion } from "framer-motion";
@@ -52,6 +54,8 @@ export function UsernameLogin({
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [sessionModalOpen, setSessionModalOpen] = useState(false);
+  const [activeSessions, setActiveSessions] = useState<ActiveSession[]>([]);
   const { setInstituteId } = useInstituteFeatureStore();
   const domainRouting = useDomainRouting();
 
@@ -91,10 +95,22 @@ export function UsernameLogin({
     },
     onSuccess: async (response) => {
       if (response) {
+        // Check if session limit exceeded
+        if (response.session_limit_exceeded && response.active_sessions) {
+          setIsLoading(false);
+          setActiveSessions(response.active_sessions);
+          setSessionModalOpen(true);
+          return;
+        }
+
         try {
           // Store tokens in Capacitor Storage
-          await setTokenInStorage(TokenKey.accessToken, response.accessToken);
-          await setTokenInStorage(TokenKey.refreshToken, response.refreshToken);
+          if (response.accessToken) {
+            await setTokenInStorage(TokenKey.accessToken, response.accessToken);
+          }
+          if (response.refreshToken) {
+            await setTokenInStorage(TokenKey.refreshToken, response.refreshToken);
+          }
 
           // Decode token to get user data
           const decodedData = await getTokenDecodedData(response.accessToken);
@@ -240,6 +256,13 @@ export function UsernameLogin({
       );
     },
   });
+
+  const retryLogin = useCallback(() => {
+    const values = form.getValues();
+    if (values.username && values.password) {
+      mutation.mutate(values);
+    }
+  }, [form, mutation]);
 
   function onSubmit(values: FormValues) {
     mutation.mutate(values);
@@ -466,6 +489,13 @@ export function UsernameLogin({
           );
         })()}
       </motion.div>
+
+      <ActiveSessionsModal
+        open={sessionModalOpen}
+        onOpenChange={setSessionModalOpen}
+        activeSessions={activeSessions}
+        onRetryLogin={retryLogin}
+      />
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -28,6 +28,8 @@ import {
 import { LOGIN_OTP, REQUEST_OTP } from "@/constants/urls";
 import { fetchAndStoreInstituteDetails } from "@/services/fetchAndStoreInstituteDetails";
 import { fetchAndStoreStudentDetails } from "@/services/studentDetails";
+import type { ActiveSession } from "@/components/common/auth/login/hooks/login-button";
+import { ActiveSessionsModal } from "@/components/common/auth/login/components/active-sessions-modal";
 
 const emailSchema = z.object({
     email: z.string().email({ message: "Invalid email address" }),
@@ -77,6 +79,9 @@ export function ModalEmailLogin({
     const navigate = useNavigate();
     const otpInputRefs = useRef<(HTMLInputElement | null)[]>([]);
     const [isLoading, setIsLoading] = useState(false);
+    const [sessionModalOpen, setSessionModalOpen] = useState(false);
+    const [activeSessions, setActiveSessions] = useState<ActiveSession[]>([]);
+    const [lastOtp, setLastOtp] = useState("");
 
     // const redirect = useRouterState({
     //     select: (s) =>
@@ -188,6 +193,14 @@ export function ModalEmailLogin({
         },
         onSuccess: async (response) => {
             try {
+                // Check if session limit exceeded
+                if (response.data.session_limit_exceeded && response.data.active_sessions) {
+                    setIsLoading(false);
+                    setActiveSessions(response.data.active_sessions);
+                    setSessionModalOpen(true);
+                    return;
+                }
+
                 // If onEmailVerificationSuccess callback is provided, use it for signup flow
                 if (onEmailVerificationSuccess) {
                     onEmailVerificationSuccess(email);
@@ -437,15 +450,23 @@ export function ModalEmailLogin({
     const onOtpSubmit = () => {
         const otpArray = otpForm.getValues().otp;
         if (otpArray.every((val) => val !== "")) {
+            const otp = otpArray.join("");
+            setLastOtp(otp);
             verifyOtpMutation.mutate({
                 email,
-                otp: otpArray.join(""),
+                otp,
             });
         } else {
             setIsLoading(false);
             toast.error("Please fill all OTP fields");
         }
     };
+
+    const retryOtpLogin = useCallback(() => {
+        if (email && lastOtp) {
+            verifyOtpMutation.mutate({ email, otp: lastOtp });
+        }
+    }, [email, lastOtp, verifyOtpMutation]);
 
     const handleOtpPaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
         e.preventDefault();
@@ -711,6 +732,13 @@ export function ModalEmailLogin({
                          </motion.div>
                     </form>
                 </Form>
+
+                <ActiveSessionsModal
+                    open={sessionModalOpen}
+                    onOpenChange={setSessionModalOpen}
+                    activeSessions={activeSessions}
+                    onRetryLogin={retryOtpLogin}
+                />
             </div>
         );
     }
@@ -819,6 +847,13 @@ export function ModalEmailLogin({
             </motion.div>
                 </form>
             </Form>
+
+            <ActiveSessionsModal
+                open={sessionModalOpen}
+                onOpenChange={setSessionModalOpen}
+                activeSessions={activeSessions}
+                onRetryLogin={retryOtpLogin}
+            />
         </div>
     );
-} 
+}

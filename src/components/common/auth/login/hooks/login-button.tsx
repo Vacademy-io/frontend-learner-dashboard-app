@@ -2,7 +2,6 @@ import { z } from "zod";
 import { LOGIN_URL } from "@/constants/urls";
 import { Storage } from "@capacitor/storage";
 import { TokenKey } from "@/constants/auth/tokens";
-// import { INSTITUTE_ID } from "@/constants/urls";
 
 // Define the request and response schemas using Zod
 const loginRequestSchema = z.object({
@@ -11,6 +10,22 @@ const loginRequestSchema = z.object({
     client_name: z.literal("ADMIN_PORTAL"),
     institute_id: z.string().uuid(),
 });
+
+export interface ActiveSession {
+    session_id: string;
+    device_type: string;
+    ip_address: string;
+    login_time: string;
+    last_activity_time: string;
+}
+
+export interface LoginResponse {
+    accessToken?: string;
+    refreshToken?: string;
+    instituteId?: string;
+    session_limit_exceeded?: boolean;
+    active_sessions?: ActiveSession[];
+}
 
 const loginResponseSchema = z.object({
     accessToken: z.string(),
@@ -23,11 +38,11 @@ async function loginUser(
     username: string,
     password: string,
     convertToLowercase?: boolean | null,
-): Promise<z.infer<typeof loginResponseSchema>> {
+): Promise<LoginResponse> {
     // Convert username and password to lowercase if flag is true
     const finalUsername = convertToLowercase === true ? username.toLowerCase() : username;
     const finalPassword = convertToLowercase === true ? password.toLowerCase() : password;
-    
+
     const response = await fetch(LOGIN_URL, {
         method: "POST",
         headers: {
@@ -37,7 +52,6 @@ async function loginUser(
             user_name: finalUsername,
             password: finalPassword,
             client_name: "ADMIN_PORTAL",
-            // institute_id: INSTITUTE_ID,
         }),
     });
 
@@ -45,13 +59,24 @@ async function loginUser(
         throw new Error("Login failed");
     }
 
-    const tokenData = await response.json();
+    const tokenData: LoginResponse = await response.json();
+
+    // If session limit exceeded, return early without saving tokens
+    if (tokenData.session_limit_exceeded) {
+        return tokenData;
+    }
 
     // --- BUG FIX: Save tokens and instituteId to storage ---
     try {
-        await Storage.set({ key: TokenKey.accessToken, value: tokenData.accessToken });
-        await Storage.set({ key: TokenKey.refreshToken, value: tokenData.refreshToken });
-        await Storage.set({ key: "instituteId", value: tokenData.instituteId });
+        if (tokenData.accessToken) {
+            await Storage.set({ key: TokenKey.accessToken, value: tokenData.accessToken });
+        }
+        if (tokenData.refreshToken) {
+            await Storage.set({ key: TokenKey.refreshToken, value: tokenData.refreshToken });
+        }
+        if (tokenData.instituteId) {
+            await Storage.set({ key: "instituteId", value: tokenData.instituteId });
+        }
     } catch (error) {
         console.error("Error saving tokens to storage", error);
         // If we can't save tokens, the login is effectively failed.

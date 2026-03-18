@@ -1,11 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect } from "react";
-import { removeTokensAndLogout } from "@/lib/auth/sessionUtility";
+import { removeTokensAndLogout, getAccessToken } from "@/lib/auth/sessionUtility";
 import { pushNotificationService } from "@/services/push-notifications/push-notification-service";
 import { useNavigate } from "@tanstack/react-router";
 import { NAMING_SETTINGS_KEY } from "@/types/naming-settings";
 import { useDomainRouting } from "@/hooks/use-domain-routing";
 import { useDripConditionStore } from "@/stores/study-library/drip-conditions-store";
+import { LEARNER_LOGOUT_URL } from "@/constants/urls";
 
 export const Route = createFileRoute("/logout/")({
   component: RouteComponent,
@@ -25,10 +26,30 @@ function RouteComponent() {
 
   // Perform logout side-effects once on mount
   useEffect(() => {
-    localStorage.removeItem(NAMING_SETTINGS_KEY);
-    clearAll(); // Clear drip conditions on logout
-    pushNotificationService.deactivateToken().catch(() => {});
-    removeTokensAndLogout();
+    const performLogout = async () => {
+      // Call backend logout API to invalidate the session
+      try {
+        const accessToken = await getAccessToken();
+        if (accessToken) {
+          await fetch(LEARNER_LOGOUT_URL, {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+              "Content-Type": "application/json",
+            },
+          });
+        }
+      } catch (e) {
+        console.error("Logout failed on server, cleaning up locally anyway", e);
+      }
+
+      localStorage.removeItem(NAMING_SETTINGS_KEY);
+      clearAll();
+      pushNotificationService.deactivateToken().catch(() => {});
+      removeTokensAndLogout();
+    };
+
+    performLogout();
   }, [clearAll]);
 
   // After logout, navigate once domain routing has resolved (or honor explicit redirect)

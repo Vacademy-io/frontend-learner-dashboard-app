@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -20,6 +20,8 @@ import {
     setTokenInStorage,
 } from "@/lib/auth/sessionUtility";
 import { loginUser } from "@/components/common/auth/login/hooks/login-button";
+import type { ActiveSession } from "@/components/common/auth/login/hooks/login-button";
+import { ActiveSessionsModal } from "@/components/common/auth/login/components/active-sessions-modal";
 import { fetchAndStoreInstituteDetails } from "@/services/fetchAndStoreInstituteDetails";
 import { fetchAndStoreStudentDetails } from "@/services/studentDetails";
 import { useDomainRouting } from "@/hooks/use-domain-routing";
@@ -60,6 +62,8 @@ export function ModalUsernameLogin({
     const navigate = useNavigate();
     const [isLoading, setIsLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
+    const [sessionModalOpen, setSessionModalOpen] = useState(false);
+    const [activeSessions, setActiveSessions] = useState<ActiveSession[]>([]);
     const domainRouting = useDomainRouting();
 
     const form = useForm<FormValues>({
@@ -81,6 +85,14 @@ export function ModalUsernameLogin({
             setIsLoading(true);
         },
         onSuccess: async (response) => {
+            // Check if session limit exceeded
+            if (response.session_limit_exceeded && response.active_sessions) {
+                setIsLoading(false);
+                setActiveSessions(response.active_sessions);
+                setSessionModalOpen(true);
+                return;
+            }
+
             const { accessToken, refreshToken } = response;
 
             if (accessToken && refreshToken) {
@@ -252,6 +264,13 @@ export function ModalUsernameLogin({
             );
         },
     });
+
+    const retryLogin = useCallback(() => {
+        const values = form.getValues();
+        if (values.username && values.password) {
+            mutation.mutate(values);
+        }
+    }, [form, mutation]);
 
     function onSubmit(values: FormValues) {
         mutation.mutate(values);
@@ -467,6 +486,13 @@ export function ModalUsernameLogin({
                 
 
             </motion.div>
+
+            <ActiveSessionsModal
+                open={sessionModalOpen}
+                onOpenChange={setSessionModalOpen}
+                activeSessions={activeSessions}
+                onRetryLogin={retryLogin}
+            />
         </div>
     );
-} 
+}
