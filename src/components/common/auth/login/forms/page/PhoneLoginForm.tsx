@@ -26,7 +26,7 @@ import {
     getTokenDecodedData,
     setTokenInStorage,
 } from "@/lib/auth/sessionUtility";
-import { REQUEST_WHATSAPP_OTP, VERIFY_WHATSAPP_OTP } from "@/constants/urls";
+import { REQUEST_WHATSAPP_OTP, VERIFY_WHATSAPP_OTP_LOGIN } from "@/constants/urls";
 import { fetchAndStoreInstituteDetails } from "@/services/fetchAndStoreInstituteDetails";
 import { fetchAndStoreStudentDetails } from "@/services/studentDetails";
 import { useDomainRouting } from "@/hooks/use-domain-routing";
@@ -154,7 +154,7 @@ export function PhoneLoginForm({
 
     const verifyOtpMutation = useMutation({
         mutationFn: (data: { phone: string; otp: string }) =>
-            axios.post(VERIFY_WHATSAPP_OTP, { phone_number: data.phone, otp: data.otp, institute_id: domainRouting.instituteId }),
+            axios.post(VERIFY_WHATSAPP_OTP_LOGIN, { phone_number: data.phone, otp: data.otp, institute_id: domainRouting.instituteId }),
         onSuccess: async (response) => {
             try {
                 if (!response.data || !response.data.accessToken) {
