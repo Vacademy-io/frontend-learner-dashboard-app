@@ -2,6 +2,38 @@ import { Capacitor } from "@capacitor/core";
 import { App } from "@capacitor/app";
 import { flavorConfig } from "../../flavor.config";
 
+// Electron flavor config (matches electron/electron-flavor.config.ts)
+const electronFlavorConfig: Record<string, { appName: string; domain: string; subdomain: string }> = {
+  ssdc: {
+    appName: "SSDC Horizon",
+    domain: "vacademy.io",
+    subdomain: "ssdc",
+  },
+  shikshanation: {
+    appName: "Shiksha Nation",
+    domain: "vacademy.io",
+    subdomain: "shiksha-nation",
+  },
+};
+
+// Get current Electron flavor from window (injected by preload) or default to shikshanation
+const getElectronFlavor = (): string => {
+  if (typeof window !== "undefined") {
+    // Check for directly exposed flavor string
+    if ((window as any).__ELECTRON_FLAVOR__) {
+      return (window as any).__ELECTRON_FLAVOR__;
+    }
+    // Check for flavor info object
+    if ((window as any).electronFlavorInfo?.appId) {
+      const appId = (window as any).electronFlavorInfo.appId;
+      if (appId.includes("shikshanation")) return "shikshanation";
+      if (appId.includes("ssdc") || appId.includes("vacademy")) return "ssdc";
+    }
+  }
+  // Default to shikshanation for Shiksha Nation builds
+  return "shikshanation";
+};
+
 export interface PlatformFlavorInfo {
   platform: "web" | "android" | "ios" | "electron";
   isNative: boolean;
@@ -19,6 +51,7 @@ export interface PlatformFlavorInfo {
 export const getPlatformFlavorInfo = async (): Promise<PlatformFlavorInfo> => {
   const platform = Capacitor.getPlatform();
   const isNative = platform === "android" || platform === "ios";
+  const isElectron = platform === "electron";
 
   let appId: string | null = null;
   let flavorConfigData = null;
@@ -39,11 +72,21 @@ export const getPlatformFlavorInfo = async (): Promise<PlatformFlavorInfo> => {
     } catch (error) {
       console.error("[Platform Flavor] Error getting app info:", error);
     }
+  } else if (isElectron) {
+    // For Electron, use the electron flavor config
+    const electronFlavor = getElectronFlavor();
+    appId = `electron-${electronFlavor}`;
+    flavorConfigData = electronFlavorConfig[electronFlavor] || electronFlavorConfig.shikshanation;
+
+    console.log(
+      `[Platform Flavor] Detected Electron platform, flavor: ${electronFlavor}`,
+      flavorConfigData
+    );
   }
 
   return {
     platform: platform as "web" | "android" | "ios" | "electron",
-    isNative,
+    isNative: isNative || isElectron,
     flavorConfig: flavorConfigData,
     appId,
   };
