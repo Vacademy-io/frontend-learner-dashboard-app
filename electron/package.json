@@ -1,7 +1,7 @@
 {
-  "name": "SSDC_Horizon",
+  "name": "ShikshaNation",
   "version": "1.0.8",
-  "description": "The Learning System for SSDC",
+  "description": "The Learning System for Shiksha Nation",
   "author": {
     "name": "shreyash jain",
     "email": "shreyash@vidyayatan.com"
@@ -27,7 +27,8 @@
     "build:win:ssdc:legacy": "./build-windows.sh",
     "build:win:ssdc:asar": "./build-windows-asar-pnpm.sh",
     "build:win:ssdc:fast": "./build-windows-fast.sh",
-    "build:win:sevencs": "./build-windows-seven-cs.sh"
+    "build:win:sevencs": "./build-windows-seven-cs.sh",
+    "build:win:shikshanation": "ELECTRON_FLAVOR=shikshanation tsc && electron-rebuild && ELECTRON_FLAVOR=shikshanation npx electron-builder build --win -c ./electron-builder.shikshanation.json"
   },
   "dependencies": {
     "@capacitor-community/electron": "^5.0.0",
@@ -44,7 +45,7 @@
   },
   "devDependencies": {
     "electron": "^26.2.2",
-    "electron-builder": "~23.6.0",
+    "electron-builder": "~26.8.1",
     "electron-rebuild": "^3.2.9",
     "typescript": "^5.0.4"
   },

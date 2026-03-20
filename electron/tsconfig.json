@@ -1,6 +1,6 @@
 {
   "compileOnSave": true,
-  "include": ["./src/**/*", "./capacitor.config.ts", "./capacitor.config.js"],
+  "include": ["./src/**/*", "./capacitor.config.ts", "./capacitor.config.js", "./electron-flavor.config.ts"],
   "compilerOptions": {
     "outDir": "./build",
     "importHelpers": false,
