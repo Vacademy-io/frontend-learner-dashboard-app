@@ -32,9 +32,7 @@ export const CHATBOT_DISABLED_ROUTES = [
 // If this list is non-empty, ONLY routes matching these patterns will show the chatbot
 // If this list is empty, all routes NOT in DISABLED_ROUTES will show the chatbot
 export const CHATBOT_ENABLED_ROUTES: string[] = [
-  // Example: 
-  // "/slides",
-  // "/courses"
+  "/study-library/courses/course-details",
 ];
 
 /**
