@@ -43,6 +43,8 @@ export const FORGOT_PASSWORD = `${BASE_URL}/auth-service/v1/send-password`;
 export const LOGIN_BY_USERNAME_TRUSTED = `${BASE_URL}/auth-service/learner/v1/login-by-username-trusted`;
 
 export const REFRESH_TOKEN_URL = `${BASE_URL}/auth-service/learner/v1/refresh-token`;
+export const SESSION_LOGOUT_URL = `${BASE_URL}/auth-service/learner/v1/session/logout`;
+export const LEARNER_LOGOUT_URL = `${BASE_URL}/auth-service/learner/v1/logout`;
 export const INSTITUTE_DETAIL = `${BASE_URL}/admin-core-service/learner/v1/details-without-batches`;
 export const INSTITUTE_COMPLETE_DETAILS = `${BASE_URL}/admin-core-service/learner/v1/details`;
 export const STUDENT_DETAIL = `${BASE_URL}/admin-core-service/learner/info/v1/details`;
